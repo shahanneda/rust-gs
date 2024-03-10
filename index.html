@@ -4,7 +4,41 @@
 	<meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
 </head>
 
+<style>
+	* {
+		margin: 0;
+		padding: 0;
+	}
+
+	/* to remove the top and left whitespace */
+
+	html,
+	body {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* just to be sure these are full screen*/
+
+	canvas {
+		display: block;
+		/* height: 100vh; */
+		/* width: 100vw; */
+	}
+
+	/* To remove the scrollbars */
+</style>
+
+
 <body>
+	<script>
+		Error.stackTraceLimit = Infinity;
+
+		function test(){
+			console.log("this is a test function!")
+		}
+	</script>
+	<canvas id="canvas"></canvas>
 	<!-- Note the usage of `type=module` here as this is an ES6 module -->
 	<script type="module">
 		// Use ES module import syntax to import functionality from the module
@@ -14,9 +48,14 @@
 		// will "boot" the module and make it ready to use. Currently browsers
 		// don't support natively imported WebAssembly as an ES module, but
 		// eventually the manual initialization won't be required!
-		import init, { greet } from './pkg/gs_rust.js';
+		import init, {GSBuffer} from './pkg/gs_rust.js';
+		// import { GSBuffer } from "./pkg/gs_rust_bg.js";
+		// import { memory } from "wasm-game-of-life/wasm_game_of_life_bg";
+		
+		
 
 		async function run() {
+			// const cells = new Uint8Array();
 			// First up we need to actually load the wasm file, so we use the
 			// default export to inform it where the wasm file is located on the
 			// server, and then we wait on the returned promise to wait for the
@@ -43,9 +82,25 @@
 			// Also note that the promise, when resolved, yields the wasm module's
 			// exports which is the same as importing the `*_bg` module in other
 			// modes
-			await init();
+			const wasmInit = await init();
+			const memory = wasmInit.memory;
+			console.log(wasmInit)
 			// And afterwards we can use all the functionality defined in wasm.
 			// greet();
+			const buffer = GSBuffer.new();
+			const cellsPtr = buffer.cells;
+			console.log("cells ptr", cellsPtr);
+
+			const cells = new Uint8Array(memory.buffer, cellsPtr, 10);
+			for(let i = 0; i < 10; i++){
+				cells[i] = 99;
+			}
+
+			console.log(buffer);
+			console.log(buffer.width);
+			console.log(buffer.height);
+			// buffer.k();
+			buffer.display();
 		}
 
 		run();

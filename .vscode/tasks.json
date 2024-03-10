@@ -8,7 +8,9 @@
 			"group": "test",
 			"presentation": {
 				"reveal": "always",
-				"panel": "shared"
+				"panel": "shared",
+				"clear": true,
+				""
 			}
 		}
 	]
