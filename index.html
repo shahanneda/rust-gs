@@ -22,8 +22,8 @@
 
 	canvas {
 		display: block;
-		/* height: 100vh; */
-		/* width: 100vw; */
+		height: 800px; 
+		width: 1000px; 
 	}
 
 	/* To remove the scrollbars */
@@ -39,8 +39,91 @@
 		}
 	</script>
 	<canvas id="canvas"></canvas>
+	<!-- <canvas id="ui"></canvas> -->
 	<!-- Note the usage of `type=module` here as this is an ES6 module -->
+	<input id="slider_1" type="range" value="0" min="-100" max="100" oninput="this.nextElementSibling.value = this.value">
+	<output>0</output>
+	<input id="slider_2" type="range" value="0" min="-100" max="100" oninput="this.nextElementSibling.value = this.value">
+	<output>0</output>
+	<input id="slider_3" type="range" value="10" min="-100" max="100" oninput="this.nextElementSibling.value = this.value">
+	<output>-10</output>
+	<input id="slider_4" type="range" value="0" min="-1" max="1" oninput="this.nextElementSibling.value = this.value" step="0.01">
+	<output>0</output>
+	<input id="slider_5" type="range" value="0" min="-1" max="1" oninput="this.nextElementSibling.value = this.value" step="0.01">
+	<output>0</output>
 	<script type="module">
+
+		const look_speed = 0.05;
+		const move_speed = 1;
+		document.onkeydown = function(e) {
+			// console.log(e);
+			var key = e.key + e.location;
+			console.log(e.key);
+			// console.log(e.key);
+			if (e.key === "d") {
+				let slider1 = document.getElementById("slider_1");
+				slider1.value = parseInt(slider1.value) + move_speed;
+				slider1.nextElementSibling.value = slider1.value;
+			} else if (e.key === "a") {
+				let slider1 = document.getElementById("slider_1");
+				slider1.value = parseInt(slider1.value) -move_speed;
+				slider1.nextElementSibling.value = slider1.value;
+			} else if (e.key === "w") {
+				let slider3 = document.getElementById("slider_3");
+				slider3.value = parseInt(slider3.value) - move_speed;
+				slider3.nextElementSibling.value = slider3.value;
+			} else if (e.key === "s") {
+				let slider3 = document.getElementById("slider_3");
+				slider3.value = parseInt(slider3.value) + move_speed;
+				slider3.nextElementSibling.value = slider3.value;
+			} else if (e.key === " ") {
+				let slider = document.getElementById("slider_2");
+				slider.value = parseInt(slider.value) + move_speed;
+				slider.nextElementSibling.value = slider.value;
+			} else if (e.key === "z") {
+				let slider = document.getElementById("slider_2");
+				slider.value = parseInt(slider.value) - move_speed;
+				slider.nextElementSibling.value = slider.value;
+			} else if (e.key === "ArrowUp") {
+				let slider = document.getElementById("slider_4");
+				slider.value = parseFloat(slider.value) + look_speed;
+				slider.nextElementSibling.value = slider.value;
+			} else if (e.key === "ArrowDown") {
+				let slider = document.getElementById("slider_4");
+				slider.value = parseFloat(slider.value) - look_speed;
+				slider.nextElementSibling.value = slider.value;
+			} else if (e.key === "ArrowRight") {
+				let slider = document.getElementById("slider_5");
+				slider.value = parseFloat(slider.value) + look_speed;
+				slider.nextElementSibling.value = slider.value;
+			} else if (e.key === "ArrowLeft") {
+				let slider = document.getElementById("slider_5");
+				slider.value = parseFloat(slider.value) - look_speed;
+				slider.nextElementSibling.value = slider.value;
+			}
+		}
+
+		function resizeCanvasToDisplaySize(canvas) {
+			// https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+				// Lookup the size the browser is displaying the canvas in CSS pixels.
+				const displayWidth = canvas.clientWidth;
+				const displayHeight = canvas.clientHeight;
+
+				// Check if the canvas is not the same size.
+				const needResize = canvas.width !== displayWidth ||
+					canvas.height !== displayHeight;
+
+				if (needResize) {
+					// Make the canvas the same size
+					canvas.width = displayWidth;
+					canvas.height = displayHeight;
+				}
+
+				return needResize;
+			}
+			let canvas = document.getElementById("canvas");
+			resizeCanvasToDisplaySize(canvas);
+
 		// Use ES module import syntax to import functionality from the module
 		// that we have compiled.
 		//
@@ -48,7 +131,7 @@
 		// will "boot" the module and make it ready to use. Currently browsers
 		// don't support natively imported WebAssembly as an ES module, but
 		// eventually the manual initialization won't be required!
-		import init, {GSBuffer} from './pkg/gs_rust.js';
+		import init, {GSBuffer, set_slider_1} from './pkg/gs_rust.js';
 		// import { GSBuffer } from "./pkg/gs_rust_bg.js";
 		// import { memory } from "wasm-game-of-life/wasm_game_of_life_bg";
 		
@@ -85,6 +168,12 @@
 			const wasmInit = await init();
 			const memory = wasmInit.memory;
 			console.log(wasmInit)
+
+			document.getElementById("slider_1").onchange = (e) => {
+				set_slider_1(e.target.value);
+				console.log("in js", e.target.value);
+			}
+
 			// And afterwards we can use all the functionality defined in wasm.
 			// greet();
 			const buffer = GSBuffer.new();
@@ -95,6 +184,7 @@
 			for(let i = 0; i < 10; i++){
 				cells[i] = 99;
 			}
+
 
 			console.log(buffer);
 			console.log(buffer.width);

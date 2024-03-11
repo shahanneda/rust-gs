@@ -24,6 +24,15 @@ reqwest = { version = "0.11", features = ["blocking", "json"] }
 futures-io = { version = "0.2.0-beta" }
 wasm-bindgen-futures = "0.4.42"
 bytes = "1.5.0"
+nalgebra-glm = "0.18.0"
+egui = "0.26.2"
+getrandom = { version = "0.2", features = ["js"] }
+eframe = { version = "0.26.0", default-features = false, features = [
+    #"accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    #"persistence",   # Enable restoring app state when restarting the app.
+] }
 
 
 
@@ -33,6 +42,14 @@ wasm-bindgen-test = "0.3.34"
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = "0.4"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[patch.crates-io]
 
 [dependencies.web-sys]
 version = "0.3.4"
@@ -48,7 +65,7 @@ features = [
   'Node',
   'Window',
   'WebGlBuffer',
-  'WebGlRenderingContext',
+  'WebGl2RenderingContext',
   'WebGlProgram',
   'WebGlShader',
   'WebGlUniformLocation',

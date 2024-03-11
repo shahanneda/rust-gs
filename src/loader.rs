@@ -43,16 +43,14 @@ pub mod loader {
         let p = Parser::<ply::DefaultElement>::new();
         let ply = p.read_ply(&mut reader);
 
-        // // make sure it did work
         assert!(ply.is_ok());
         let ply = ply.expect("failed to parse ply!");
 
-        // // proof that data has been read
-        log!("Ply header: {:#?}", ply.header);
-        log!("Number of splats: {:#?}", ply.payload["vertex"].len());
-        log!("x: {:#?}", ply.payload["vertex"][0]["x"]);
-        log!("y: {:#?}", ply.payload["vertex"][0]["y"]);
-        log!("z: {:#?}", ply.payload["vertex"][0]["rot_2"]);
+        // log!("Ply header: {:#?}", ply.header);
+        // log!("Number of splats: {:#?}", ply.payload["vertex"].len());
+        // log!("x: {:#?}", ply.payload["vertex"][0]["x"]);
+        // log!("y: {:#?}", ply.payload["vertex"][0]["y"]);
+        // log!("z: {:#?}", ply.payload["vertex"][0]["rot_2"]);
 
         let vertex_vals = &ply.payload["vertex"];
 	
