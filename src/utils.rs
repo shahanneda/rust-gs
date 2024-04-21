@@ -105,3 +105,7 @@ pub fn request_animation_frame(f: &Closure<dyn FnMut(f32)>) {
         .request_animation_frame(f.as_ref().unchecked_ref())
         .expect("should register `requestAnimationFrame` OK");
 }
+
+pub fn sigmoid(val: f32) -> f32{
+    1.0 / (1.0 + (-val).exp())
+}

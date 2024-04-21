@@ -4,16 +4,23 @@ mod scene;
 mod loader;
 mod shader;
 mod gui;
+mod ply_splat;
 
 
 
 use std::cell::RefCell;
+use std::num;
+// use std::num;
 use std::rc::Rc;
 
+use egui::debug_text::print;
+use egui::util::undoer::Settings;
+// use egui::epaint::Vertex;
 // use egui::frame;
 use glm::log;
 use glm::Mat4;
-use utils::{compile_shader, link_program, set_panic_hook};
+use scene::Scene;
+use utils::set_panic_hook;
 extern crate js_sys;
 extern crate ply_rs;
 extern crate wasm_bindgen;
@@ -26,6 +33,7 @@ use wasm_bindgen::JsCast;
 use web_sys::HtmlCanvasElement;
 use web_sys::HtmlInputElement;
 use web_sys::WebGl2RenderingContext;
+use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
 
 
@@ -82,6 +90,9 @@ extern "C" {
     // // Multiple arguments too!
     // #[wasm_bindgen(js_namespace = console, js_name = log)]
     // fn log_many(a: &str, b: &str);
+
+    #[wasm_bindgen(js_name = getWebGLContext)]
+    fn getWebGLContext() -> WebGl2RenderingContext;
 
     #[wasm_bindgen(js_name = test)]
     fn test_js();
@@ -166,61 +177,172 @@ async fn test() -> Result<(), JsValue> {
     return Ok(());
 }
 
-fn render_webgl(canvas: &web_sys::HtmlCanvasElement) -> Result<(WebGl2RenderingContext, WebGlProgram), JsValue> {
 
-    let gl = canvas
-        .get_context("webgl2")?
-        .unwrap()
-        .dyn_into::<WebGl2RenderingContext>()?;
+fn create_and_bind_buffer(gl: &WebGl2RenderingContext, vertices_array: Float32Array) -> Result<WebGlBuffer, &'static str> {
+    let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
+    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
+    gl.buffer_data_with_array_buffer_view(
+        WebGl2RenderingContext::ARRAY_BUFFER,
+        &vertices_array,
+        WebGl2RenderingContext::STATIC_DRAW,
+    );
+    return Ok(buffer);
+}
+
+fn create_attribute_and_get_location(gl: &WebGl2RenderingContext, buffer: WebGlBuffer, program: &WebGlProgram, name: &str, divisor: bool, size: i32) -> u32{
+    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
+    let coord = gl.get_attrib_location(&program, name) as u32;
+    gl.enable_vertex_attrib_array(coord);
+    gl.vertex_attrib_pointer_with_i32(coord, size, WebGl2RenderingContext::FLOAT, false, 0, 0);
+    if divisor {
+        gl.vertex_attrib_divisor(coord, 1);
+    }
+    return coord;
+}
+
+
+fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
+    let memory_buffer = wasm_bindgen::memory()
+        .dyn_into::<WebAssembly::Memory>().unwrap()
+        .buffer();
+    let location: u32 = vec.as_ptr() as u32 / 4;
+    return Float32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
+}
+
+fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgram, JsValue> {
+
 
     /*==========Defining and storing the geometry=======*/
 
-    let vertices: [f32; 9*2] = [
+    let vertices: [f32; 3*4] = [
         // 300.0, 500.0, 4.0, //
         // 0.0, 0.0, 4.0, //
         // 100.0, 700.0, 4.0, //
         //
         0.0, 0.0, 0.0, //
         1.0, 0.0, 0.0, //
+        0.0, 1.0, 0.0, //
         1.0, 1.0, 0.0, //
-        0.0, 0.0, 1.0, //
-        1.0, 0.0, 1.0, //
-        1.0, 1.0, 1.0, //
+        // 1.0, 0.0, 1.0, //
+        // 1.0, 1.0, 1.0, //
         //
         // -0.5, 0.5, 4.1, //
         // 0.0, 0.5, 4.1, //
         // -0.25, 0.25, 4.1, //
     ];
-    let vertices_array = {
+    let vertices = vertices.map(|v| v*0.01);
+
+    let splat_centers = scene.splats.iter().map(|s| {
+        let x = s.x as f32;
+        let y = s.y as f32;
+        let z = s.z as f32;
+        return [x, y, z];
+    }).flatten().collect::<Vec<f32>>();
+
+    // let one = splat_centers[0];
+    // let two = splat_centers[0];
+    // let three = splat_centers[0];
+    // log!("{one} {two} {three}");
+
+    let splat_colors = scene.splats.iter().map(|s| { 
+        return [s.r, s.g, s.b];
+    }).flatten().collect::<Vec<f32>>();
+
+    let splat_cov3da = scene.splats.iter().map(|s| { 
+        return [s.cov3d[0], s.cov3d[1], s.cov3d[2]];
+    }).flatten().collect::<Vec<f32>>();
+    log!("{splat_cov3da:?}");
+    let splat_cov3db = scene.splats.iter().map(|s| { 
+        return [s.cov3d[3], s.cov3d[4], s.cov3d[5]];
+    }).flatten().collect::<Vec<f32>>();
+
+
+    // let splat_centers: [f32; 3*4] = [
+    //     // 300.0, 500.0, 4.0, //
+    //     // 0.0, 0.0, 4.0, //
+    //     // 100.0, 700.0, 4.0, //
+    //     //
+    //     -0.5, -0.5, -0.5, //
+    //     0.5, 1.0, 0.5, //
+    //     0.0, 2.0, 0.0, //
+    //     0.0, 3.0, 0.0, //
+    //     // 0.0, 1.0, 0.0, //
+    //     // 0.0, 1.0, 0.0, //
+    //     //
+    //     // -0.5, 0.5, 4.1, //
+    //     // 0.0, 0.5, 4.1, //
+    //     // -0.25, 0.25, 4.1, //
+    // ];
+
+    // let splat_colors: [f32; 3*4] = [
+    //     // 300.0, 500.0, 4.0, //
+    //     // 0.0, 0.0, 4.0, //
+    //     // 100.0, 700.0, 4.0, //
+    //     //
+    //     1.0, 0.0, 0.0, //
+    //     0.0, 1.0, 0.0, //
+    //     0.0, 0.0, 1.0, //
+    //     1.0, 1.0, 0.0, //
+    //     // 0.0, 1.0, 0.0, //
+    //     // 0.0, 1.0, 0.0, //
+    //     //
+    //     // -0.5, 0.5, 4.1, //
+    //     // 0.0, 0.5, 4.1, //
+    //     // -0.25, 0.25, 4.1, //
+    // ];
+
+
+
+
+    // let vertices_array = {
+    //     let memory_buffer = wasm_bindgen::memory()
+    //         .dyn_into::<WebAssembly::Memory>()?
+    //         .buffer();
+    //     let location: u32 = vertices.as_ptr() as u32 / 4;
+    //     Float32Array::new(&memory_buffer).subarray(location, location + vertices.len() as u32)
+    // };
+
+    let splat_center_array = {
         let memory_buffer = wasm_bindgen::memory()
             .dyn_into::<WebAssembly::Memory>()?
             .buffer();
-        let location: u32 = vertices.as_ptr() as u32 / 4;
-        Float32Array::new(&memory_buffer).subarray(location, location + vertices.len() as u32)
+        let location: u32 = splat_centers.as_ptr() as u32 / 4;
+        Float32Array::new(&memory_buffer).subarray(location, location + splat_centers.len() as u32)
     };
 
+    let vertices_array = float32_array_from_vec(&vertices);
+    let colors_array = float32_array_from_vec(&splat_colors);
+    let cov3da_array = float32_array_from_vec(&splat_cov3da);
+    let cov3db_array = float32_array_from_vec(&splat_cov3db);
 
+    // let colors_array = {
+    //     let memory_buffer = wasm_bindgen::memory()
+    //         .dyn_into::<WebAssembly::Memory>()?
+    //         .buffer();
+    //     let location: u32 = splat_colors.as_ptr() as u32 / 4;
+    //     Float32Array::new(&memory_buffer).subarray(location, location + splat_colors.len() as u32)
+    // };
+    // let splat_center_array = float32_array_from_vec(splat_centers.to_vec());
 
-    let vertex_buffer = gl.create_buffer().ok_or("failed to create buffer")?;
-    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
-    gl.buffer_data_with_array_buffer_view(
-        WebGl2RenderingContext::ARRAY_BUFFER,
-        &vertices_array,
-        WebGl2RenderingContext::STATIC_DRAW,
-    );
+    let vertex_buffer = create_and_bind_buffer(&gl, vertices_array).unwrap();
+    let color_buffer = create_and_bind_buffer(&gl, colors_array).unwrap();
+    let position_offset_buffer = create_and_bind_buffer(&gl, splat_center_array).unwrap();
+    let cov3da_buffer = create_and_bind_buffer(&gl, cov3da_array).unwrap();
+    let cov3db_buffer = create_and_bind_buffer(&gl, cov3db_array).unwrap();
+
     gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
 
     let shader_program = shader::shader::create_shader_program(&gl).unwrap();
     gl.use_program(Some(&shader_program));
 
+    create_attribute_and_get_location(&gl, vertex_buffer, &shader_program, "v_pos", false, 3);
+    create_attribute_and_get_location(&gl, color_buffer, &shader_program, "s_color", true, 3);
+    create_attribute_and_get_location(&gl, position_offset_buffer, &shader_program, "s_center", true, 3);
+    create_attribute_and_get_location(&gl, cov3da_buffer, &shader_program, "s_cov3da", true, 3);
+    create_attribute_and_get_location(&gl, cov3db_buffer, &shader_program, "s_cov3db", true, 3);
 
-    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
 
-    let coord = gl.get_attrib_location(&shader_program, "coordinates") as u32;
-    gl.vertex_attrib_pointer_with_i32(coord, 3, WebGl2RenderingContext::FLOAT, false, 0, 0);
-    gl.enable_vertex_attrib_array(coord);
-
-    return Ok((gl, shader_program));
+    return Ok(shader_program);
 }
 
 
@@ -231,7 +353,7 @@ fn get_slider_value(id: &str) -> f32 {
     return element.dyn_into::<HtmlInputElement>().unwrap().value().parse().unwrap();
 }
 
-fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web_sys::HtmlCanvasElement, frame_num: i32){
+fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web_sys::HtmlCanvasElement, frame_num: i32, num_vertices: i32){
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
     let current_amount = (frame_num % 100) as f32/100.0;
@@ -242,7 +364,6 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     let slider4val = get_slider_value("slider_4");
     let slider5val = get_slider_value("slider_5");
 
-    log!("val from rust only is  {}" , slider4val);
     gl.use_program(Some(&shader_program));
 
     let mut model: Mat4 = glm::identity();
@@ -281,7 +402,8 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     // log!("s is {}", s);
 
     // Clear the canvas
-    gl.clear_color(0.5, 0.5, 0.5, 0.9);
+    // gl.clear_color(0.5, 0.5, 0.5, 0.9);
+    gl.clear_color(0.0, 0.0, 0.0, 1.0);
 
     // Enable the depth test
     gl.enable(WebGl2RenderingContext::DEPTH_TEST);
@@ -289,11 +411,22 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     // Clear the color buffer bit
     gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
+    // gl.enable(WebGl2RenderingContext::ALIASED_POINT_SIZE_RANGE);
+
     // Set the view port
     gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
 
     // Draw the triangle
-    gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
+
+
+    // gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
+    let gaussian_count = num_vertices;
+
+    // gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 6);
+    // gl.draw_arrays(WebGl2RenderingContext::POINTS, 0, 3);
+    gl.draw_arrays_instanced( WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
+
+    // gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, settings.maxGaussians);
 
     return 
 }
@@ -329,7 +462,8 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
     set_panic_hook();
-    // let scene = loader::loader::load_ply().await.expect("something went wrong in loading");
+    let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
+    let scene = Scene::new(ply_splat);
 
     // log!("{}", scene.splats.len());
     // log!("{}", scene.splats[0].x);
@@ -361,11 +495,20 @@ pub async fn start() -> Result<(), JsValue> {
     // });
 
     /*============ Creating a canvas =================*/
+
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
     let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
-    let (gl, program) = render_webgl(&canvas).unwrap();
+    let gl = getWebGLContext();
+
+    // let gl = canvas
+    //     .get_context("webgl2")?
+    //     .unwrap()
+    //     .dyn_into::<WebGl2RenderingContext>()?;
+    // log!("context from js is: {context}");
+
+    let program = setup_webgl(&gl, &scene).unwrap();
 
 
     let f = Rc::new(RefCell::new(None));
@@ -381,7 +524,7 @@ pub async fn start() -> Result<(), JsValue> {
         //     let _ = f.borrow_mut().take();
         //     return;
         // }
-        draw(&gl, &program, &canvas, i);
+        draw(&gl, &program, &canvas, i, scene.splats.len() as i32);
 
         // Set the body's text content to how many times this
         // requestAnimationFrame callback has fired.

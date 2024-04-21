@@ -31,6 +31,7 @@
 
 
 <body>
+	<script src="webgl-debug.js"></script>
 	<script>
 		Error.stackTraceLimit = Infinity;
 
@@ -51,6 +52,14 @@
 	<output>0</output>
 	<input id="slider_5" type="range" value="0" min="-1" max="1" oninput="this.nextElementSibling.value = this.value" step="0.01">
 	<output>0</output>
+	<script>
+		function getWebGLContext(){
+			// alert("hello!");
+			ctx = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"));
+			return ctx;
+
+		}
+	</script>
 	<script type="module">
 
 		const look_speed = 0.05;
