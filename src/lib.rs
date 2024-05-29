@@ -67,12 +67,10 @@ impl GSBuffer {
     }
 
     pub fn k() {
-        log!("hello");
     }
 
     pub fn display(&self) {
         let num = self.cells[0];
-        log!("cell 0 is {num}");
     }
 }
 
@@ -121,7 +119,6 @@ pub fn set_slider_1(val: f32) {
     unsafe{
         slider1 = val;
     }
-    log!("testing {}", val);
     // log_u32(42);
     // log_many("Logging", "many values!");
 }
@@ -219,9 +216,9 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
         // 0.0, 0.0, 4.0, //
         // 100.0, 700.0, 4.0, //
         //
-        0.0, 0.0, 0.0, //
-        1.0, 0.0, 0.0, //
-        0.0, 1.0, 0.0, //
+        -1.0, -1.0, 0.0, //
+        1.0, -1.0, 0.0, //
+        -1.0, 1.0, 0.0, //
         1.0, 1.0, 0.0, //
         // 1.0, 0.0, 1.0, //
         // 1.0, 1.0, 1.0, //
@@ -230,7 +227,7 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
         // 0.0, 0.5, 4.1, //
         // -0.25, 0.25, 4.1, //
     ];
-    let vertices = vertices.map(|v| v*0.01);
+    let vertices = vertices.map(|v| v);
 
     let splat_centers = scene.splats.iter().map(|s| {
         let x = s.x as f32;
@@ -243,20 +240,6 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
     // let two = splat_centers[0];
     // let three = splat_centers[0];
     // log!("{one} {two} {three}");
-
-    let splat_colors = scene.splats.iter().map(|s| { 
-        return [s.r, s.g, s.b];
-    }).flatten().collect::<Vec<f32>>();
-
-    let splat_cov3da = scene.splats.iter().map(|s| { 
-        return [s.cov3d[0], s.cov3d[1], s.cov3d[2]];
-    }).flatten().collect::<Vec<f32>>();
-    log!("{splat_cov3da:?}");
-    let splat_cov3db = scene.splats.iter().map(|s| { 
-        return [s.cov3d[3], s.cov3d[4], s.cov3d[5]];
-    }).flatten().collect::<Vec<f32>>();
-
-
     // let splat_centers: [f32; 3*4] = [
     //     // 300.0, 500.0, 4.0, //
     //     // 0.0, 0.0, 4.0, //
@@ -302,6 +285,22 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
     //     Float32Array::new(&memory_buffer).subarray(location, location + vertices.len() as u32)
     // };
 
+    let splat_colors = scene.splats.iter().map(|s| { 
+        return [s.r, s.g, s.b];
+    }).flatten().collect::<Vec<f32>>();
+
+    let splat_cov3da = scene.splats.iter().map(|s| { 
+        return [s.cov3d[0], s.cov3d[1], s.cov3d[2]];
+    }).flatten().collect::<Vec<f32>>();
+    let splat_cov3db = scene.splats.iter().map(|s| { 
+        return [s.cov3d[3], s.cov3d[4], s.cov3d[5]];
+    }).flatten().collect::<Vec<f32>>();
+    let splat_opacities = scene.splats.iter().map(|s| { 
+        return s.opacity;
+    }).collect::<Vec<f32>>();
+
+
+
     let splat_center_array = {
         let memory_buffer = wasm_bindgen::memory()
             .dyn_into::<WebAssembly::Memory>()?
@@ -314,6 +313,7 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
     let colors_array = float32_array_from_vec(&splat_colors);
     let cov3da_array = float32_array_from_vec(&splat_cov3da);
     let cov3db_array = float32_array_from_vec(&splat_cov3db);
+    let opacities_array = float32_array_from_vec(&splat_opacities);
 
     // let colors_array = {
     //     let memory_buffer = wasm_bindgen::memory()
@@ -329,6 +329,7 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
     let position_offset_buffer = create_and_bind_buffer(&gl, splat_center_array).unwrap();
     let cov3da_buffer = create_and_bind_buffer(&gl, cov3da_array).unwrap();
     let cov3db_buffer = create_and_bind_buffer(&gl, cov3db_array).unwrap();
+    let opacity_buffer = create_and_bind_buffer(&gl, opacities_array).unwrap();
 
     gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
 
@@ -340,6 +341,7 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
     create_attribute_and_get_location(&gl, position_offset_buffer, &shader_program, "s_center", true, 3);
     create_attribute_and_get_location(&gl, cov3da_buffer, &shader_program, "s_cov3da", true, 3);
     create_attribute_and_get_location(&gl, cov3db_buffer, &shader_program, "s_cov3db", true, 3);
+    create_attribute_and_get_location(&gl, opacity_buffer, &shader_program, "s_opacity", true, 1);
 
 
     return Ok(shader_program);
@@ -353,7 +355,33 @@ fn get_slider_value(id: &str) -> f32 {
     return element.dyn_into::<HtmlInputElement>().unwrap().value().parse().unwrap();
 }
 
-fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web_sys::HtmlCanvasElement, frame_num: i32, num_vertices: i32){
+fn set_float_uniform_value(shader_program: &WebGlProgram, gl: &WebGl2RenderingContext, name: &str, value: f32){ 
+    // log!("name: {}", name);
+    let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
+    gl.uniform1f(Some(&uniform_location), value);
+}
+
+fn set_vec3_uniform_value(shader_program: &WebGlProgram, gl: &WebGl2RenderingContext, name: &str, value: [f32; 3]){ 
+    // log!("name: {}", name);
+    let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
+    gl.uniform3fv_with_f32_array(Some(&uniform_location), value.as_slice());
+}
+
+// const invertRow = (mat, row) => {
+//   mat[row + 0] = -mat[row + 0];
+//   mat[row + 4] = -mat[row + 4];
+//   mat[row + 8] = -mat[row + 8];
+//   mat[row + 12] = -mat[row + 12];
+// };
+fn invertRow(mat: &mut glm::Mat4, row: usize){
+  mat[row + 0] = -mat[row + 0];
+  mat[row + 4] = -mat[row + 4];
+  mat[row + 8] = -mat[row + 8];
+  mat[row + 12] = -mat[row + 12];
+}
+
+
+fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web_sys::HtmlCanvasElement, frame_num: i32, num_vertices: i32, vpm: glm::Mat4, vm: glm::Mat4){
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
     let current_amount = (frame_num % 100) as f32/100.0;
@@ -364,38 +392,62 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     let slider4val = get_slider_value("slider_4");
     let slider5val = get_slider_value("slider_5");
 
-    gl.use_program(Some(&shader_program));
 
-    let mut model: Mat4 = glm::identity();
-    let model_scale = 3.0f32;
-    model = glm::translate(&model, &glm::vec3(0.0f32, 0.0f32, 0.0f32));
-    // model = glm::rotate_y(&model, current_amount*2.0*glm::pi::<f32>());
-    model = glm::scale(&model, &glm::vec3(model_scale, model_scale, model_scale));
-
-    let mut camera: Mat4 = glm::identity();
-    camera = glm::translate(&camera, &glm::vec3(slider1val, slider2val, slider3val));
-    camera = glm::rotate_x(&camera, slider4val*glm::pi::<f32>());
-    camera = glm::rotate_y(&camera, -slider5val*glm::pi::<f32>());
-    camera = camera.try_inverse().unwrap();
-
+    // let mut model: Mat4 = glm::identity();
+    // let model_scale = 3.0f32;
+    // model = glm::translate(&model, &glm::vec3(0.0f32, 0.0f32, 0.0f32));
+    // // model = glm::rotate_y(&model, current_amount*2.0*glm::pi::<f32>());
+    // model = glm::scale(&model, &glm::vec3(model_scale, model_scale, model_scale));
     // camera = glm::translate(&camera, &glm::vec3(0f32, 0f32, 0f32));
-
     // let mut proj = glm::ortho(0f32, 800f32, 0f32, 1000f32, 0.0f32, 10f32);
-    let mut proj = glm::perspective((width as f32)/ (height as f32), 0.78f32, 0.1f32, 100f32);
     // glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width/(float)height, 0.1f, 100.0f);
-
-
     // proj.fill_with_identity();
 
 
-    let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
-    gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
+    // let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
+    // gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
+    gl.use_program(Some(&shader_program));
 
-    let camera_uniform_location = gl.get_uniform_location(&shader_program, "camera").unwrap();
-    gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, camera.as_slice());
+
+
 
     let proj_uniform_location = gl.get_uniform_location(&shader_program, "projection").unwrap();
-    gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, proj.as_slice());
+    gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
+
+    let camera_uniform_location = gl.get_uniform_location(&shader_program, "camera").unwrap();
+    gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
+
+    // gl.uniform1f(gl.getUniformLocation(program, "W"), W);
+    // gl.uniform1f(gl.getUniformLocation(program, "H"), H);
+    // gl.uniform1f(gl.getUniformLocation(program, "focal_x"), focal_x);
+    // gl.uniform1f(gl.getUniformLocation(program, "focal_y"), focal_y);
+    // gl.uniform1f(gl.getUniformLocation(program, "tan_fovx"), tan_fovx);
+    // gl.uniform1f(gl.getUniformLocation(program, "tan_fovy"), tan_fovy);
+    // gl.uniform1f(
+    //     gl.getUniformLocation(program, "scale_modifier"),
+    //     settings.scalingModifier
+    // );
+    // gl.uniform3fv(gl.getUniformLocation(program, "boxmin"), sceneMin);
+    // gl.uniform3fv(gl.getUniformLocation(program, "boxmax"), sceneMax);
+    let width = width as f32;
+    let height = height as f32;
+    let tan_fovy = f32::tan(0.820176 * 0.5);
+    let tan_fovx = (tan_fovy * width) / height;
+    let focal_y = height / (2.0 * tan_fovy);
+    let focal_x = width / (2.0 * tan_fovx);
+    set_float_uniform_value(shader_program, gl, "W", width as f32);
+    set_float_uniform_value(shader_program, gl, "H", height as f32);
+    set_float_uniform_value(shader_program, gl, "focal_x", focal_x);
+    set_float_uniform_value(shader_program, gl, "focal_y", focal_y);
+    set_float_uniform_value(shader_program, gl, "tan_fovx", tan_fovx);
+    set_float_uniform_value(shader_program, gl, "tan_fovy", tan_fovy);
+    // set_float_uniform_value(shader_program, gl, "scale_modifier", 1.0);
+
+    // TODO: edit these
+    // set_vec3_uniform_value(shader_program, gl, "boxmin", [-1.0, -1.0, -1.0]);
+    // set_vec3_uniform_value(shader_program, gl, "boxmax", [1.0, 1.0, 1.0]);
+
+
 
  
     // let s = promptJS("eh;");
@@ -405,16 +457,22 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     // gl.clear_color(0.5, 0.5, 0.5, 0.9);
     gl.clear_color(0.0, 0.0, 0.0, 1.0);
 
+    // Set the view port
+    gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
+    
     // Enable the depth test
-    gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+    // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
 
     // Clear the color buffer bit
+    // gl.clear_color(0.0, 0.0, 0.0, 0.0);
     gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+
+    gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+	gl.enable(WebGl2RenderingContext::BLEND);
+	gl.blend_func(WebGl2RenderingContext::ONE_MINUS_CONSTANT_ALPHA, WebGl2RenderingContext::ONE);
 
     // gl.enable(WebGl2RenderingContext::ALIASED_POINT_SIZE_RANGE);
 
-    // Set the view port
-    gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
 
     // Draw the triangle
 
@@ -458,12 +516,45 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
         .unwrap()
 }
 
+pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene) -> (Mat4, Mat4){
+    let slider1val = get_slider_value("slider_1");
+    let slider2val = get_slider_value("slider_2");
+    let slider3val = get_slider_value("slider_3");
+    let slider4val = get_slider_value("slider_4");
+    let slider5val = get_slider_value("slider_5");
+
+    let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
+    let mut camera: Mat4 = glm::identity();
+    camera = glm::translate(&camera, &glm::vec3(slider1val, slider2val, slider3val));
+    camera = glm::rotate_x(&camera, slider4val*glm::pi::<f32>());
+    camera = glm::rotate_y(&camera, -slider5val*glm::pi::<f32>());
+    camera = camera.try_inverse().unwrap();
+    let mut vm = camera;
+    let mut vpm = proj * camera;
+    invertRow(&mut vm, 1);
+    invertRow(&mut vm, 2);
+    invertRow(&mut vpm, 1);
+    invertRow(&mut vm, 0);
+    invertRow(&mut vpm, 0);
+    scene.sort_splats_based_on_depth(vpm);
+    return (vm, vpm)
+}
+
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
     set_panic_hook();
     let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
-    let scene = Scene::new(ply_splat);
+    let mut scene = Scene::new(ply_splat);
+
+
+    let document = web_sys::window().unwrap().document().unwrap();
+    let canvas = document.get_element_by_id("canvas").unwrap();
+    let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
+
+    let width = canvas.width() as i32;
+    let height = canvas.height() as i32;
+
 
     // log!("{}", scene.splats.len());
     // log!("{}", scene.splats[0].x);
@@ -496,10 +587,6 @@ pub async fn start() -> Result<(), JsValue> {
 
     /*============ Creating a canvas =================*/
 
-    let document = web_sys::window().unwrap().document().unwrap();
-    let canvas = document.get_element_by_id("canvas").unwrap();
-    let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
-
     let gl = getWebGLContext();
 
     // let gl = canvas
@@ -524,7 +611,9 @@ pub async fn start() -> Result<(), JsValue> {
         //     let _ = f.borrow_mut().take();
         //     return;
         // }
-        draw(&gl, &program, &canvas, i, scene.splats.len() as i32);
+        let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene);
+        // TODO: reload restored splats into buffers at this point
+        draw(&gl, &program, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
         // Set the body's text content to how many times this
         // requestAnimationFrame callback has fired.
