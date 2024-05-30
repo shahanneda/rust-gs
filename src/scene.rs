@@ -177,7 +177,7 @@ impl Scene {
         };
 
         self.splats.sort_by(|a, b| 
-            calc_depth(&a).partial_cmp(&calc_depth(&b)).unwrap())
+            calc_depth(&b).partial_cmp(&calc_depth(&a)).unwrap())
         // const calcDepth = (i) =>
         //     gaussians.positions[i * 3] * viewMatrix[2] +
         //     gaussians.positions[i * 3 + 1] * viewMatrix[6] +

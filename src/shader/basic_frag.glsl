@@ -44,9 +44,9 @@ void main() {
     //     color = depth_palette(depth * .08);
     // }
 
-    if (alpha < 1./255.) {
-        discard;
-    }
+    // if (alpha < 1./255.) {
+    //     discard;
+    // }
 
     // Eq. (3) from 3D Gaussian splatting paper.
     fragColor = vec4(color*alpha,  alpha);
@@ -55,5 +55,5 @@ void main() {
     // fragColor = vec4(0, 0, 0, 1);
     // fragColor = vec4(color*alpha,  1);
     // fragColor = vec4(alpha, 0, 0,  1);
-    // fragColor = vec4(color, 1);
+    // fragColor = vec4(color, 0.5);
 }

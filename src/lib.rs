@@ -175,18 +175,22 @@ async fn test() -> Result<(), JsValue> {
 }
 
 
-fn create_and_bind_buffer(gl: &WebGl2RenderingContext, vertices_array: Float32Array) -> Result<WebGlBuffer, &'static str> {
-    let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
+fn update_buffer_data(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: Float32Array) {
     gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
     gl.buffer_data_with_array_buffer_view(
         WebGl2RenderingContext::ARRAY_BUFFER,
-        &vertices_array,
+        &data,
         WebGl2RenderingContext::STATIC_DRAW,
     );
+}
+
+fn create_buffer(gl: &WebGl2RenderingContext) -> Result<WebGlBuffer, &'static str> {
+    let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
     return Ok(buffer);
 }
 
-fn create_attribute_and_get_location(gl: &WebGl2RenderingContext, buffer: WebGlBuffer, program: &WebGlProgram, name: &str, divisor: bool, size: i32) -> u32{
+
+fn create_attribute_and_get_location(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, program: &WebGlProgram, name: &str, divisor: bool, size: i32) -> u32{
     gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
     let coord = gl.get_attrib_location(&program, name) as u32;
     gl.enable_vertex_attrib_array(coord);
@@ -206,11 +210,45 @@ fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
     return Float32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
 }
 
-fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgram, JsValue> {
+struct WebGLSetupResult {
+    gl: WebGl2RenderingContext,
+    program: WebGlProgram,
+    vertex_buffer: WebGlBuffer,
+    color_buffer: WebGlBuffer,
+    position_offset_buffer: WebGlBuffer,
+    cov3da_buffer: WebGlBuffer,
+    cov3db_buffer: WebGlBuffer,
+    opacity_buffer: WebGlBuffer
+}
 
+fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
+    let mut splat_centers = Vec::new();
+    let mut splat_colors = Vec::new();
+    let mut splat_cov3da = Vec::new();
+    let mut splat_cov3db = Vec::new();
+    let mut splat_opacities = Vec::new();
+
+
+    for s in &scene.splats {
+        splat_centers.extend_from_slice(&[s.x, s.y, s.z]);
+        splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
+        splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
+        splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
+        splat_opacities.push(s.opacity);
+    }
+
+    update_buffer_data(&webgl.gl, &webgl.vertex_buffer, float32_array_from_vec(&splat_centers));
+    update_buffer_data(&webgl.gl, &webgl.color_buffer, float32_array_from_vec(&splat_colors));
+    update_buffer_data(&webgl.gl, &webgl.position_offset_buffer, float32_array_from_vec(&splat_centers));
+    update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
+    update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
+    update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
+}
+
+
+fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupResult, JsValue> {
 
     /*==========Defining and storing the geometry=======*/
-
     let vertices: [f32; 3*4] = [
         // 300.0, 500.0, 4.0, //
         // 0.0, 0.0, 4.0, //
@@ -229,12 +267,6 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
     ];
     let vertices = vertices.map(|v| v);
 
-    let splat_centers = scene.splats.iter().map(|s| {
-        let x = s.x as f32;
-        let y = s.y as f32;
-        let z = s.z as f32;
-        return [x, y, z];
-    }).flatten().collect::<Vec<f32>>();
 
     // let one = splat_centers[0];
     // let two = splat_centers[0];
@@ -277,74 +309,39 @@ fn setup_webgl(gl: &WebGl2RenderingContext, scene : &Scene) -> Result<WebGlProgr
 
 
 
-    // let vertices_array = {
-    //     let memory_buffer = wasm_bindgen::memory()
-    //         .dyn_into::<WebAssembly::Memory>()?
-    //         .buffer();
-    //     let location: u32 = vertices.as_ptr() as u32 / 4;
-    //     Float32Array::new(&memory_buffer).subarray(location, location + vertices.len() as u32)
-    // };
-
-    let splat_colors = scene.splats.iter().map(|s| { 
-        return [s.r, s.g, s.b];
-    }).flatten().collect::<Vec<f32>>();
-
-    let splat_cov3da = scene.splats.iter().map(|s| { 
-        return [s.cov3d[0], s.cov3d[1], s.cov3d[2]];
-    }).flatten().collect::<Vec<f32>>();
-    let splat_cov3db = scene.splats.iter().map(|s| { 
-        return [s.cov3d[3], s.cov3d[4], s.cov3d[5]];
-    }).flatten().collect::<Vec<f32>>();
-    let splat_opacities = scene.splats.iter().map(|s| { 
-        return s.opacity;
-    }).collect::<Vec<f32>>();
-
-
-
-    let splat_center_array = {
-        let memory_buffer = wasm_bindgen::memory()
-            .dyn_into::<WebAssembly::Memory>()?
-            .buffer();
-        let location: u32 = splat_centers.as_ptr() as u32 / 4;
-        Float32Array::new(&memory_buffer).subarray(location, location + splat_centers.len() as u32)
-    };
-
-    let vertices_array = float32_array_from_vec(&vertices);
-    let colors_array = float32_array_from_vec(&splat_colors);
-    let cov3da_array = float32_array_from_vec(&splat_cov3da);
-    let cov3db_array = float32_array_from_vec(&splat_cov3db);
-    let opacities_array = float32_array_from_vec(&splat_opacities);
-
-    // let colors_array = {
-    //     let memory_buffer = wasm_bindgen::memory()
-    //         .dyn_into::<WebAssembly::Memory>()?
-    //         .buffer();
-    //     let location: u32 = splat_colors.as_ptr() as u32 / 4;
-    //     Float32Array::new(&memory_buffer).subarray(location, location + splat_colors.len() as u32)
-    // };
-    // let splat_center_array = float32_array_from_vec(splat_centers.to_vec());
-
-    let vertex_buffer = create_and_bind_buffer(&gl, vertices_array).unwrap();
-    let color_buffer = create_and_bind_buffer(&gl, colors_array).unwrap();
-    let position_offset_buffer = create_and_bind_buffer(&gl, splat_center_array).unwrap();
-    let cov3da_buffer = create_and_bind_buffer(&gl, cov3da_array).unwrap();
-    let cov3db_buffer = create_and_bind_buffer(&gl, cov3db_array).unwrap();
-    let opacity_buffer = create_and_bind_buffer(&gl, opacities_array).unwrap();
-
-    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
+    let vertex_buffer = create_buffer(&gl).unwrap();
+    let color_buffer = create_buffer(&gl).unwrap();
+    let position_offset_buffer = create_buffer(&gl).unwrap();
+    let cov3da_buffer = create_buffer(&gl).unwrap();
+    let cov3db_buffer = create_buffer(&gl).unwrap();
+    let opacity_buffer = create_buffer(&gl).unwrap();
 
     let shader_program = shader::shader::create_shader_program(&gl).unwrap();
     gl.use_program(Some(&shader_program));
 
-    create_attribute_and_get_location(&gl, vertex_buffer, &shader_program, "v_pos", false, 3);
-    create_attribute_and_get_location(&gl, color_buffer, &shader_program, "s_color", true, 3);
-    create_attribute_and_get_location(&gl, position_offset_buffer, &shader_program, "s_center", true, 3);
-    create_attribute_and_get_location(&gl, cov3da_buffer, &shader_program, "s_cov3da", true, 3);
-    create_attribute_and_get_location(&gl, cov3db_buffer, &shader_program, "s_cov3db", true, 3);
-    create_attribute_and_get_location(&gl, opacity_buffer, &shader_program, "s_opacity", true, 1);
+    let result  = WebGLSetupResult{
+        gl: gl,
+        program: shader_program,
+        vertex_buffer,
+        color_buffer,
+        position_offset_buffer,
+        cov3da_buffer,
+        cov3db_buffer,
+        opacity_buffer
+    };
+
+    update_webgl_buffers(scene, &result);
 
 
-    return Ok(shader_program);
+    create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.program, "v_pos", false, 3);
+    create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.program, "s_color", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.program, "s_center", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.cov3da_buffer, &result.program, "s_cov3da", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.cov3db_buffer, &result.program, "s_cov3db", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.program, "s_opacity", true, 1);
+
+    return Ok(result);
+
 }
 
 
@@ -455,7 +452,7 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
 
     // Clear the canvas
     // gl.clear_color(0.5, 0.5, 0.5, 0.9);
-    gl.clear_color(0.0, 0.0, 0.0, 1.0);
+    gl.clear_color(0.0, 0.0, 0.0, 0.0);
 
     // Set the view port
     gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
@@ -464,12 +461,13 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
 
     // Clear the color buffer bit
-    // gl.clear_color(0.0, 0.0, 0.0, 0.0);
     gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+    // gl.clear_color(0.0, 0.0, 0.0, 1.0);
 
     gl.disable(WebGl2RenderingContext::DEPTH_TEST);
 	gl.enable(WebGl2RenderingContext::BLEND);
-	gl.blend_func(WebGl2RenderingContext::ONE_MINUS_CONSTANT_ALPHA, WebGl2RenderingContext::ONE);
+	// gl.blend_func(WebGl2RenderingContext::ONE_MINUS_DST_ALPHA, WebGl2RenderingContext::ONE);
+	gl.blend_func(WebGl2RenderingContext::ONE_MINUS_DST_ALPHA, WebGl2RenderingContext::ONE);
 
     // gl.enable(WebGl2RenderingContext::ALIASED_POINT_SIZE_RANGE);
 
@@ -595,7 +593,7 @@ pub async fn start() -> Result<(), JsValue> {
     //     .dyn_into::<WebGl2RenderingContext>()?;
     // log!("context from js is: {context}");
 
-    let program = setup_webgl(&gl, &scene).unwrap();
+    let webgl = setup_webgl(gl, &scene).unwrap();
 
 
     let f = Rc::new(RefCell::new(None));
@@ -613,7 +611,8 @@ pub async fn start() -> Result<(), JsValue> {
         // }
         let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene);
         // TODO: reload restored splats into buffers at this point
-        draw(&gl, &program, &canvas, i, scene.splats.len() as i32, vpm, vm);
+        update_webgl_buffers(&scene, &webgl);
+        draw(&webgl.gl, &webgl.program, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
         // Set the body's text content to how many times this
         // requestAnimationFrame callback has fired.
