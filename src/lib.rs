@@ -19,6 +19,8 @@ use egui::util::undoer::Settings;
 // use egui::frame;
 use glm::log;
 use glm::Mat4;
+use glm::Vec2;
+use glm::Vec3;
 use scene::Scene;
 use utils::set_panic_hook;
 extern crate js_sys;
@@ -30,6 +32,7 @@ extern crate nalgebra_glm as glm;
 use js_sys::{Float32Array, WebAssembly};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::Event;
 use web_sys::HtmlCanvasElement;
 use web_sys::HtmlInputElement;
 use web_sys::WebGl2RenderingContext;
@@ -398,6 +401,7 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
 
     // Clear the canvas
     // gl.clear_color(0.5, 0.5, 0.5, 0.9);
+    // gl.clear_color(0.0, 0.0, 0.0, 1.0);
     gl.clear_color(0.0, 0.0, 0.0, 0.0);
 
     // Set the view port
@@ -412,7 +416,7 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
 
     gl.disable(WebGl2RenderingContext::DEPTH_TEST);
 	gl.enable(WebGl2RenderingContext::BLEND);
-	// gl.blend_func(WebGl2RenderingContext::ONE_MINUS_DST_ALPHA, WebGl2RenderingContext::ONE);
+	// gl.blend_func(WebGl2RenderingContext::ONE_MINUS_CONSTANT_ALPHA, WebGl2RenderingContext::ONE);
 	gl.blend_func(WebGl2RenderingContext::ONE_MINUS_DST_ALPHA, WebGl2RenderingContext::ONE);
 
     // gl.enable(WebGl2RenderingContext::ALIASED_POINT_SIZE_RANGE);
@@ -460,19 +464,14 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
         .unwrap()
 }
 
-pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene) -> (Mat4, Mat4){
-    let slider1val = get_slider_value("slider_1");
-    let slider2val = get_slider_value("slider_2");
-    let slider3val = get_slider_value("slider_3");
-    let slider4val = get_slider_value("slider_4");
-    let slider5val = get_slider_value("slider_5");
-
+pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4){
     let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     let mut camera: Mat4 = glm::identity();
-    camera = glm::translate(&camera, &glm::vec3(slider1val, slider2val, slider3val));
-    camera = glm::rotate_x(&camera, slider4val*glm::pi::<f32>());
-    camera = glm::rotate_y(&camera, -slider5val*glm::pi::<f32>());
+    camera = glm::translate(&camera, &cam.pos);
+    camera = glm::rotate_x(&camera, cam.rot.x);
+    camera = glm::rotate_y(&camera, cam.rot.y);
     camera = camera.try_inverse().unwrap();
+
     let mut vm = camera;
     let mut vpm = proj * camera;
     invertRow(&mut vm, 1);
@@ -484,11 +483,17 @@ pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene) -> (
     return (vm, vpm)
 }
 
+pub struct CameraInfo{
+    pub pos: Vec3,
+    pub rot: Vec2, 
+}
+
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
     set_panic_hook();
     let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
+    log!("Done loading!");
     let mut scene = Scene::new(ply_splat);
 
     let document = web_sys::window().unwrap().document().unwrap();
@@ -501,6 +506,54 @@ pub async fn start() -> Result<(), JsValue> {
 
 
     let webgl = setup_webgl(gl, &scene).unwrap();
+    let cam_info = Rc::new(RefCell::new(CameraInfo {
+        pos: Vec3::new(0.0, 0.0, 5.0),
+        rot: Vec2::new(0.0, 0.0),
+    }));
+
+    let cam_info_clone = cam_info.clone();
+    let cb = Closure::wrap(Box::new(move |e: Event| {
+        // let input = e
+        //     .current_target()
+        //     .unwrap()
+        //     .dyn_into::<web_sys::Document>()
+        //     .unwrap();
+        
+        let keyboard_event = e.clone()
+                        .dyn_into::<web_sys::KeyboardEvent>()
+                        .unwrap();
+            
+        log!("Got key down!!! {}", keyboard_event.key());
+        let mut cam_info = cam_info_clone.borrow_mut();
+        let rot_speed = 0.01;
+        let move_speed = 0.1;
+        if keyboard_event.key() == "w" {
+            cam_info.pos.z += move_speed;
+        } else if keyboard_event.key() == "s" {
+            cam_info.pos.z -= move_speed;
+        }
+        if keyboard_event.key() == "a" {
+            cam_info.pos.x -= move_speed;
+        } else if keyboard_event.key() == "d" {
+            cam_info.pos.x += move_speed;
+        }
+        if keyboard_event.key() == "ArrowUp" {
+            cam_info.rot.x += rot_speed;
+        } else if keyboard_event.key() == "ArrowDown" {
+            cam_info.rot.x -= rot_speed;
+        }
+        if keyboard_event.key() == "ArrowLeft" {
+            cam_info.rot.y += rot_speed;
+        } else if keyboard_event.key() == "ArrowRight" {
+            cam_info.rot.y -= rot_speed;
+        }
+
+    }) as Box<dyn FnMut(_)>);
+    // canvas.add_event_listener_with_callback("onkeydown", &cb.as_ref().unchecked_ref())?;
+    let _ = document.add_event_listener_with_callback("keydown", &cb.as_ref().unchecked_ref());
+
+    cb.forget();
+
 
 
     let f = Rc::new(RefCell::new(None));
@@ -509,8 +562,9 @@ pub async fn start() -> Result<(), JsValue> {
     let mut i = 0;
 
 
+    let cam_info_clone2 = cam_info.clone();
     *g.borrow_mut() = Some(Closure::new(move || {
-        let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene);
+        let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info_clone2.borrow());
         update_webgl_buffers(&scene, &webgl);
         draw(&webgl.gl, &webgl.program, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
@@ -521,3 +575,74 @@ pub async fn start() -> Result<(), JsValue> {
     request_animation_frame(g.borrow().as_ref().unwrap());
     return Ok(())
 }
+
+
+pub struct AppState{
+    scene: Scene,
+    webgl: WebGLSetupResult,
+    canvas: HtmlCanvasElement,
+    width: i32,
+    height: i32,
+    i: i32,
+}
+
+// #[wasm_bindgen]
+// impl AppState {
+//     #[wasm_bindgen(constructor)]
+//     pub async fn new() -> Result<Rc<RefCell<AppState>>, JsValue> {
+//         let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
+//         set_panic_hook(); 
+//         let mut scene = Scene::new(ply_splat);
+
+//         let document = web_sys::window().unwrap().document().unwrap();
+//         let canvas = document.get_element_by_id("canvas").unwrap();
+//         let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
+
+//         let width = canvas.width() as i32;
+//         let height = canvas.height() as i32;
+//         let gl = getWebGLContext();
+
+
+//         let webgl = setup_webgl(gl, &scene).unwrap();
+
+//         Ok(Rc::new(RefCell::new(AppState {
+//             scene,
+//             webgl,
+//             canvas,
+//             width,
+//             height,
+//             i: 0,
+//         })))
+//     }
+
+//     // pub fn handle_keyboard(&mut self, key: &str) {
+//     //     log!("Key pressed: {}", key);
+
+//     //     // Update the scene's view matrix or any other state based on the key input
+//     //     match key {
+//     //         "ArrowUp" => {
+//     //             // Example: Adjust the view matrix for upward arrow key
+//     //             self.scene.view_matrix[1][3] += 0.1;
+//     //         }
+//     //         "ArrowDown" => {
+//     //             // Example: Adjust the view matrix for downward arrow key
+//     //             self.scene.view_matrix[1][3] -= 0.1;
+//     //         }
+//     //         // Add more key handling as needed
+//     //         _ => {}
+//     //     }
+//     // }
+
+//     // pub fn render_frame(&mut self) {
+//     //     let (vm, vpm) = get_scene_ready_for_draw(self.width, self.height, &mut self.scene);
+//     //     update_webgl_buffers(&self.scene, &self.webgl);
+//     //     draw(&self.webgl.gl, &self.webgl.program, &self.canvas, self.i, self.scene.splats.len() as i32, vpm, vm);
+//     //     self.i += 1;
+//     // }
+// }
+
+// #[wasm_bindgen(start)]
+// pub async fn start() -> Result<Rc<RefCell<AppState>>, JsValue> {
+//     set_panic_hook();
+//     AppState::new().await
+// }
