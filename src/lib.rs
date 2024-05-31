@@ -119,61 +119,7 @@ pub fn set_slider_1(val: f32) {
     unsafe{
         slider1 = val;
     }
-    // log_u32(42);
-    // log_many("Logging", "many values!");
 }
-
-// macro_rules! console_log {
-//     // Note that this is using the `log` function imported above during
-//     // `bare_bones`
-//     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-// }
-
-// fn using_web_sys() {
-//     use web_sys::console;
-//     // console::log_1(&"Hello using web-sys".into());
-//     console::log_1(&"testing".into());
-//     // console_log!("hello {} {}", 1, 2);
-
-//     // let js: JsValue = 4.into();
-//     // console::log_2(&"Logging arbitrary values looks like".into(), &js);
-// }
-
-
-
-
-
-
-async fn test() -> Result<(), JsValue> {
-    // print!("testing");
-    // log!("hello")
-    // // set up a reader, in this case a file.
-    // let resp = reqwest::blocking::get("https://httpbin.org/ip").expect("failed 1");
-
-    // ?
-    //     .json::<HashMap<String, String>>()?;
-    // println!("{resp:#?}");
-    // log!("{resp:#?}");
-
-    // let path = "splats/Shahan_03_id01-30000.ply";
-    // let mut f = std::fs::File::open(path).expect("failed to open ply file!");
-
-    // // create a parser
-    // let p = ply::parser::Parser::<ply::ply::DefaultElement>::new();
-
-    // // use the parser: read the entire file
-    // let ply = p.read_ply(&mut f);
-
-    // // make sure it did work
-    // assert!(ply.is_ok());
-    // let ply = ply.unwrap();
-
-    // // proof that data has been read
-    // log!("Ply header: {:#?}", ply.header);
-    // log!("Ply data: {:?}", ply.payload);
-    return Ok(());
-}
-
 
 fn update_buffer_data(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: Float32Array) {
     gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
@@ -545,53 +491,14 @@ pub async fn start() -> Result<(), JsValue> {
     let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
     let mut scene = Scene::new(ply_splat);
 
-
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
     let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
-
-
-    // log!("{}", scene.splats.len());
-    // log!("{}", scene.splats[0].x);
-    // log!("{}", scene.splats[1].y);
-    // log!("{}", scene.splats[2].z);
-
-    // .expect("something went wrong in loading");
-    // load_ply().await.expect("something went wrong in loading");
-    // test_js();
-    // test();
-
-
-    // let web_options = eframe::WebOptions::default();
-
-    // wasm_bindgen_futures::spawn_local(async {
-    //     eframe::WebRunner::new()
-    //         .start(
-    //             "ui", // hardcode it
-    //             web_options,
-    //             Box::new(|cc| Box::new(gui::gui::TemplateApp::new(cc))),
-    //         )
-    //         .await
-    //         .expect("failed to start eframe");
-    // });
-    // let uicanvas = get_canvas_context("ui");
-
-    // egui::Window::new("Hello").show(uicanvas, |ui| {
-    //     ui.label("world");
-    // });
-
-    /*============ Creating a canvas =================*/
-
     let gl = getWebGLContext();
 
-    // let gl = canvas
-    //     .get_context("webgl2")?
-    //     .unwrap()
-    //     .dyn_into::<WebGl2RenderingContext>()?;
-    // log!("context from js is: {context}");
 
     let webgl = setup_webgl(gl, &scene).unwrap();
 
@@ -600,28 +507,14 @@ pub async fn start() -> Result<(), JsValue> {
     let g = f.clone();
 
     let mut i = 0;
-    *g.borrow_mut() = Some(Closure::new(move || {
-        // if i > 300 {
-        //     log!("done");
 
-        //     // Drop our handle to this closure so that it will get cleaned
-        //     // up once we return.
-        //     let _ = f.borrow_mut().take();
-        //     return;
-        // }
+
+    *g.borrow_mut() = Some(Closure::new(move || {
         let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene);
-        // TODO: reload restored splats into buffers at this point
         update_webgl_buffers(&scene, &webgl);
         draw(&webgl.gl, &webgl.program, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
-        // Set the body's text content to how many times this
-        // requestAnimationFrame callback has fired.
         i += 1;
-        // let text = format!("requestAnimationFrame has been called {} times.", i);
-        // log!("{}", text);
-        // body().set_text_content(Some(&text));
-
-        // Schedule ourself for another requestAnimationFrame callback.
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));
 

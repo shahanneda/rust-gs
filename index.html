@@ -70,45 +70,15 @@
 			console.log(e.key);
 			// console.log(e.key);
 			if (e.key === "d") {
-				let slider1 = document.getElementById("slider_1");
-				slider1.value = parseInt(slider1.value) + move_speed;
-				slider1.nextElementSibling.value = slider1.value;
 			} else if (e.key === "a") {
-				let slider1 = document.getElementById("slider_1");
-				slider1.value = parseInt(slider1.value) -move_speed;
-				slider1.nextElementSibling.value = slider1.value;
 			} else if (e.key === "w") {
-				let slider3 = document.getElementById("slider_3");
-				slider3.value = parseInt(slider3.value) - move_speed;
-				slider3.nextElementSibling.value = slider3.value;
 			} else if (e.key === "s") {
-				let slider3 = document.getElementById("slider_3");
-				slider3.value = parseInt(slider3.value) + move_speed;
-				slider3.nextElementSibling.value = slider3.value;
 			} else if (e.key === " ") {
-				let slider = document.getElementById("slider_2");
-				slider.value = parseInt(slider.value) + move_speed;
-				slider.nextElementSibling.value = slider.value;
 			} else if (e.key === "z") {
-				let slider = document.getElementById("slider_2");
-				slider.value = parseInt(slider.value) - move_speed;
-				slider.nextElementSibling.value = slider.value;
 			} else if (e.key === "ArrowUp") {
-				let slider = document.getElementById("slider_4");
-				slider.value = parseFloat(slider.value) + look_speed;
-				slider.nextElementSibling.value = slider.value;
 			} else if (e.key === "ArrowDown") {
-				let slider = document.getElementById("slider_4");
-				slider.value = parseFloat(slider.value) - look_speed;
-				slider.nextElementSibling.value = slider.value;
 			} else if (e.key === "ArrowRight") {
-				let slider = document.getElementById("slider_5");
-				slider.value = parseFloat(slider.value) + look_speed;
-				slider.nextElementSibling.value = slider.value;
 			} else if (e.key === "ArrowLeft") {
-				let slider = document.getElementById("slider_5");
-				slider.value = parseFloat(slider.value) - look_speed;
-				slider.nextElementSibling.value = slider.value;
 			}
 		}
 
