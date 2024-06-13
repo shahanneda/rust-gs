@@ -10,6 +10,7 @@ mod ply_splat;
 
 use std::cell::RefCell;
 use std::num;
+use std::ops::DerefMut;
 // use std::num;
 use std::rc::Rc;
 
@@ -18,6 +19,9 @@ use egui::util::undoer::Settings;
 // use egui::epaint::Vertex;
 // use egui::frame;
 use glm::log;
+use glm::vec3;
+use glm::vec4;
+use glm::vec4_to_vec3;
 use glm::Mat4;
 use glm::Vec2;
 use glm::Vec3;
@@ -456,16 +460,24 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
         .unwrap()
 }
 
-pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4){
-    let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
+pub fn get_world_to_camera_matrix(cam : &CameraInfo) -> Mat4{
     let mut camera: Mat4 = glm::identity();
     camera = glm::rotate_x(&camera, cam.rot.x);
     camera = glm::rotate_y(&camera, cam.rot.y);
-    camera = glm::translate(&camera, &cam.pos);
+    camera = glm::translate(&camera, &-cam.pos);
+    return camera;
+}
+
+pub fn get_camera_to_world_matrix(cam : &CameraInfo) -> Mat4 {
+    return get_world_to_camera_matrix(cam).try_inverse().unwrap();
+}
+
+pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4){
+    let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     // camera = camera.try_inverse().unwrap();
 
-    let mut vm = camera;
-    let mut vpm = proj * camera;
+    let vm = get_world_to_camera_matrix(&cam);
+    let vpm = proj * vm;
     // invertRow(&mut vm, 1);
     // invertRow(&mut vm, 2);
     // invertRow(&mut vpm, 1);
@@ -479,6 +491,7 @@ pub struct CameraInfo{
     pub pos: Vec3,
     pub rot: Vec2, 
 }
+
 
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
@@ -519,16 +532,45 @@ pub async fn start() -> Result<(), JsValue> {
         let mut cam_info = cam_info_clone.borrow_mut();
         let rot_speed = 0.1;
         let move_speed = 0.3;
+
+        let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
+
         if keyboard_event.key() == "w" {
-            cam_info.pos.z -= move_speed;
+            cam_translation_local = vec3(0.0, 0.0, move_speed);
         } else if keyboard_event.key() == "s" {
-            cam_info.pos.z += move_speed;
+            cam_translation_local = vec3(0.0, 0.0, -move_speed);
         }
         if keyboard_event.key() == "a" {
-            cam_info.pos.x += move_speed;
+            cam_translation_local = vec3(-move_speed, 0.0, 0.0);
         } else if keyboard_event.key() == "d" {
-            cam_info.pos.x -= move_speed;
+            cam_translation_local = vec3(move_speed, 0.0, 0.0);
         }
+
+        if cam_translation_local != vec3(0.0, 0.0, 0.0) {
+            let cam_to_world = get_camera_to_world_matrix(&cam_info);
+            // log!("cam_translation_local is {}", cam_translation_local);
+
+            let mut cam_pos_after_moving = get_camera_to_world_matrix(&cam_info) * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 1.0);
+            let mut cam_pos_after_moving = vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
+
+            let mut cam_translation_global = cam_info.pos - cam_pos_after_moving;
+
+
+
+            // log!("cam to world matrix is {}", cam_to_world);
+            // log!("0,0,-5 in cam to world is {} ", cam_to_world * vec4(0.0, 0.0, -8.0, 1.0));
+            log!("Cam world pos is: {}", cam_info.pos);
+            // log!("cam translation global is {cam_translation_global}");
+            cam_translation_global = cam_translation_global.normalize() * move_speed;
+
+            // log!("cam translation global is {cam_translation_global}");
+            // log!("cam translation local is {cam_translation_local}");
+
+            cam_info.pos.x += cam_translation_global.x;
+            cam_info.pos.y += cam_translation_global.y;
+            cam_info.pos.z += cam_translation_global.z;
+        }
+
         if keyboard_event.key() == "ArrowUp" {
             cam_info.rot.x -= rot_speed;
         } else if keyboard_event.key() == "ArrowDown" {
