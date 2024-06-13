@@ -186,7 +186,6 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
         splat_opacities.push(s.opacity);
     }
 
-    update_buffer_data(&webgl.gl, &webgl.vertex_buffer, float32_array_from_vec(&splat_centers));
     update_buffer_data(&webgl.gl, &webgl.color_buffer, float32_array_from_vec(&splat_colors));
     update_buffer_data(&webgl.gl, &webgl.position_offset_buffer, float32_array_from_vec(&splat_centers));
     update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
@@ -265,6 +264,8 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     let cov3db_buffer = create_buffer(&gl).unwrap();
     let opacity_buffer = create_buffer(&gl).unwrap();
 
+    update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
+
     let shader_program = shader::shader::create_shader_program(&gl).unwrap();
     gl.use_program(Some(&shader_program));
 
@@ -330,15 +331,6 @@ fn invertRow(mat: &mut glm::Mat4, row: usize){
 fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web_sys::HtmlCanvasElement, frame_num: i32, num_vertices: i32, vpm: glm::Mat4, vm: glm::Mat4){
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
-    let current_amount = (frame_num % 100) as f32/100.0;
-
-    let slider1val = get_slider_value("slider_1");
-    let slider2val = get_slider_value("slider_2");
-    let slider3val = get_slider_value("slider_3");
-    let slider4val = get_slider_value("slider_4");
-    let slider5val = get_slider_value("slider_5");
-
-
     // let mut model: Mat4 = glm::identity();
     // let model_scale = 3.0f32;
     // model = glm::translate(&model, &glm::vec3(0.0f32, 0.0f32, 0.0f32));
@@ -467,18 +459,18 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
 pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4){
     let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     let mut camera: Mat4 = glm::identity();
-    camera = glm::translate(&camera, &cam.pos);
     camera = glm::rotate_x(&camera, cam.rot.x);
     camera = glm::rotate_y(&camera, cam.rot.y);
-    camera = camera.try_inverse().unwrap();
+    camera = glm::translate(&camera, &cam.pos);
+    // camera = camera.try_inverse().unwrap();
 
     let mut vm = camera;
     let mut vpm = proj * camera;
-    invertRow(&mut vm, 1);
-    invertRow(&mut vm, 2);
-    invertRow(&mut vpm, 1);
-    invertRow(&mut vm, 0);
-    invertRow(&mut vpm, 0);
+    // invertRow(&mut vm, 1);
+    // invertRow(&mut vm, 2);
+    // invertRow(&mut vpm, 1);
+    // invertRow(&mut vm, 0);
+    // invertRow(&mut vpm, 0);
     scene.sort_splats_based_on_depth(vpm);
     return (vm, vpm)
 }
@@ -525,27 +517,27 @@ pub async fn start() -> Result<(), JsValue> {
             
         log!("Got key down!!! {}", keyboard_event.key());
         let mut cam_info = cam_info_clone.borrow_mut();
-        let rot_speed = 0.01;
-        let move_speed = 0.1;
+        let rot_speed = 0.1;
+        let move_speed = 0.3;
         if keyboard_event.key() == "w" {
-            cam_info.pos.z += move_speed;
-        } else if keyboard_event.key() == "s" {
             cam_info.pos.z -= move_speed;
+        } else if keyboard_event.key() == "s" {
+            cam_info.pos.z += move_speed;
         }
         if keyboard_event.key() == "a" {
-            cam_info.pos.x -= move_speed;
-        } else if keyboard_event.key() == "d" {
             cam_info.pos.x += move_speed;
+        } else if keyboard_event.key() == "d" {
+            cam_info.pos.x -= move_speed;
         }
         if keyboard_event.key() == "ArrowUp" {
-            cam_info.rot.x += rot_speed;
-        } else if keyboard_event.key() == "ArrowDown" {
             cam_info.rot.x -= rot_speed;
+        } else if keyboard_event.key() == "ArrowDown" {
+            cam_info.rot.x += rot_speed;
         }
         if keyboard_event.key() == "ArrowLeft" {
-            cam_info.rot.y += rot_speed;
-        } else if keyboard_event.key() == "ArrowRight" {
             cam_info.rot.y -= rot_speed;
+        } else if keyboard_event.key() == "ArrowRight" {
+            cam_info.rot.y += rot_speed;
         }
 
     }) as Box<dyn FnMut(_)>);

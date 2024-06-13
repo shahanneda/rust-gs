@@ -2,5 +2,6 @@
 	"rust-analyzer.linkedProjects": [
 		"./Cargo.toml"
 	],
-	"liveServer.settings.port": 5501
+	"liveServer.settings.port": 5501,
+	"svn.ignoreMissingSvnWarning": true
 }
