@@ -5,6 +5,7 @@ mod loader;
 mod shader;
 mod gui;
 mod ply_splat;
+mod scene_geo;
 
 
 
@@ -14,6 +15,7 @@ use std::ops::DerefMut;
 // use std::num;
 use std::rc::Rc;
 
+use eframe::glow::TRIANGLE_STRIP;
 use egui::debug_text::print;
 use egui::util::undoer::Settings;
 // use egui::epaint::Vertex;
@@ -165,13 +167,16 @@ fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
 
 struct WebGLSetupResult {
     gl: WebGl2RenderingContext,
-    program: WebGlProgram,
+    splat_shader: WebGlProgram,
     vertex_buffer: WebGlBuffer,
     color_buffer: WebGlBuffer,
     position_offset_buffer: WebGlBuffer,
     cov3da_buffer: WebGlBuffer,
     cov3db_buffer: WebGlBuffer,
-    opacity_buffer: WebGlBuffer
+    opacity_buffer: WebGlBuffer,
+    geo_shader: WebGlProgram,
+    geo_vertex_buffer: WebGlBuffer,
+    geo_count: i32,
 }
 
 fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
@@ -195,6 +200,8 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
     update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
     update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
     update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
+
+
 }
 
 
@@ -267,32 +274,47 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     let cov3da_buffer = create_buffer(&gl).unwrap();
     let cov3db_buffer = create_buffer(&gl).unwrap();
     let opacity_buffer = create_buffer(&gl).unwrap();
+    let geo_vertex_buffer = create_buffer(&gl).unwrap();
 
     update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
 
-    let shader_program = shader::shader::create_shader_program(&gl).unwrap();
-    gl.use_program(Some(&shader_program));
+
+
+
+
+    let vertices = scene_geo::VERTICES.map(|v| v);
+    update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
+
+
+    let splat_shader = shader::shader::create_splat_shader_program(&gl).unwrap();
+    let geo_shader = shader::shader::create_geo_shader_program(&gl).unwrap();
 
     let result  = WebGLSetupResult{
         gl: gl,
-        program: shader_program,
+        splat_shader,
         vertex_buffer,
         color_buffer,
         position_offset_buffer,
         cov3da_buffer,
         cov3db_buffer,
-        opacity_buffer
+        opacity_buffer,
+        geo_shader,
+        geo_vertex_buffer,
+        geo_count: vertices.len() as i32,
     };
 
     update_webgl_buffers(scene, &result);
 
 
-    create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.program, "v_pos", false, 3);
-    create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.program, "s_color", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.program, "s_center", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.cov3da_buffer, &result.program, "s_cov3da", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.cov3db_buffer, &result.program, "s_cov3db", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.program, "s_opacity", true, 1);
+    create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.splat_shader, "v_pos", false, 3);
+    create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.splat_shader, "s_color", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.splat_shader, "s_center", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.cov3da_buffer, &result.splat_shader, "s_cov3da", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.cov3db_buffer, &result.splat_shader, "s_cov3db", true, 3);
+    create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.splat_shader, "s_opacity", true, 1);
+
+
+    create_attribute_and_get_location(&result.gl, &result.geo_vertex_buffer, &result.geo_shader, "v_pos", false, 3);
 
     return Ok(result);
 
@@ -332,7 +354,8 @@ fn invertRow(mat: &mut glm::Mat4, row: usize){
 }
 
 
-fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web_sys::HtmlCanvasElement, frame_num: i32, num_vertices: i32, vpm: glm::Mat4, vm: glm::Mat4){
+fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num: i32, num_vertices: i32, vpm: glm::Mat4, vm: glm::Mat4){
+    let gl = &webgl.gl;
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
     // let mut model: Mat4 = glm::identity();
@@ -348,41 +371,30 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
 
     // let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
     // gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
-    gl.use_program(Some(&shader_program));
+    gl.use_program(Some(&webgl.splat_shader));
 
 
 
 
-    let proj_uniform_location = gl.get_uniform_location(&shader_program, "projection").unwrap();
+    let proj_uniform_location = gl.get_uniform_location(&webgl.splat_shader, "projection").unwrap();
     gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
 
-    let camera_uniform_location = gl.get_uniform_location(&shader_program, "camera").unwrap();
+    let camera_uniform_location = gl.get_uniform_location(&webgl.splat_shader, "camera").unwrap();
     gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
 
-    // gl.uniform1f(gl.getUniformLocation(program, "W"), W);
-    // gl.uniform1f(gl.getUniformLocation(program, "H"), H);
-    // gl.uniform1f(gl.getUniformLocation(program, "focal_x"), focal_x);
-    // gl.uniform1f(gl.getUniformLocation(program, "focal_y"), focal_y);
-    // gl.uniform1f(gl.getUniformLocation(program, "tan_fovx"), tan_fovx);
-    // gl.uniform1f(gl.getUniformLocation(program, "tan_fovy"), tan_fovy);
-    // gl.uniform1f(
-    //     gl.getUniformLocation(program, "scale_modifier"),
-    //     settings.scalingModifier
-    // );
-    // gl.uniform3fv(gl.getUniformLocation(program, "boxmin"), sceneMin);
-    // gl.uniform3fv(gl.getUniformLocation(program, "boxmax"), sceneMax);
+
     let width = width as f32;
     let height = height as f32;
     let tan_fovy = f32::tan(0.820176 * 0.5);
     let tan_fovx = (tan_fovy * width) / height;
     let focal_y = height / (2.0 * tan_fovy);
     let focal_x = width / (2.0 * tan_fovx);
-    set_float_uniform_value(shader_program, gl, "W", width as f32);
-    set_float_uniform_value(shader_program, gl, "H", height as f32);
-    set_float_uniform_value(shader_program, gl, "focal_x", focal_x);
-    set_float_uniform_value(shader_program, gl, "focal_y", focal_y);
-    set_float_uniform_value(shader_program, gl, "tan_fovx", tan_fovx);
-    set_float_uniform_value(shader_program, gl, "tan_fovy", tan_fovy);
+    set_float_uniform_value(&webgl.splat_shader, &gl, "W", width as f32);
+    set_float_uniform_value(&webgl.splat_shader, &gl, "H", height as f32);
+    set_float_uniform_value(&webgl.splat_shader, &gl, "focal_x", focal_x);
+    set_float_uniform_value(&webgl.splat_shader, &gl, "focal_y", focal_y);
+    set_float_uniform_value(&webgl.splat_shader, &gl, "tan_fovx", tan_fovx);
+    set_float_uniform_value(&webgl.splat_shader, &gl, "tan_fovy", tan_fovy);
     // set_float_uniform_value(shader_program, gl, "scale_modifier", 1.0);
 
     // TODO: edit these
@@ -428,6 +440,16 @@ fn draw(gl: &WebGl2RenderingContext, shader_program: &WebGlProgram, canvas: &web
     // gl.draw_arrays(WebGl2RenderingContext::POINTS, 0, 3);
     gl.draw_arrays_instanced( WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
 
+
+    gl.use_program(Some(&webgl.geo_shader));
+    gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+	gl.enable(WebGl2RenderingContext::BLEND);
+    let proj_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "projection").unwrap();
+    gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
+    let camera_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "camera").unwrap();
+    gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
+
+    gl.draw_arrays(TRIANGLE_STRIP, 0, webgl.geo_count);
     // gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, settings.maxGaussians);
 
     return 
@@ -536,9 +558,9 @@ pub async fn start() -> Result<(), JsValue> {
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
 
         if keyboard_event.key() == "w" {
-            cam_translation_local = vec3(0.0, 0.0, move_speed);
-        } else if keyboard_event.key() == "s" {
             cam_translation_local = vec3(0.0, 0.0, -move_speed);
+        } else if keyboard_event.key() == "s" {
+            cam_translation_local = vec3(0.0, 0.0, move_speed);
         }
         if keyboard_event.key() == "a" {
             cam_translation_local = vec3(-move_speed, 0.0, 0.0);
@@ -550,25 +572,26 @@ pub async fn start() -> Result<(), JsValue> {
             let cam_to_world = get_camera_to_world_matrix(&cam_info);
             // log!("cam_translation_local is {}", cam_translation_local);
 
-            let mut cam_pos_after_moving = get_camera_to_world_matrix(&cam_info) * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 1.0);
-            let mut cam_pos_after_moving = vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
+            let cam_pos_after_moving = get_camera_to_world_matrix(&cam_info) * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 1.0);
+            let cam_pos_after_moving = vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
 
-            let mut cam_translation_global = cam_info.pos - cam_pos_after_moving;
-
-
-
-            // log!("cam to world matrix is {}", cam_to_world);
-            // log!("0,0,-5 in cam to world is {} ", cam_to_world * vec4(0.0, 0.0, -8.0, 1.0));
             log!("Cam world pos is: {}", cam_info.pos);
-            // log!("cam translation global is {cam_translation_global}");
-            cam_translation_global = cam_translation_global.normalize() * move_speed;
+            cam_info.pos.x = cam_pos_after_moving.x;
+            cam_info.pos.y = cam_pos_after_moving.y;
+            cam_info.pos.z = cam_pos_after_moving.z;
+
+            // let mut cam_translation_global = cam_info.pos - cam_pos_after_moving;
+
+
+
+            // // log!("cam to world matrix is {}", cam_to_world);
+            // // log!("0,0,-5 in cam to world is {} ", cam_to_world * vec4(0.0, 0.0, -8.0, 1.0));
+            // // log!("cam translation global is {cam_translation_global}");
+            // cam_translation_global = cam_translation_global.normalize() * move_speed;
 
             // log!("cam translation global is {cam_translation_global}");
             // log!("cam translation local is {cam_translation_local}");
 
-            cam_info.pos.x += cam_translation_global.x;
-            cam_info.pos.y += cam_translation_global.y;
-            cam_info.pos.z += cam_translation_global.z;
         }
 
         if keyboard_event.key() == "ArrowUp" {
@@ -600,7 +623,7 @@ pub async fn start() -> Result<(), JsValue> {
     *g.borrow_mut() = Some(Closure::new(move || {
         let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info_clone2.borrow());
         update_webgl_buffers(&scene, &webgl);
-        draw(&webgl.gl, &webgl.program, &canvas, i, scene.splats.len() as i32, vpm, vm);
+        draw(&webgl, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
         i += 1;
         request_animation_frame(f.borrow().as_ref().unwrap());
