@@ -72,6 +72,7 @@ impl Splat{
         let matrix = scaling_mat * rot_mat;
         let sigma = matrix.transpose() * matrix;
         // log!("{sigma}");
+        // Only store upper right since it's symmetric
         let cov3d = [sigma[0], sigma[1], sigma[2], sigma[4], sigma[5], sigma[8]];
         // log!("{cov3d:?}");
         // 0 1 2
@@ -146,7 +147,7 @@ impl Splat{
             r: 1.0,
             g: 0.0,
             b: 0.0,
-            cov3d: Splat::compute_cov3_d(vec3(1.0, 2.0, 1.0), 1.0, vec4(0.0, 0.0, 0.0, 1.0))
+            cov3d: Splat::compute_cov3_d(vec3(0.01, 0.05, 0.01), 1.0, vec4(0.0, 0.0, 0.0, 1.0))
             // cov3d: [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
         };
 
@@ -177,7 +178,7 @@ impl Scene {
         };
 
         self.splats.sort_by(|a, b| 
-            calc_depth(&b).partial_cmp(&calc_depth(&a)).unwrap())
+            calc_depth(&a).partial_cmp(&calc_depth(&b)).unwrap())
         // const calcDepth = (i) =>
         //     gaussians.positions[i * 3] * viewMatrix[2] +
         //     gaussians.positions[i * 3 + 1] * viewMatrix[6] +

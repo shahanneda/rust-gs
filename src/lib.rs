@@ -15,12 +15,14 @@ use std::ops::DerefMut;
 // use std::num;
 use std::rc::Rc;
 
+use eframe::glow::TRIANGLES;
 use eframe::glow::TRIANGLE_STRIP;
 use egui::debug_text::print;
 use egui::util::undoer::Settings;
 // use egui::epaint::Vertex;
 // use egui::frame;
 use glm::log;
+use glm::vec2;
 use glm::vec3;
 use glm::vec4;
 use glm::vec4_to_vec3;
@@ -44,6 +46,7 @@ use web_sys::HtmlInputElement;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
+use web_sys::WebGlVertexArrayObject;
 
 
 #[wasm_bindgen]
@@ -168,6 +171,7 @@ fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
 struct WebGLSetupResult {
     gl: WebGl2RenderingContext,
     splat_shader: WebGlProgram,
+    splat_vao: WebGlVertexArrayObject,
     vertex_buffer: WebGlBuffer,
     color_buffer: WebGlBuffer,
     position_offset_buffer: WebGlBuffer,
@@ -177,6 +181,7 @@ struct WebGLSetupResult {
     geo_shader: WebGlProgram,
     geo_vertex_buffer: WebGlBuffer,
     geo_count: i32,
+    geo_vao: WebGlVertexArrayObject,
 }
 
 fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
@@ -195,6 +200,8 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
         splat_opacities.push(s.opacity);
     }
 
+    webgl.gl.use_program(Some(&webgl.splat_shader));
+    webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
     update_buffer_data(&webgl.gl, &webgl.color_buffer, float32_array_from_vec(&splat_colors));
     update_buffer_data(&webgl.gl, &webgl.position_offset_buffer, float32_array_from_vec(&splat_centers));
     update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
@@ -206,68 +213,16 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
 
 
 fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupResult, JsValue> {
-
-    /*==========Defining and storing the geometry=======*/
     let vertices: [f32; 3*4] = [
-        // 300.0, 500.0, 4.0, //
-        // 0.0, 0.0, 4.0, //
-        // 100.0, 700.0, 4.0, //
-        //
         -1.0, -1.0, 0.0, //
         1.0, -1.0, 0.0, //
         -1.0, 1.0, 0.0, //
         1.0, 1.0, 0.0, //
-        // 1.0, 0.0, 1.0, //
-        // 1.0, 1.0, 1.0, //
-        //
-        // -0.5, 0.5, 4.1, //
-        // 0.0, 0.5, 4.1, //
-        // -0.25, 0.25, 4.1, //
     ];
     let vertices = vertices.map(|v| v);
 
-
-    // let one = splat_centers[0];
-    // let two = splat_centers[0];
-    // let three = splat_centers[0];
-    // log!("{one} {two} {three}");
-    // let splat_centers: [f32; 3*4] = [
-    //     // 300.0, 500.0, 4.0, //
-    //     // 0.0, 0.0, 4.0, //
-    //     // 100.0, 700.0, 4.0, //
-    //     //
-    //     -0.5, -0.5, -0.5, //
-    //     0.5, 1.0, 0.5, //
-    //     0.0, 2.0, 0.0, //
-    //     0.0, 3.0, 0.0, //
-    //     // 0.0, 1.0, 0.0, //
-    //     // 0.0, 1.0, 0.0, //
-    //     //
-    //     // -0.5, 0.5, 4.1, //
-    //     // 0.0, 0.5, 4.1, //
-    //     // -0.25, 0.25, 4.1, //
-    // ];
-
-    // let splat_colors: [f32; 3*4] = [
-    //     // 300.0, 500.0, 4.0, //
-    //     // 0.0, 0.0, 4.0, //
-    //     // 100.0, 700.0, 4.0, //
-    //     //
-    //     1.0, 0.0, 0.0, //
-    //     0.0, 1.0, 0.0, //
-    //     0.0, 0.0, 1.0, //
-    //     1.0, 1.0, 0.0, //
-    //     // 0.0, 1.0, 0.0, //
-    //     // 0.0, 1.0, 0.0, //
-    //     //
-    //     // -0.5, 0.5, 4.1, //
-    //     // 0.0, 0.5, 4.1, //
-    //     // -0.25, 0.25, 4.1, //
-    // ];
-
-
-
-
+    let splat_vao = gl.create_vertex_array().unwrap();
+    gl.bind_vertex_array(Some(&splat_vao));
     let vertex_buffer = create_buffer(&gl).unwrap();
     let color_buffer = create_buffer(&gl).unwrap();
     let position_offset_buffer = create_buffer(&gl).unwrap();
@@ -275,18 +230,16 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     let cov3db_buffer = create_buffer(&gl).unwrap();
     let opacity_buffer = create_buffer(&gl).unwrap();
     let geo_vertex_buffer = create_buffer(&gl).unwrap();
-
     update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
 
 
-
-
-
+    let geo_vao = gl.create_vertex_array().unwrap();
+    gl.bind_vertex_array(Some(&geo_vao));
     let vertices = scene_geo::VERTICES.map(|v| v);
     update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
 
-
     let splat_shader = shader::shader::create_splat_shader_program(&gl).unwrap();
+
     let geo_shader = shader::shader::create_geo_shader_program(&gl).unwrap();
 
     let result  = WebGLSetupResult{
@@ -298,14 +251,16 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
         cov3da_buffer,
         cov3db_buffer,
         opacity_buffer,
+        splat_vao,
         geo_shader,
         geo_vertex_buffer,
         geo_count: vertices.len() as i32,
+        geo_vao
     };
 
+    result.gl.use_program(Some(&result.splat_shader));
+    result.gl.bind_vertex_array(Some(&result.splat_vao));
     update_webgl_buffers(scene, &result);
-
-
     create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.splat_shader, "v_pos", false, 3);
     create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.splat_shader, "s_color", true, 3);
     create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.splat_shader, "s_center", true, 3);
@@ -314,6 +269,8 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.splat_shader, "s_opacity", true, 1);
 
 
+    result.gl.use_program(Some(&result.geo_shader));
+    result.gl.bind_vertex_array(Some(&result.geo_vao));
     create_attribute_and_get_location(&result.gl, &result.geo_vertex_buffer, &result.geo_shader, "v_pos", false, 3);
 
     return Ok(result);
@@ -372,8 +329,7 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
     // let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
     // gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
     gl.use_program(Some(&webgl.splat_shader));
-
-
+    gl.bind_vertex_array(Some(&webgl.splat_vao));
 
 
     let proj_uniform_location = gl.get_uniform_location(&webgl.splat_shader, "projection").unwrap();
@@ -441,7 +397,9 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
     gl.draw_arrays_instanced( WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
 
 
+
     gl.use_program(Some(&webgl.geo_shader));
+    gl.bind_vertex_array(Some(&webgl.geo_vao));
     gl.enable(WebGl2RenderingContext::DEPTH_TEST);
 	gl.enable(WebGl2RenderingContext::BLEND);
     let proj_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "projection").unwrap();
@@ -449,7 +407,7 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
     let camera_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "camera").unwrap();
     gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
 
-    gl.draw_arrays(TRIANGLE_STRIP, 0, webgl.geo_count);
+    gl.draw_arrays(TRIANGLES, 0, webgl.geo_count);
     // gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, settings.maxGaussians);
 
     return 
@@ -498,8 +456,8 @@ pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam:
     let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     // camera = camera.try_inverse().unwrap();
 
-    let vm = get_world_to_camera_matrix(&cam);
-    let vpm = proj * vm;
+    let mut vm = get_world_to_camera_matrix(&cam);
+    let mut vpm = proj * vm;
     // invertRow(&mut vm, 1);
     // invertRow(&mut vm, 2);
     // invertRow(&mut vpm, 1);
@@ -566,6 +524,13 @@ pub async fn start() -> Result<(), JsValue> {
             cam_translation_local = vec3(-move_speed, 0.0, 0.0);
         } else if keyboard_event.key() == "d" {
             cam_translation_local = vec3(move_speed, 0.0, 0.0);
+        } else if keyboard_event.key() == " "{
+            cam_translation_local = vec3(0.0, move_speed, 0.0);
+        } else if keyboard_event.key() == "Shift"{
+            cam_translation_local = vec3(0.0, -move_speed, 0.0);
+        } else if keyboard_event.key() == "r"{
+            cam_info.pos = vec3(0.0, 0.0, 5.0);
+            cam_info.rot = vec2(0.0, 0.0);
         }
 
         if cam_translation_local != vec3(0.0, 0.0, 0.0) {
@@ -622,6 +587,7 @@ pub async fn start() -> Result<(), JsValue> {
     let cam_info_clone2 = cam_info.clone();
     *g.borrow_mut() = Some(Closure::new(move || {
         let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info_clone2.borrow());
+
         update_webgl_buffers(&scene, &webgl);
         draw(&webgl, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
