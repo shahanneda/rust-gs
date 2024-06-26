@@ -4,6 +4,7 @@ use crate::log;
 use crate::{ply_splat::PlySplat, utils::sigmoid};
 
 
+#[derive(Clone)]
 pub struct Splat{
         pub nx: f32,
         pub ny: f32,
@@ -25,7 +26,8 @@ pub struct Splat{
         pub cov3d: [f32; 6]
 }
 
-
+// TODO: Remove copying of splats when sorting 
+impl Copy for Splat {}
 
 
 impl Splat{
@@ -172,13 +174,73 @@ impl Scene {
 
     pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4){
         let calc_depth = |splat: &Splat| {
-            splat.x * view_matrix[2] +
+            ((splat.x * view_matrix[2] +
             splat.y * view_matrix[6] +
-            splat.z * view_matrix[10]
+            splat.z * view_matrix[10])*100.0) as i32
         };
 
-        self.splats.sort_by(|a, b| 
-            calc_depth(&a).partial_cmp(&calc_depth(&b)).unwrap())
+        let mut max_depth = i32::MIN;
+        let mut min_depth = 0;
+        let splat_count = self.splats.len();
+
+        let mut depth_list = self.splats.iter().map(|splat| {
+            let depth = calc_depth(&splat);
+            max_depth = max_depth.max(depth as i32);
+            min_depth = min_depth.min(depth as i32);
+            // TODO: invesitgate clamping of negative depths
+            depth
+        }).collect::<Vec<i32>>();
+
+        let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
+
+        // Count the number of splats at each depth
+        // log!("max is {max_depth} min is {min_depth}");
+        for i in 0..splat_count{
+            depth_list[i] -= min_depth;
+            count_array[depth_list[i] as usize] += 1;
+        }
+
+        // Do prefix sum
+        for i in 1..count_array.len(){
+            count_array[i] += count_array[i-1];
+        }
+
+        let mut output : Vec<Splat> = vec![Splat{
+            nx: 0.0,
+            ny: 0.0,
+            nz: 0.0,
+            opacity: 0.0,
+            rot_0: 0.0,
+            rot_1: 0.0,
+            rot_2: 0.0,
+            rot_3: 0.0,
+            scale_0: 0.0,
+            scale_1: 0.0,
+            scale_2: 0.0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            cov3d: [0.0; 6]
+        }; self.splats.len()];
+
+        for i in (0..self.splats.len()).rev(){
+            let depth = depth_list[i];
+            let index = count_array[depth as usize] - 1;
+            // log!("depth is {depth} index is {index} i is {i}");
+            // TODO: Remove copying of splats when sorting
+            output[index as usize] = self.splats[i];
+            count_array[depth as usize] -= 1;
+        }
+
+        // output.reverse();
+        self.splats = output;
+
+
+        // self.splats.sort_by(|a, b| 
+        //     calc_depth(&a).partial_cmp(&calc_depth(&b)).unwrap())
         // const calcDepth = (i) =>
         //     gaussians.positions[i * 3] * viewMatrix[2] +
         //     gaussians.positions[i * 3 + 1] * viewMatrix[6] +

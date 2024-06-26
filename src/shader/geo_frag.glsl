@@ -6,5 +6,11 @@ precision mediump float;
 out vec4 fragColor;
 
 void main() {
-    fragColor = vec4(0,1,1,1);
+    vec2 position = gl_FragCoord.xy;
+    vec3 color = vec3(
+        mod(position.x, 256.0) / 255.0, 
+        mod(position.y, 256.0) / 255.0, 
+        mod((position.x + position.y), 256.0) / 255.0
+    );
+    fragColor = vec4(color, 1);
 }

@@ -78,7 +78,7 @@ float ndc2Pix(float v, float S) {
 }
 
 void main() {
-  vec3 p_orig = s_center;
+  vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
   // mat4 model2 = model*12;
   mat4 projmatrix = projection;
   vec4 p_hom = projmatrix * vec4(p_orig, 1);
