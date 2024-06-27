@@ -187,7 +187,6 @@ impl Scene {
             let depth = calc_depth(&splat);
             max_depth = max_depth.max(depth as i32);
             min_depth = min_depth.min(depth as i32);
-            // TODO: invesitgate clamping of negative depths
             depth
         }).collect::<Vec<i32>>();
 

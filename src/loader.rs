@@ -181,10 +181,11 @@ pub mod loader {
     pub async fn load_ply() -> Result<Vec<PlySplat>, String> {
         // return Ok(vec![]);
         // let body = reqwest::get("http://127.0.0.1:5500/splats/test.txt")
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/room.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.cleaned.ply")
-        let body = reqwest::get("http://127.0.0.1:5501/splats/shahan_head.ply")
-        // let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/shahan_head.ply")
+        let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/one-corn.ply")
             .await
             .expect("error")

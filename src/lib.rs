@@ -15,6 +15,10 @@ use std::ops::DerefMut;
 // use std::num;
 use std::rc::Rc;
 
+use eframe::glow::ALWAYS;
+use eframe::glow::COLOR_BUFFER_BIT;
+use eframe::glow::DEPTH_BUFFER_BIT;
+use eframe::glow::LESS;
 use eframe::glow::TRIANGLES;
 use eframe::glow::TRIANGLE_STRIP;
 use egui::debug_text::print;
@@ -180,6 +184,7 @@ struct WebGLSetupResult {
     opacity_buffer: WebGlBuffer,
     geo_shader: WebGlProgram,
     geo_vertex_buffer: WebGlBuffer,
+    geo_color_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
 }
@@ -230,6 +235,7 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     let cov3db_buffer = create_buffer(&gl).unwrap();
     let opacity_buffer = create_buffer(&gl).unwrap();
     let geo_vertex_buffer = create_buffer(&gl).unwrap();
+    let geo_color_buffer = create_buffer(&gl).unwrap();
     update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
 
 
@@ -237,6 +243,9 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     gl.bind_vertex_array(Some(&geo_vao));
     let vertices = scene_geo::VERTICES.map(|v| v);
     update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
+
+    let colors = scene_geo::COLORS.map(|v| v);
+    update_buffer_data(&gl, &geo_color_buffer, float32_array_from_vec(&colors));
 
     let splat_shader = shader::shader::create_splat_shader_program(&gl).unwrap();
 
@@ -255,6 +264,7 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
         geo_shader,
         geo_vertex_buffer,
         geo_count: vertices.len() as i32,
+        geo_color_buffer,
         geo_vao
     };
 
@@ -272,6 +282,7 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     result.gl.use_program(Some(&result.geo_shader));
     result.gl.bind_vertex_array(Some(&result.geo_vao));
     create_attribute_and_get_location(&result.gl, &result.geo_vertex_buffer, &result.geo_shader, "v_pos", false, 3);
+    create_attribute_and_get_location(&result.gl, &result.geo_color_buffer, &result.geo_shader, "v_col", false, 3);
 
     return Ok(result);
 
@@ -315,6 +326,16 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
     let gl = &webgl.gl;
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
+
+    gl.clear_color(0.0, 0.0, 0.0, 0.0);
+    // Set the view port
+    gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
+    
+    // Enable the depth test
+    // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+
+    // Clear the color buffer bit
+    gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     // let mut model: Mat4 = glm::identity();
     // let model_scale = 3.0f32;
     // model = glm::translate(&model, &glm::vec3(0.0f32, 0.0f32, 0.0f32));
@@ -328,6 +349,24 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
 
     // let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
     // gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
+
+    // Draw Geo
+    gl.use_program(Some(&webgl.geo_shader));
+    gl.bind_vertex_array(Some(&webgl.geo_vao));
+    gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+    // gl.clear(COLOR_BUFFER_BIT);
+    gl.clear(DEPTH_BUFFER_BIT);
+    gl.depth_func(LESS);
+
+	gl.disable(WebGl2RenderingContext::BLEND);
+    let proj_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "projection").unwrap();
+    gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
+    let camera_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "camera").unwrap();
+    gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
+
+    gl.draw_arrays(TRIANGLES, 0, webgl.geo_count);
+
+    // Draw splats
     gl.use_program(Some(&webgl.splat_shader));
     gl.bind_vertex_array(Some(&webgl.splat_vao));
 
@@ -366,16 +405,6 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
     // Clear the canvas
     // gl.clear_color(0.5, 0.5, 0.5, 0.9);
     // gl.clear_color(0.0, 0.0, 0.0, 1.0);
-    gl.clear_color(0.0, 0.0, 0.0, 0.0);
-
-    // Set the view port
-    gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
-    
-    // Enable the depth test
-    // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-
-    // Clear the color buffer bit
-    gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     // gl.clear_color(0.0, 0.0, 0.0, 1.0);
 
     gl.disable(WebGl2RenderingContext::DEPTH_TEST);
@@ -398,16 +427,6 @@ fn draw(webgl: &WebGLSetupResult, canvas: &web_sys::HtmlCanvasElement, frame_num
 
 
 
-    gl.use_program(Some(&webgl.geo_shader));
-    gl.bind_vertex_array(Some(&webgl.geo_vao));
-    gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-	gl.enable(WebGl2RenderingContext::BLEND);
-    let proj_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "projection").unwrap();
-    gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
-    let camera_uniform_location = gl.get_uniform_location(&webgl.geo_shader, "camera").unwrap();
-    gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
-
-    gl.draw_arrays(TRIANGLES, 0, webgl.geo_count);
     // gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, settings.maxGaussians);
 
     return 

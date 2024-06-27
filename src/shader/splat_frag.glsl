@@ -51,6 +51,7 @@ void main() {
     // Eq. (3) from 3D Gaussian splatting paper.
     // fragColor = vec4(1,0,0,1);
     fragColor = vec4(color*alpha,  alpha);
+    // fragColor = vec4(color,  1);
     // fragColor = vec4(con_o.x,  0, 0, 1);
     // fragColor = vec4(con_o.x*128.0, 0, 0, 1);
     // fragColor = vec4(0, 0, 0, 1);
