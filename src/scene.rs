@@ -1,3 +1,4 @@
+use bytes::buf;
 use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
 use crate::log;
 
@@ -172,6 +173,57 @@ impl Scene {
         };
     }
 
+    pub fn splat_count(&self) -> usize {
+        return self.splats.len();
+    }
+
+    pub fn nearest_power_of_2_bigger_than(&self, x: usize) -> usize {
+        let mut y = 1;
+        while y < x {
+            y *= 2;
+        }
+        return y;
+    }
+
+    pub fn compress_splats_into_buffer(&self) -> Vec<u8>{
+        let num_properties_per_splat = 15;
+        let mut buffer = vec![0.0; self.splat_count() * num_properties_per_splat];
+
+        for i in 0..self.splat_count(){
+
+            // s_color, s_center, s_cov3da, s_cov3db, s_opacity;
+            let splat = &self.splats[i];
+
+            buffer[i*num_properties_per_splat + 0] = splat.r;
+            buffer[i*num_properties_per_splat + 1] = splat.g;
+            buffer[i*num_properties_per_splat + 2] = splat.b;
+
+            buffer[i*num_properties_per_splat + 3] = splat.x;
+            buffer[i*num_properties_per_splat + 4] = splat.y;
+            buffer[i*num_properties_per_splat + 5] = splat.z;
+
+            buffer[i*num_properties_per_splat + 6] = splat.cov3d[0];
+            buffer[i*num_properties_per_splat + 7] = splat.cov3d[1];
+            buffer[i*num_properties_per_splat + 8] = splat.cov3d[2];
+            buffer[i*num_properties_per_splat + 9] = splat.cov3d[3];
+            buffer[i*num_properties_per_splat + 10] = splat.cov3d[4];
+            buffer[i*num_properties_per_splat + 11] = splat.cov3d[5];
+
+            buffer[i*num_properties_per_splat + 12] = splat.opacity;
+            buffer[i*num_properties_per_splat + 13] = splat.nx;
+            buffer[i*num_properties_per_splat + 14] = splat.ny;
+        }
+
+        let mut out : Vec<u8> = vec![0; self.nearest_power_of_2_bigger_than(buffer.len()*4)];
+        for i in 0..buffer.len(){
+            f32_to_4_bytes(buffer[i]).iter()
+                .enumerate()
+                .for_each(|(j, &byte)| out[i*4 + j] = byte);
+        }
+        return out;
+    }
+
+
     pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4){
         let calc_depth = |splat: &Splat| {
             ((splat.x * view_matrix[2] +
@@ -252,4 +304,20 @@ impl Scene {
             // a.z.partial_cmp(&b.z).unwrap())
         // ;
     }
+}
+
+pub fn u32_to_4_bytes(x: u32) -> [u8; 4] {
+    let bytes = x.to_be_bytes();
+    let result = [bytes[0], bytes[1], bytes[2], bytes[3]];
+    result
+}
+
+pub fn f32_to_u32(x: f32) -> u32 {
+    let result = u32::from(x.to_bits());
+    result
+}
+
+pub fn f32_to_4_bytes(x: f32) -> [u8; 4] {
+    let bytes = f32_to_u32(x);
+    u32_to_4_bytes(bytes)
 }

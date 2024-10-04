@@ -19,8 +19,15 @@ use eframe::glow::ALWAYS;
 use eframe::glow::COLOR_BUFFER_BIT;
 use eframe::glow::DEPTH_BUFFER_BIT;
 use eframe::glow::LESS;
+use eframe::glow::R8;
+use eframe::glow::RED;
+use eframe::glow::RED_INTEGER;
+use eframe::glow::RGBA;
+use eframe::glow::TEXTURE_2D;
 use eframe::glow::TRIANGLES;
 use eframe::glow::TRIANGLE_STRIP;
+use eframe::glow::UNPACK_ALIGNMENT;
+use eframe::glow::UNSIGNED_BYTE;
 use egui::debug_text::print;
 use egui::util::undoer::Settings;
 // use egui::epaint::Vertex;
@@ -33,6 +40,7 @@ use glm::vec4_to_vec3;
 use glm::Mat4;
 use glm::Vec2;
 use glm::Vec3;
+use js_sys::Int8Array;
 use scene::Scene;
 use utils::set_panic_hook;
 extern crate js_sys;
@@ -50,6 +58,7 @@ use web_sys::HtmlInputElement;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
+use web_sys::WebGlTexture;
 use web_sys::WebGlVertexArrayObject;
 
 
@@ -172,6 +181,14 @@ fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
     return Float32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
 }
 
+fn int8_array_from_vec(vec: &[u8]) -> Int8Array {
+    let memory_buffer = wasm_bindgen::memory()
+        .dyn_into::<WebAssembly::Memory>().unwrap()
+        .buffer();
+    let location: u32 = vec.as_ptr() as u32 / 4;
+    return Int8Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
+}
+
 struct WebGLSetupResult {
     gl: WebGl2RenderingContext,
     splat_shader: WebGlProgram,
@@ -187,6 +204,7 @@ struct WebGLSetupResult {
     geo_color_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
+    splat_texture: WebGlTexture,
 }
 
 fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
@@ -238,6 +256,23 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     let geo_color_buffer = create_buffer(&gl).unwrap();
     update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
 
+    let splat_texture = gl.create_texture().unwrap();
+    gl.bind_texture(TEXTURE_2D, Some(&splat_texture));
+
+    let data = scene.compress_splats_into_buffer();
+    let internal_format = R8 as i32; 
+    let width = (data.len() as i32) / 1024;
+    let height = 1024;
+    let border = 0;
+    let texture_type = UNSIGNED_BYTE;
+    let alignment = 1; 
+    // log!("data is {:?}", data);
+    log!("width is {:?}", width);
+    gl.pixel_storei(UNPACK_ALIGNMENT, alignment);
+    let _ = gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(TEXTURE_2D, 0, internal_format, width, height, border,  RED, texture_type, Some(data.as_slice()));
+
+
+
 
     let geo_vao = gl.create_vertex_array().unwrap();
     gl.bind_vertex_array(Some(&geo_vao));
@@ -265,7 +300,8 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
         geo_vertex_buffer,
         geo_count: vertices.len() as i32,
         geo_color_buffer,
-        geo_vao
+        geo_vao,
+        splat_texture
     };
 
     result.gl.use_program(Some(&result.splat_shader));

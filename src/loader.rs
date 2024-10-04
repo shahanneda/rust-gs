@@ -185,8 +185,8 @@ pub mod loader {
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.cleaned.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/shahan_head.ply")
-        let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
-        // let body = reqwest::get("http://127.0.0.1:5501/splats/one-corn.ply")
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
+        let body = reqwest::get("http://127.0.0.1:5501/splats/one-corn.ply")
             .await
             .expect("error")
             .bytes()
