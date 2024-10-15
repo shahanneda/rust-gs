@@ -179,16 +179,17 @@ pub mod loader {
         return splats;
     }
 
-    pub async fn load_ply() -> Result<Vec<PlySplat>, String> {
+    pub async fn load_ply(url : &str) -> Result<Vec<PlySplat>, String> {
         // return Ok(vec![]);
-        log!("### loading ply!!!");
+        // log!("### loading ply!!!");
         // let body = reqwest::get("http://127.0.0.1:5501/splats/gaussians.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.cleaned.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/shahan_head.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/guassians.ply")
-        let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/one-corn.ply")
+        let body = reqwest::get(url)
             .await
             .expect("error")
             .bytes()

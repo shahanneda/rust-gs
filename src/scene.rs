@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::log;
 
 use crate::timer::Timer;
-use crate::{ply_splat::PlySplat, utils::sigmoid};
+use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
+use nalgebra_glm as glm;
 
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -99,7 +100,7 @@ impl Splat{
     }
 
     pub fn new(ply_splat: &PlySplat) -> Self {
-        log!("new individual splat");
+        // log!("new individual splat");
         // let _timer = Timer::new("new individual splat");
         let rgb = Splat::rgb_from_sh(ply_splat.f_dc_0, ply_splat.f_dc_1, ply_splat.f_dc_2);
 
@@ -168,6 +169,22 @@ pub struct Scene{
 }
 
 impl Scene {
+    pub async fn new_from_url(url: &str) -> Self {
+        let loaded_file = reqwest::get(url)
+            .await
+            .expect("error")
+            .text()
+            .await
+            .expect("went wrong when reading!");
+        return Scene::new_from_json(&loaded_file);
+    }
+
+    pub fn new_from_json(json_str: &str) -> Self {
+        let _timer = Timer::new("new scene from json");
+        log!("Creating a new scene from json");
+        return serde_json::from_str(json_str).unwrap();
+    }
+
     pub fn new(splats: Vec<PlySplat>) -> Self {
         let _timer = Timer::new("new scene");
         log!("Creating a new scene");
