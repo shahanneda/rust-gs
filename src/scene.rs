@@ -1,13 +1,26 @@
 use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 use crate::log;
 
 use crate::timer::Timer;
 use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
 use nalgebra_glm as glm;
+use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
+// use speedy::{Readable, Writable, Endianness};
 
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+
+
+// #[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Archive, Deserialize, Serialize, Debug, PartialEq)]
+#[rkyv(
+    // This will generate a PartialEq impl between our unarchived
+    // and archived types
+    compare(PartialEq),
+    // Derives can be passed through to the generated type:
+    derive(Debug),
+)]
+// #[derive(Clone, PartialEq, Debug, Readable, Writable)]
 pub struct Splat{
         pub nx: f32,
         pub ny: f32,
@@ -163,26 +176,43 @@ impl Splat{
     
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+// #[derive(Serialize, Deserialize, Debug)]
+#[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
+#[rkyv(
+    // This will generate a PartialEq impl between our unarchived
+    // and archived types
+    compare(PartialEq),
+    // Derives can be passed through to the generated type:
+    derive(Debug),
+)]
 pub struct Scene{
     pub splats: Vec<Splat>,
 }
 
 impl Scene {
     pub async fn new_from_url(url: &str) -> Self {
+
+        let _timer = Timer::new("loading json file");
         let loaded_file = reqwest::get(url)
             .await
             .expect("error")
-            .text()
+            .bytes()
             .await
             .expect("went wrong when reading!");
         return Scene::new_from_json(&loaded_file);
     }
 
-    pub fn new_from_json(json_str: &str) -> Self {
+    pub fn new_from_json(bytes: &[u8]) -> Self {
         let _timer = Timer::new("new scene from json");
         log!("Creating a new scene from json");
-        return serde_json::from_str(json_str).unwrap();
+        
+        match rkyv::from_bytes::<Scene, Error>(bytes) {
+            Ok(scene) => scene,
+            Err(e) => {
+                // Handle the error appropriately. For now, we'll panic with a message.
+                panic!("Failed to deserialize scene: {:?}", e);
+            }
+        }
     }
 
     pub fn new(splats: Vec<PlySplat>) -> Self {
@@ -197,13 +227,27 @@ impl Scene {
     }
 
     pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4){
-        // let _timer = Timer::new("sort_splats_based_on_depth");
+        let _timer = Timer::new("sort_splats_based_on_depth");
         // track start time
         let calc_depth = |splat: &Splat| {
             ((splat.x * view_matrix[2] +
             splat.y * view_matrix[6] +
             splat.z * view_matrix[10])*100.0) as i32
         };
+
+        let mut pos_count = 0;
+        let mut neg_count = 0;
+        for splat in &self.splats{
+            let depth = calc_depth(&splat);
+            if depth > 0{
+                pos_count += 1;
+            } else {
+                neg_count += 1;
+            }
+        }
+
+        log!("pos count is {pos_count} neg count is {neg_count}");
+
 
         let mut max_depth = i32::MIN;
         let mut min_depth = 0;
@@ -231,38 +275,45 @@ impl Scene {
             count_array[i] += count_array[i-1];
         }
 
-        let mut output : Vec<Splat> = vec![Splat{
-            nx: 0.0,
-            ny: 0.0,
-            nz: 0.0,
-            opacity: 0.0,
-            rot_0: 0.0,
-            rot_1: 0.0,
-            rot_2: 0.0,
-            rot_3: 0.0,
-            scale_0: 0.0,
-            scale_1: 0.0,
-            scale_2: 0.0,
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            cov3d: [0.0; 6]
-        }; self.splats.len()];
+        {
+            let _timer = Timer::new("creating output vector");
+            let mut output : Vec<Splat> = vec![Splat{
+                nx: 0.0,
+                ny: 0.0,
+                nz: 0.0,
+                opacity: 0.0,
+                rot_0: 0.0,
+                rot_1: 0.0,
+                rot_2: 0.0,
+                rot_3: 0.0,
+                scale_0: 0.0,
+                scale_1: 0.0,
+                scale_2: 0.0,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                cov3d: [0.0; 6]
+            }; self.splats.len()];
 
-        for i in (0..self.splats.len()).rev(){
-            let depth = depth_list[i];
-            let index = count_array[depth as usize] - 1;
-            // log!("depth is {depth} index is {index} i is {i}");
-            // TODO: Remove copying of splats when sorting
-            output[index as usize] = self.splats[i];
-            count_array[depth as usize] -= 1;
+            for i in (0..self.splats.len()).rev(){
+                let depth = depth_list[i];
+                // if depth > 0 {
+                //     self.splats[i].opacity = 0.0;
+                // }
+
+                let index = count_array[depth as usize] - 1;
+                // log!("depth is {depth} index is {index} i is {i}");
+                // TODO: Remove copying of splats when sorting
+                output[index as usize] = self.splats[i];
+                count_array[depth as usize] -= 1;
+            }
+
+            // output.reverse();
+            self.splats = output;
         }
-
-        // output.reverse();
-        self.splats = output;
 
 
         // self.splats.sort_by(|a, b| 

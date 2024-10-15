@@ -88,6 +88,12 @@ void main() {
   vec3 p_proj = p_hom.xyz * p_w;
   vec4 p_view = camera * vec4(p_orig, 1);
 
+  // check if the splat is behind the camera
+  if (p_view.z > 0.0) {
+      gl_Position = vec4(0, 0, 0, 1);
+      return;
+  }
+
   
   float cov3D[6] = float[6](s_cov3da.x, s_cov3da.y, s_cov3da.z, s_cov3db.x, s_cov3db.y, s_cov3db.z);
   vec3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, camera);

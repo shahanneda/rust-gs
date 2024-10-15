@@ -25,6 +25,7 @@ use crate::loader::loader;  // If you need the loader
 use crate::log;
 use crate::timer::Timer;
 use crate::utils::set_panic_hook;
+// use crate::shader;
 use crate::shader;
 extern crate js_sys;
 extern crate ply_rs;
@@ -478,7 +479,7 @@ struct Point {
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
     set_panic_hook();
-    log!("web!");
+    // log!("web!");
     // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
     // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
     // let mut scene = Scene::new(ply_splat);
@@ -488,18 +489,20 @@ pub async fn start() -> Result<(), JsValue> {
     // Load the JSON file dynamically
     // let window = web_sys::window().unwrap();
     // let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/one-corn.json").await;
-    let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/corn.json").await;
+    // let scene_name = "shahan_head";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000";
+    let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
 
     // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
     // log!("Done loading!");
-    log!("just finished calling scene new");
 
 
 
 
-    let _timer = Timer::new("hello");
+    let _timer = Timer::new("start function");
 
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
@@ -531,7 +534,7 @@ pub async fn start() -> Result<(), JsValue> {
         log!("Got key down!!! {}", keyboard_event.key());
         let mut cam_info = cam_info_clone.borrow_mut();
         let rot_speed = 0.1;
-        let move_speed = 0.3;
+        let move_speed = 0.5;
 
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
 

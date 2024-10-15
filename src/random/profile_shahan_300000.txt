@@ -1,0 +1,5 @@
+new scene from json: 53781.922119140625 ms
+gs_rust.js:583 loading json file: 55803.258056640625 ms
+gs_rust.js:583 start function: 266.14990234375 ms
+gs_rust.js:583 creating output vector: 179.366943359375 ms
+gs_rust.js:583 sort_splats_based_on_depth: 595.320068359375 ms
