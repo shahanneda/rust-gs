@@ -6,7 +6,7 @@ precision mediump float;
 // uniform bool show_depth_map;
 
 in vec3 col;
-// in float scale_modif;
+in float scale_modif;
 in float depth;
 in vec4 con_o;
 in vec2 xy;
@@ -33,7 +33,7 @@ void main() {
 
     // (Custom) As the covariance matrix is calculated in a one-time operation on CPU in this implementation,
     // we need to apply the scale modifier differently to still allow for real-time scaling of the splats.
-    // power *= scale_modif;
+    power *= scale_modif;
 
     // Eq. (2) from 3D Gaussian splatting paper.
     float alpha = min(.99f, con_o.w * exp(power));
@@ -44,13 +44,16 @@ void main() {
     //     color = depth_palette(depth * .08);
     // }
 
-    // if (alpha < 1./255.) {
-    //     discard;
-    // }
+    if (alpha < 1./255.) {
+        discard;
+    }
+    
 
     // Eq. (3) from 3D Gaussian splatting paper.
     // fragColor = vec4(1,0,0,1);
     fragColor = vec4(color*alpha,  alpha);
+    // fragColor = vec4(color , 1);
+
     // fragColor = vec4(color,  1);
     // fragColor = vec4(con_o.x,  0, 0, 1);
     // fragColor = vec4(con_o.x*128.0, 0, 0, 1);

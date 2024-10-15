@@ -1,3 +1,4 @@
+use nalgebra_glm::pi;
 use serde::{Serialize, Deserialize};
 
 use std::cell::RefCell;
@@ -44,6 +45,7 @@ use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
 use web_sys::WebGlVertexArrayObject;
+use web_sys::MouseEvent;
 
 
 #[wasm_bindgen]
@@ -216,6 +218,24 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
         -1.0, 1.0, 0.0, //
         1.0, 1.0, 0.0, //
     ];
+    // let vertices: [f32; 3*4] = [
+    //     0.5, 0.5, 0.0, //
+    //     -0.5, 0.5, 0.0, //
+    //     -0.5, -0.5, 0.0, //
+    //     0.5, -0.5, 0.0, //
+    // ];
+    // let vertices: [f32; 3*4] = [
+    //     -0.0, 0.0, 0.0, //
+    //     1.0, 0.0, 0.0, //
+    //     -0.0, 1.0, 0.0, //
+    //     1.0, 1.0, 0.0, //
+    // ];
+    // let vertices: [f32; 3*4] = [
+    //     -0.1, -0.1, 0.0, //
+    //     0.1, -0.1, 0.0, //
+    //     -0.1, 0.1, 0.0, //
+    //     0.1, 0.1, 0.0, //
+    // ];
     let vertices = vertices.map(|v| v);
 
     let splat_vao = gl.create_vertex_array().unwrap();
@@ -439,9 +459,10 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
 
 pub fn get_world_to_camera_matrix(cam : &CameraInfo) -> Mat4{
     let mut camera: Mat4 = glm::identity();
+    camera = glm::rotate_z(&camera, 1.0 * glm::pi::<f32>());
     camera = glm::rotate_x(&camera, cam.rot.x);
     camera = glm::rotate_y(&camera, cam.rot.y);
-    camera = glm::translate(&camera, &-cam.pos);
+    camera = glm::translate(&camera, &cam.pos);
     return camera;
 }
 
@@ -455,18 +476,20 @@ pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam:
 
     let mut vm = get_world_to_camera_matrix(&cam);
     let mut vpm = proj * vm;
-    // invertRow(&mut vm, 1);
-    // invertRow(&mut vm, 2);
-    // invertRow(&mut vpm, 1);
-    // invertRow(&mut vm, 0);
-    // invertRow(&mut vpm, 0);
+    invertRow(&mut vm, 1);
+    invertRow(&mut vm, 2);
+    invertRow(&mut vpm, 1);
+    invertRow(&mut vm, 0);
+    invertRow(&mut vpm, 0);
     scene.sort_splats_based_on_depth(vpm);
     return (vm, vpm)
 }
 
 pub struct CameraInfo{
     pub pos: Vec3,
-    pub rot: Vec2, 
+    pub rot: Vec2,
+    pub is_dragging: bool,
+    pub last_mouse_pos: Vec2,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -490,8 +513,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let window = web_sys::window().unwrap();
     // let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/one-corn.json").await;
     // let scene_name = "shahan_head";
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
-    let scene_name = "Shahan_03_id01-30000";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
@@ -517,99 +540,121 @@ pub async fn start() -> Result<(), JsValue> {
     let cam_info = Rc::new(RefCell::new(CameraInfo {
         pos: Vec3::new(0.0, 0.0, 5.0),
         rot: Vec2::new(0.0, 0.0),
+        is_dragging: false,
+        last_mouse_pos: Vec2::new(0.0, 0.0),
     }));
 
     let cam_info_clone = cam_info.clone();
-    let cb = Closure::wrap(Box::new(move |e: Event| {
-        // let input = e
-        //     .current_target()
-        //     .unwrap()
-        //     .dyn_into::<web_sys::Document>()
-        //     .unwrap();
-        
-        let keyboard_event = e.clone()
-                        .dyn_into::<web_sys::KeyboardEvent>()
-                        .unwrap();
-            
-        log!("Got key down!!! {}", keyboard_event.key());
-        let mut cam_info = cam_info_clone.borrow_mut();
-        let rot_speed = 0.1;
-        let move_speed = 0.5;
-
-        let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
-
-        if keyboard_event.key() == "w" {
-            cam_translation_local = vec3(0.0, 0.0, -move_speed);
-        } else if keyboard_event.key() == "s" {
-            cam_translation_local = vec3(0.0, 0.0, move_speed);
-        }
-        if keyboard_event.key() == "a" {
-            cam_translation_local = vec3(-move_speed, 0.0, 0.0);
-        } else if keyboard_event.key() == "d" {
-            cam_translation_local = vec3(move_speed, 0.0, 0.0);
-        } else if keyboard_event.key() == " "{
-            cam_translation_local = vec3(0.0, move_speed, 0.0);
-        } else if keyboard_event.key() == "Shift"{
-            cam_translation_local = vec3(0.0, -move_speed, 0.0);
-        } else if keyboard_event.key() == "r"{
-            cam_info.pos = vec3(0.0, 0.0, 5.0);
-            cam_info.rot = vec2(0.0, 0.0);
-        }
-
-        if cam_translation_local != vec3(0.0, 0.0, 0.0) {
-            let cam_to_world = get_camera_to_world_matrix(&cam_info);
-            // log!("cam_translation_local is {}", cam_translation_local);
-
-            let cam_pos_after_moving = get_camera_to_world_matrix(&cam_info) * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 1.0);
-            let cam_pos_after_moving = vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
-
-            log!("Cam world pos is: {}", cam_info.pos);
-            cam_info.pos.x = cam_pos_after_moving.x;
-            cam_info.pos.y = cam_pos_after_moving.y;
-            cam_info.pos.z = cam_pos_after_moving.z;
-
-            // let mut cam_translation_global = cam_info.pos - cam_pos_after_moving;
-
-
-
-            // // log!("cam to world matrix is {}", cam_to_world);
-            // // log!("0,0,-5 in cam to world is {} ", cam_to_world * vec4(0.0, 0.0, -8.0, 1.0));
-            // // log!("cam translation global is {cam_translation_global}");
-            // cam_translation_global = cam_translation_global.normalize() * move_speed;
-
-            // log!("cam translation global is {cam_translation_global}");
-            // log!("cam translation local is {cam_translation_local}");
-
-        }
-
-        if keyboard_event.key() == "ArrowUp" {
-            cam_info.rot.x -= rot_speed;
-        } else if keyboard_event.key() == "ArrowDown" {
-            cam_info.rot.x += rot_speed;
-        }
-        if keyboard_event.key() == "ArrowLeft" {
-            cam_info.rot.y -= rot_speed;
-        } else if keyboard_event.key() == "ArrowRight" {
-            cam_info.rot.y += rot_speed;
-        }
-
+    let move_speed = 0.05;
+    let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
+    
+    let keys_pressed_clone = keys_pressed.clone();
+    let keydown_cb = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+        keys_pressed_clone.borrow_mut().insert(e.key());
     }) as Box<dyn FnMut(_)>);
-    // canvas.add_event_listener_with_callback("onkeydown", &cb.as_ref().unchecked_ref())?;
-    let _ = document.add_event_listener_with_callback("keydown", &cb.as_ref().unchecked_ref());
+    document.add_event_listener_with_callback("keydown", keydown_cb.as_ref().unchecked_ref())?;
+    keydown_cb.forget();
 
-    cb.forget();
+    let keys_pressed_clone = keys_pressed.clone();
+    let keyup_cb = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+        keys_pressed_clone.borrow_mut().remove(&e.key());
+    }) as Box<dyn FnMut(_)>);
+    document.add_event_listener_with_callback("keyup", keyup_cb.as_ref().unchecked_ref())?;
+    keyup_cb.forget();
 
+    // Add mouse event handlers
+    let cam_info_mousedown = cam_info.clone();
+    let mousedown_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
+        let mut cam_info = cam_info_mousedown.borrow_mut();
+        cam_info.is_dragging = true;
+        cam_info.last_mouse_pos = Vec2::new(e.client_x() as f32, e.client_y() as f32);
+    }) as Box<dyn FnMut(_)>);
+    canvas.add_event_listener_with_callback("mousedown", mousedown_cb.as_ref().unchecked_ref())?;
+    mousedown_cb.forget();
 
+    let cam_info_mousemove = cam_info.clone();
+    let mousemove_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
+        let mut cam_info = cam_info_mousemove.borrow_mut();
+        if cam_info.is_dragging {
+            let current_pos = Vec2::new(e.client_x() as f32, e.client_y() as f32);
+            let delta = current_pos - cam_info.last_mouse_pos;
+            
+            // Adjust these factors to control rotation speed
+            let rotation_factor_x = 0.001;
+            let rotation_factor_y = 0.001;
+
+            cam_info.rot.y -= -delta.x * rotation_factor_x;
+            cam_info.rot.x -= -delta.y * rotation_factor_y;
+
+            // Clamp vertical rotation to avoid flipping
+            cam_info.rot.x = cam_info.rot.x.clamp(-std::f32::consts::FRAC_PI_2, std::f32::consts::FRAC_PI_2);
+
+            cam_info.last_mouse_pos = current_pos;
+        }
+    }) as Box<dyn FnMut(_)>);
+    document.add_event_listener_with_callback("mousemove", mousemove_cb.as_ref().unchecked_ref())?;
+    mousemove_cb.forget();
+
+    let cam_info_mouseup = cam_info.clone();
+    let mouseup_cb = Closure::wrap(Box::new(move |_: MouseEvent| {
+        let mut cam_info = cam_info_mouseup.borrow_mut();
+        cam_info.is_dragging = false;
+    }) as Box<dyn FnMut(_)>);
+    document.add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;
+    mouseup_cb.forget();
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
     let mut i = 0;
 
-
     let cam_info_clone2 = cam_info.clone();
+    let keys_pressed_clone = keys_pressed.clone();
     *g.borrow_mut() = Some(Closure::new(move || {
-        let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info_clone2.borrow());
+        let mut cam_info = cam_info_clone2.borrow_mut();
+        let keys = keys_pressed_clone.borrow();
+
+        let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
+
+        if keys.contains("w") {
+            cam_translation_local.z -= move_speed;
+        }
+        if keys.contains("s") {
+            cam_translation_local.z += move_speed;
+        }
+        if keys.contains("a") {
+            cam_translation_local.x += move_speed;
+        }
+        if keys.contains("d") {
+            cam_translation_local.x -= move_speed;
+        }
+        if keys.contains(" ") {
+            cam_translation_local.y -= move_speed;
+        }
+        if keys.contains("Shift") {
+            cam_translation_local.y += move_speed;
+        }
+
+        if cam_translation_local != vec3(0.0, 0.0, 0.0) {
+            let cam_to_world = get_camera_to_world_matrix(&cam_info);
+            let cam_pos_after_moving = cam_to_world * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 0.0);
+            cam_info.pos += vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
+        }
+
+        if keys.contains("ArrowUp") {
+            cam_info.rot.x -= 0.1;
+        }
+        if keys.contains("ArrowDown") {
+            cam_info.rot.x += 0.1;
+        }
+        if keys.contains("ArrowLeft") {
+            cam_info.rot.y -= 0.1;
+        }
+        if keys.contains("ArrowRight") {
+            cam_info.rot.y += 0.1;
+        }
+
+        let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info);
 
         update_webgl_buffers(&scene, &webgl);
         draw(&webgl, &canvas, i, scene.splats.len() as i32, vpm, vm);
@@ -619,7 +664,7 @@ pub async fn start() -> Result<(), JsValue> {
     }));
 
     request_animation_frame(g.borrow().as_ref().unwrap());
-    return Ok(())
+    Ok(())
 }
 
 

@@ -12,13 +12,14 @@ use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 #[tokio::main]
 async fn main() {
 	// let scene_name = "Shahan_03_id01-30000";
-	let scene_name = "shahan_head";
+	let scene_name = "Shahan_03_id01-30000.cleaned";
 	// let scene_name = "Shahan_03_id01-30000";
 	// let scene_name = "Shahan_03_id01-30000";
 	let url = format!("http://127.0.0.1:5501/splats/{}.ply", scene_name);
 	println!("Compressing ply file: {}", url);
 
-	let ply_splat = loader::load_ply(&url).await.expect("something went wrong in loading");
+	let mut ply_splat = loader::load_ply(&url).await.expect("something went wrong in loading");
+	// ply_splat.truncate(2);
 	let mut scene = Scene::new(ply_splat);
 	// let serialized = serde_json::to_string(&scene).unwrap();
 	let serialized = rkyv::to_bytes::<Error>(&scene).unwrap();

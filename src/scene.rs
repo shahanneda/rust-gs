@@ -83,13 +83,24 @@ impl Splat{
 // }
 
     fn compute_cov3_d(scale: Vec3, md: f32, rot: Vec4) -> [f32; 6] {
+        log!("scale is {:?}", scale);
+        log!("md is {:?}", md);
+        log!("rot is {:?}", rot);
         // mat3.set(S, mod * scale[0], 0, 0, 0, mod * scale[1], 0, 0, 0, mod * scale[2]);
         let scaling_mat = glm::mat3(md*scale[0], 0.0, 0.0, 0.0, md*scale[1], 0.0, 0.0, 0.0, md*scale[2]);
+        let w = rot[0];
+        let x = rot[1];
+        let y = rot[2];
+        let z = rot[3];
 
-        let quat = glm::Quat::new(rot.w, rot.x, rot.y, rot.z);
+        let quat = glm::Quat::new(w, x, y, z);
         let rot_mat = quat_to_mat3(&quat);
-        let matrix = scaling_mat * rot_mat;
+        log!("rot_mat is {:?}", rot_mat);
+        let matrix = scaling_mat * rot_mat.transpose();
+        log!("scaling_mat is {:?}", scaling_mat);
+        log!("matrix is {:?}", matrix);
         let sigma = matrix.transpose() * matrix;
+        // let sigma = matrix * matrix.transpose();
         // log!("{sigma}");
         // Only store upper right since it's symmetric
         let cov3d = [sigma[0], sigma[1], sigma[2], sigma[4], sigma[5], sigma[8]];
@@ -102,6 +113,7 @@ impl Splat{
         // const x = rot[1];
         // const y = rot[2];
         // const z = rot[3];
+        log!("cov3d is {:?}", cov3d);
         return cov3d;
     }
 
@@ -208,7 +220,13 @@ impl Scene {
         log!("Creating a new scene from json");
         
         match rkyv::from_bytes::<Scene, Error>(bytes) {
-            Ok(scene) => scene,
+            Ok(mut scene) => {
+                // only take 100 splats
+                // scene.splats.truncate(5);
+                log!("scene has {} splats", scene.splats.len());
+                log!("scene has {:?}", scene.splats);
+                return scene;
+            },
             Err(e) => {
                 // Handle the error appropriately. For now, we'll panic with a message.
                 panic!("Failed to deserialize scene: {:?}", e);
@@ -284,101 +302,101 @@ impl Scene {
         let calc_depth = |splat: &Splat| {
             ((splat.x * view_matrix[2] +
             splat.y * view_matrix[6] +
-            splat.z * view_matrix[10])*100.0) as i32
+            splat.z * view_matrix[10])*1_000.0) as i32
         };
 
-        let mut pos_count = 0;
-        let mut neg_count = 0;
-        for splat in &self.splats{
-            let depth = calc_depth(&splat);
-            if depth > 0{
-                pos_count += 1;
-            } else {
-                neg_count += 1;
-            }
-        }
+        // let mut pos_count = 0;
+        // let mut neg_count = 0;
+        // for splat in &self.splats{
+        //     let depth = calc_depth(&splat);
+        //     if depth > 0{
+        //         pos_count += 1;
+        //     } else {
+        //         neg_count += 1;
+        //     }
+        // }
 
-        log!("pos count is {pos_count} neg count is {neg_count}");
-
-
-        let mut max_depth = i32::MIN;
-        let mut min_depth = 0;
-        let splat_count = self.splats.len();
-
-        let mut depth_list = self.splats.iter().map(|splat| {
-            let depth = calc_depth(&splat);
-            max_depth = max_depth.max(depth as i32);
-            min_depth = min_depth.min(depth as i32);
-            depth
-        }).collect::<Vec<i32>>();
-
-        let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
-
-        // Count the number of splats at each depth
-        // log!("max is {max_depth} min is {min_depth}");
-        for i in 0..splat_count{
-            depth_list[i] -= min_depth;
-            count_array[depth_list[i] as usize] += 1;
-        }
-
-        // Do prefix sum
-        for i in 1..count_array.len(){
-            count_array[i] += count_array[i-1];
-        }
-
-        {
-            let _timer = Timer::new("creating output vector");
-            let mut output : Vec<Splat> = vec![Splat{
-                nx: 0.0,
-                ny: 0.0,
-                nz: 0.0,
-                opacity: 0.0,
-                rot_0: 0.0,
-                rot_1: 0.0,
-                rot_2: 0.0,
-                rot_3: 0.0,
-                scale_0: 0.0,
-                scale_1: 0.0,
-                scale_2: 0.0,
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                cov3d: [0.0; 6]
-            }; self.splats.len()];
-
-            for i in (0..self.splats.len()).rev(){
-                let depth = depth_list[i];
-                // if depth > 0 {
-                //     self.splats[i].opacity = 0.0;
-                // }
-
-                let index = count_array[depth as usize] - 1;
-                // log!("depth is {depth} index is {index} i is {i}");
-                // TODO: Remove copying of splats when sorting
-                output[index as usize] = self.splats[i];
-                count_array[depth as usize] -= 1;
-            }
-
-            // output.reverse();
-            self.splats = output;
-        }
+        // log!("pos count is {pos_count} neg count is {neg_count}");
 
 
-        // self.splats.sort_by(|a, b| 
-        //     calc_depth(&a).partial_cmp(&calc_depth(&b)).unwrap())
+        // let mut max_depth = i32::MIN;
+        // let mut min_depth = 0;
+        // let splat_count = self.splats.len();
+
+        // let mut depth_list = self.splats.iter().map(|splat| {
+        //     let depth = calc_depth(&splat);
+        //     max_depth = max_depth.max(depth as i32);
+        //     min_depth = min_depth.min(depth as i32);
+        //     depth
+        // }).collect::<Vec<i32>>();
+
+        // let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
+
+        // // Count the number of splats at each depth
+        // // log!("max is {max_depth} min is {min_depth}");
+        // for i in 0..splat_count{
+        //     depth_list[i] -= min_depth;
+        //     count_array[depth_list[i] as usize] += 1;
+        // }
+
+        // // Do prefix sum
+        // for i in 1..count_array.len(){
+        //     count_array[i] += count_array[i-1];
+        // }
+
+        // {
+        //     let _timer = Timer::new("creating output vector");
+        //     let mut output : Vec<Splat> = vec![Splat{
+        //         nx: 0.0,
+        //         ny: 0.0,
+        //         nz: 0.0,
+        //         opacity: 0.0,
+        //         rot_0: 0.0,
+        //         rot_1: 0.0,
+        //         rot_2: 0.0,
+        //         rot_3: 0.0,
+        //         scale_0: 0.0,
+        //         scale_1: 0.0,
+        //         scale_2: 0.0,
+        //         x: 0.0,
+        //         y: 0.0,
+        //         z: 0.0,
+        //         r: 0.0,
+        //         g: 0.0,
+        //         b: 0.0,
+        //         cov3d: [0.0; 6]
+        //     }; self.splats.len()];
+
+        //     for i in (0..self.splats.len()).rev(){
+        //         let depth = depth_list[i];
+        //         // if depth > 0 {
+        //         //     self.splats[i].opacity = 0.0;
+        //         // }
+
+        //         let index = count_array[depth as usize] - 1;
+        //         // log!("depth is {depth} index is {index} i is {i}");
+        //         // TODO: Remove copying of splats when sorting
+        //         output[index as usize] = self.splats[i];
+        //         count_array[depth as usize] -= 1;
+        //     }
+
+        //     // output.reverse();
+        //     self.splats = output;
+        // }
+
+
+        self.splats.sort_by(|a, b| 
+            calc_depth(&b).partial_cmp(&calc_depth(&a)).unwrap());
         // const calcDepth = (i) =>
         //     gaussians.positions[i * 3] * viewMatrix[2] +
         //     gaussians.positions[i * 3 + 1] * viewMatrix[6] +
         //     gaussians.positions[i * 3 + 2] * viewMatrix[10];
             
-            // 0 1 2 3
-            // 4 5 6 7
-            // 8 9 10 11
-            // 12 13 14 15
-            // a.z.partial_cmp(&b.z).unwrap())
+        //     0 1 2 3
+        //     4 5 6 7
+        //     8 9 10 11
+        //     12 13 14 15
+        //     a.z.partial_cmp(&b.z).unwrap())
         // ;
     }
 }
