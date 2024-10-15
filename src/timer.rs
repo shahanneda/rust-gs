@@ -24,10 +24,8 @@ impl<'a> Timer<'a> {
             Timer { name, start }
         }
     }
-}
 
-impl<'a> Drop for Timer<'a> {
-    fn drop(&mut self) {
+    pub fn end(&self) {
         #[cfg(target_arch = "wasm32")]
         {
             console::time_end_with_label(self.name);
@@ -37,5 +35,12 @@ impl<'a> Drop for Timer<'a> {
             let duration = self.start.elapsed();
             println!("Timer '{}' ended after {:?}", self.name, duration);
         }
+    }
+
+}
+
+impl<'a> Drop for Timer<'a> {
+    fn drop(&mut self) {
+        self.end();
     }
 }

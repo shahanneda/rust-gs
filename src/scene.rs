@@ -83,9 +83,6 @@ impl Splat{
 // }
 
     fn compute_cov3_d(scale: Vec3, md: f32, rot: Vec4) -> [f32; 6] {
-        log!("scale is {:?}", scale);
-        log!("md is {:?}", md);
-        log!("rot is {:?}", rot);
         // mat3.set(S, mod * scale[0], 0, 0, 0, mod * scale[1], 0, 0, 0, mod * scale[2]);
         let scaling_mat = glm::mat3(md*scale[0], 0.0, 0.0, 0.0, md*scale[1], 0.0, 0.0, 0.0, md*scale[2]);
         let w = rot[0];
@@ -95,10 +92,7 @@ impl Splat{
 
         let quat = glm::Quat::new(w, x, y, z);
         let rot_mat = quat_to_mat3(&quat);
-        log!("rot_mat is {:?}", rot_mat);
         let matrix = scaling_mat * rot_mat.transpose();
-        log!("scaling_mat is {:?}", scaling_mat);
-        log!("matrix is {:?}", matrix);
         let sigma = matrix.transpose() * matrix;
         // let sigma = matrix * matrix.transpose();
         // log!("{sigma}");
@@ -113,7 +107,7 @@ impl Splat{
         // const x = rot[1];
         // const y = rot[2];
         // const z = rot[3];
-        log!("cov3d is {:?}", cov3d);
+        // log!("cov3d is {:?}", cov3d);
         return cov3d;
     }
 
@@ -224,7 +218,6 @@ impl Scene {
                 // only take 100 splats
                 // scene.splats.truncate(5);
                 log!("scene has {} splats", scene.splats.len());
-                log!("scene has {:?}", scene.splats);
                 return scene;
             },
             Err(e) => {
@@ -299,11 +292,6 @@ impl Scene {
     pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4){
         let _timer = Timer::new("sort_splats_based_on_depth");
         // track start time
-        let calc_depth = |splat: &Splat| {
-            ((splat.x * view_matrix[2] +
-            splat.y * view_matrix[6] +
-            splat.z * view_matrix[10])*1_000.0) as i32
-        };
 
         // let mut pos_count = 0;
         // let mut neg_count = 0;
@@ -319,74 +307,89 @@ impl Scene {
         // log!("pos count is {pos_count} neg count is {neg_count}");
 
 
-        // let mut max_depth = i32::MIN;
-        // let mut min_depth = 0;
-        // let splat_count = self.splats.len();
+        let depth_list_timer = Timer::new("create depth list");
+        // Precompute these values outside the loop
+        let view_matrix_2 = view_matrix[2];
+        let view_matrix_6 = view_matrix[6];
+        let view_matrix_10 = view_matrix[10];
 
-        // let mut depth_list = self.splats.iter().map(|splat| {
-        //     let depth = calc_depth(&splat);
-        //     max_depth = max_depth.max(depth as i32);
-        //     min_depth = min_depth.min(depth as i32);
-        //     depth
-        // }).collect::<Vec<i32>>();
+        let mut depth_list = Vec::with_capacity(self.splats.len());
+        let mut max_depth = i32::MIN;
+        let mut min_depth = i32::MAX;
 
-        // let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
+        for splat in &self.splats {
+            let depth = ((splat.x * view_matrix_2 +
+                          splat.y * view_matrix_6 +
+                          splat.z * view_matrix_10) * 64.0) as i32;
+            
+            depth_list.push(depth);
+            max_depth = max_depth.max(depth);
+            min_depth = min_depth.min(depth);
+        }
+        depth_list_timer.end();
 
-        // // Count the number of splats at each depth
-        // // log!("max is {max_depth} min is {min_depth}");
-        // for i in 0..splat_count{
-        //     depth_list[i] -= min_depth;
-        //     count_array[depth_list[i] as usize] += 1;
-        // }
+        let count_array_timer = Timer::new("create count array");
+        let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
+        count_array_timer.end();
 
-        // // Do prefix sum
-        // for i in 1..count_array.len(){
-        //     count_array[i] += count_array[i-1];
-        // }
+        // Count the number of splats at each depth
+        // log!("max is {max_depth} min is {min_depth}");
+        let count_array_timer = Timer::new("count splats at each depth");
+        for i in 0..self.splats.len(){
+            depth_list[i] -= min_depth;
+            count_array[depth_list[i] as usize] += 1;
+        }
+        count_array_timer.end();
+        // Do prefix sum
+        let prefix_sum_timer = Timer::new("prefix sum");
+        for i in 1..count_array.len(){
+            count_array[i] += count_array[i-1];
+        }
+        prefix_sum_timer.end();
 
-        // {
-        //     let _timer = Timer::new("creating output vector");
-        //     let mut output : Vec<Splat> = vec![Splat{
-        //         nx: 0.0,
-        //         ny: 0.0,
-        //         nz: 0.0,
-        //         opacity: 0.0,
-        //         rot_0: 0.0,
-        //         rot_1: 0.0,
-        //         rot_2: 0.0,
-        //         rot_3: 0.0,
-        //         scale_0: 0.0,
-        //         scale_1: 0.0,
-        //         scale_2: 0.0,
-        //         x: 0.0,
-        //         y: 0.0,
-        //         z: 0.0,
-        //         r: 0.0,
-        //         g: 0.0,
-        //         b: 0.0,
-        //         cov3d: [0.0; 6]
-        //     }; self.splats.len()];
+        {
+            let _timer = Timer::new("creating output vector");
+            let mut output : Vec<Splat> = vec![Splat{
+                nx: 0.0,
+                ny: 0.0,
+                nz: 0.0,
+                opacity: 0.0,
+                rot_0: 0.0,
+                rot_1: 0.0,
+                rot_2: 0.0,
+                rot_3: 0.0,
+                scale_0: 0.0,
+                scale_1: 0.0,
+                scale_2: 0.0,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                cov3d: [0.0; 6]
+            }; self.splats.len()];
 
-        //     for i in (0..self.splats.len()).rev(){
-        //         let depth = depth_list[i];
-        //         // if depth > 0 {
-        //         //     self.splats[i].opacity = 0.0;
-        //         // }
+            for i in (0..self.splats.len()).rev(){
+                let depth = depth_list[i];
+                // if depth > 0 {
+                //     self.splats[i].opacity = 0.0;
+                // }
 
-        //         let index = count_array[depth as usize] - 1;
-        //         // log!("depth is {depth} index is {index} i is {i}");
-        //         // TODO: Remove copying of splats when sorting
-        //         output[index as usize] = self.splats[i];
-        //         count_array[depth as usize] -= 1;
-        //     }
+                let index = count_array[depth as usize] - 1;
+                // log!("depth is {depth} index is {index} i is {i}");
+                // TODO: Remove copying of splats when sorting
+                output[index as usize] = self.splats[i];
+                count_array[depth as usize] -= 1;
+            }
 
-        //     // output.reverse();
-        //     self.splats = output;
-        // }
+            output.reverse();
+            self.splats = output;
+        }
 
 
-        self.splats.sort_by(|a, b| 
-            calc_depth(&b).partial_cmp(&calc_depth(&a)).unwrap());
+        // self.splats.sort_by(|a, b| 
+        //     calc_depth(&b).partial_cmp(&calc_depth(&a)).unwrap());
         // const calcDepth = (i) =>
         //     gaussians.positions[i * 3] * viewMatrix[2] +
         //     gaussians.positions[i * 3 + 1] * viewMatrix[6] +

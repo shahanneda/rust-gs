@@ -513,8 +513,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let window = web_sys::window().unwrap();
     // let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/one-corn.json").await;
     // let scene_name = "shahan_head";
-    let scene_name = "Shahan_03_id01-30000.cleaned";
-    // let scene_name = "Shahan_03_id01-30000";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
