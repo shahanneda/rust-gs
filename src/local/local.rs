@@ -12,7 +12,7 @@ use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 #[tokio::main]
 async fn main() {
 	// let scene_name = "Shahan_03_id01-30000";
-	// let scene_name = "shahan_head";
+	let scene_name = "shahan_head";
 	// let scene_name = "Shahan_03_id01-30000";
 	// let scene_name = "Shahan_03_id01-30000";
 	let url = format!("http://127.0.0.1:5501/splats/{}.ply", scene_name);
