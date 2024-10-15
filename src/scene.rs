@@ -1,10 +1,12 @@
 use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
+use serde::{Deserialize, Serialize};
 use crate::log;
 
+use crate::timer::Timer;
 use crate::{ply_splat::PlySplat, utils::sigmoid};
 
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Splat{
         pub nx: f32,
         pub ny: f32,
@@ -97,6 +99,8 @@ impl Splat{
     }
 
     pub fn new(ply_splat: &PlySplat) -> Self {
+        log!("new individual splat");
+        // let _timer = Timer::new("new individual splat");
         let rgb = Splat::rgb_from_sh(ply_splat.f_dc_0, ply_splat.f_dc_1, ply_splat.f_dc_2);
 
         let rot = vec4(ply_splat.rot_0, ply_splat.rot_1, ply_splat.rot_2, ply_splat.rot_3).normalize();
@@ -158,12 +162,15 @@ impl Splat{
     
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Scene{
     pub splats: Vec<Splat>,
 }
 
 impl Scene {
     pub fn new(splats: Vec<PlySplat>) -> Self {
+        let _timer = Timer::new("new scene");
+        log!("Creating a new scene");
         let splats = splats.iter().map(|splat| Splat::new(splat)).collect();
         // let splats = splats.iter().take(1).map(|splat| Splat::new(splat)).collect();
 
@@ -173,6 +180,8 @@ impl Scene {
     }
 
     pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4){
+        // let _timer = Timer::new("sort_splats_based_on_depth");
+        // track start time
         let calc_depth = |splat: &Splat| {
             ((splat.x * view_matrix[2] +
             splat.y * view_matrix[6] +

@@ -1,4 +1,5 @@
 pub mod loader {
+    use crate::log;
     use crate::ply_splat::PlySplat;
     use bytes::Bytes;
     use std::collections::HashMap;
@@ -180,11 +181,13 @@ pub mod loader {
 
     pub async fn load_ply() -> Result<Vec<PlySplat>, String> {
         // return Ok(vec![]);
-        // let body = reqwest::get("http://127.0.0.1:5500/splats/test.txt")
+        log!("### loading ply!!!");
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/gaussians.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/Shahan_03_id01-30000.cleaned.ply")
-        let body = reqwest::get("http://127.0.0.1:5501/splats/shahan_head.ply")
-        // let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/shahan_head.ply")
+        // let body = reqwest::get("http://127.0.0.1:5501/splats/guassians.ply")
+        let body = reqwest::get("http://127.0.0.1:5501/splats/corn.ply")
         // let body = reqwest::get("http://127.0.0.1:5501/splats/one-corn.ply")
             .await
             .expect("error")

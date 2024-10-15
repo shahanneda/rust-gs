@@ -22,8 +22,8 @@
 
 	canvas {
 		display: block;
-		height: 800px; 
-		width: 1000px; 
+		height: 100vh; 
+		width: 100vw; 
 	}
 
 	/* To remove the scrollbars */
@@ -42,7 +42,7 @@
 	<canvas id="canvas"></canvas>
 	<!-- <canvas id="ui"></canvas> -->
 	<!-- Note the usage of `type=module` here as this is an ES6 module -->
-	<input id="slider_1" type="range" value="0" min="-100" max="100" oninput="this.nextElementSibling.value = this.value">
+	<!-- <input id="slider_1" type="range" value="0" min="-100" max="100" oninput="this.nextElementSibling.value = this.value">
 	<output>0</output>
 	<input id="slider_2" type="range" value="0" min="-100" max="100" oninput="this.nextElementSibling.value = this.value">
 	<output>0</output>
@@ -51,7 +51,7 @@
 	<input id="slider_4" type="range" value="0" min="-1" max="1" oninput="this.nextElementSibling.value = this.value" step="0.01">
 	<output>0</output>
 	<input id="slider_5" type="range" value="0" min="-1" max="1" oninput="this.nextElementSibling.value = this.value" step="0.01">
-	<output>0</output>
+	<output>0</output> -->
 	<script>
 		function getWebGLContext(){
 			// alert("hello!");

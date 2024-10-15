@@ -4,7 +4,6 @@ pub mod old_ply_loader {
     use js_sys::EvalError;
     use ply_rs::ply::{self, Property};
     use ply_rs::parser::Parser;
-    use std::time::Instant;   
     use crate::ply_splat::PlySplat;
     use web_sys::console;
 

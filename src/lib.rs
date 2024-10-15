@@ -6,8 +6,11 @@ mod shader;
 mod gui;
 mod ply_splat;
 mod scene_geo;
+mod timer;
 
 
+
+use serde::{Serialize, Deserialize};
 
 use std::cell::RefCell;
 use std::num;
@@ -30,6 +33,7 @@ use glm::Mat4;
 use glm::Vec2;
 use glm::Vec3;
 use scene::Scene;
+use timer::Timer;
 use utils::set_panic_hook;
 extern crate js_sys;
 extern crate ply_rs;
@@ -40,6 +44,7 @@ extern crate nalgebra_glm as glm;
 use js_sys::{Float32Array, WebAssembly};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::console;
 use web_sys::Event;
 use web_sys::HtmlCanvasElement;
 use web_sys::HtmlInputElement;
@@ -472,14 +477,43 @@ pub struct CameraInfo{
     pub rot: Vec2, 
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct Point {
+    x: i32,
+    y: i32,
+}
 
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
     set_panic_hook();
-    let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
-    log!("Done loading!");
-    let mut scene = Scene::new(ply_splat);
+
+    // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
+    // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
+    // let mut scene = Scene::new(ply_splat);
+    // let serealized = serde_json::to_string(&scene).unwrap();
+    // log!("serialized = {}", serealized);
+    // log!("Done loading!");
+    // Load the JSON file dynamically
+
+    // let window = web_sys::window().unwrap();
+    let loaded_file = reqwest::get("http://127.0.0.1:5501/splats/corn.json")
+        .await
+        .expect("error")
+        .text()
+        .await
+        .expect("went wrong when reading!");
+    let mut scene: Scene = serde_json::from_str(&loaded_file).unwrap();
+    // log!("deserialized = {:?}", scene);
+
+    // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
+    // log!("Done loading!");
+    log!("just finished calling scene new");
+
+
+
+
+    let _timer = Timer::new("hello");
 
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();

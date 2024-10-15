@@ -6,3 +6,4 @@ pkg/
 wasm-pack.log
 *.ply
 *.splat
+*.json
