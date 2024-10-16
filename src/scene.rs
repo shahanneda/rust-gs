@@ -347,45 +347,51 @@ impl Scene {
         }
         prefix_sum_timer.end();
 
-        {
-            let _timer = Timer::new("creating output vector");
-            let mut output : Vec<Splat> = vec![Splat{
-                nx: 0.0,
-                ny: 0.0,
-                nz: 0.0,
-                opacity: 0.0,
-                rot_0: 0.0,
-                rot_1: 0.0,
-                rot_2: 0.0,
-                rot_3: 0.0,
-                scale_0: 0.0,
-                scale_1: 0.0,
-                scale_2: 0.0,
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                cov3d: [0.0; 6]
-            }; self.splats.len()];
+        let output_vector_timer = Timer::new("creating output vector");
+        let mut outputIndices = vec![0; self.splats.len()];
+        for i in (0..self.splats.len()).rev(){
+            let depth = depth_list[i];
+            // if depth > 0 {
+            //     self.splats[i].opacity = 0.0;
+            // }
 
-            for i in (0..self.splats.len()).rev(){
-                let depth = depth_list[i];
-                // if depth > 0 {
-                //     self.splats[i].opacity = 0.0;
-                // }
-
-                let index = count_array[depth as usize] - 1;
-                // log!("depth is {depth} index is {index} i is {i}");
-                // TODO: Remove copying of splats when sorting
-                output[index as usize] = self.splats[i];
-                count_array[depth as usize] -= 1;
-            }
-
-            output.reverse();
-            self.splats = output;
+            let index = count_array[depth as usize] - 1;
+            // log!("depth is {depth} index is {index} i is {i}");
+            // TODO: Remove copying of splats when sorting
+            outputIndices[index as usize] = i;
+            count_array[depth as usize] -= 1;
         }
+        output_vector_timer.end();
+
+        let output_copy_timer = Timer::new("copying output vector");
+        let mut output : Vec<Splat> = vec![Splat{
+            nx: 0.0,
+            ny: 0.0,
+            nz: 0.0,
+            opacity: 0.0,
+            rot_0: 0.0,
+            rot_1: 0.0,
+            rot_2: 0.0,
+            rot_3: 0.0,
+            scale_0: 0.0,
+            scale_1: 0.0,
+            scale_2: 0.0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+            cov3d: [0.0; 6]
+        }; self.splats.len()];
+        for i in 0..self.splats.len(){
+            let index = outputIndices[i];
+            output[i] = self.splats[index];
+        }
+        output.reverse();
+        self.splats = output;
+        output_copy_timer.end();
+
 
 
         // self.splats.sort_by(|a, b| 

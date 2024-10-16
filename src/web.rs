@@ -1,6 +1,8 @@
 use nalgebra_glm::pi;
 use serde::{Serialize, Deserialize};
-
+use web_sys::Worker;
+use web_sys::WorkerOptions;
+use web_sys::WorkerType;
 use std::cell::RefCell;
 use std::num;
 use std::ops::DerefMut;
@@ -122,14 +124,11 @@ extern "C" {
 //     log_many("Logging", "many values!");
 // }
 
-static mut slider1: f32 = 0.0;
+pub static mut worker_initialized: bool = false;
 
 #[wasm_bindgen]
-pub fn set_slider_1(val: f32) {
-    // TODO: don't do this
-    unsafe{
-        slider1 = val;
-    }
+pub fn testing(val: f32) {
+    log!("testing: {}", val);
 }
 
 fn update_buffer_data(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: Float32Array) {
@@ -184,6 +183,7 @@ struct WebGLSetupResult {
 }
 
 fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
+    let _timer = Timer::new("update_webgl_buffers");
     let mut splat_centers = Vec::new();
     let mut splat_colors = Vec::new();
     let mut splat_cov3da = Vec::new();
@@ -471,6 +471,7 @@ pub fn get_camera_to_world_matrix(cam : &CameraInfo) -> Mat4 {
 }
 
 pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4){
+    let _timer = Timer::new("get_scene_ready_for_draw");
     let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     // camera = camera.try_inverse().unwrap();
 
@@ -481,7 +482,7 @@ pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam:
     invertRow(&mut vpm, 1);
     invertRow(&mut vm, 0);
     invertRow(&mut vpm, 0);
-    scene.sort_splats_based_on_depth(vpm);
+    // scene.sort_splats_based_on_depth(vpm);
     return (vm, vpm)
 }
 
@@ -514,6 +515,22 @@ pub async fn start() -> Result<(), JsValue> {
     // let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/one-corn.json").await;
     // let scene_name = "shahan_head";
     // let scene_name = "Shahan_03_id01-30000.cleaned";
+    log!("Starting Web!");
+    unsafe {
+        if !worker_initialized {
+            let worker_options = WorkerOptions::new();
+            worker_options.set_type(WorkerType::Module);
+
+                let worker_handle = Rc::new(RefCell::new(Worker::new_with_options("./worker.js", &worker_options).unwrap()));
+            console::log_1(&"Created a new worker from within Wasm".into());
+            worker_handle.borrow_mut().post_message(&JsValue::from_str("hello from wasm")).unwrap();
+        }
+        else {
+            return Ok(());
+        }
+        worker_initialized = true;
+    }
+
     let scene_name = "Shahan_03_id01-30000";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
@@ -611,6 +628,7 @@ pub async fn start() -> Result<(), JsValue> {
     let cam_info_clone2 = cam_info.clone();
     let keys_pressed_clone = keys_pressed.clone();
     *g.borrow_mut() = Some(Closure::new(move || {
+        let _timer = Timer::new("main loop");
         let mut cam_info = cam_info_clone2.borrow_mut();
         let keys = keys_pressed_clone.borrow();
 

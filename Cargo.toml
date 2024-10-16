@@ -67,7 +67,10 @@ web-sys = { version = "0.3.4", features = [
   'WebGlUniformLocation',
   'console',
   'Event',
-  'MouseEventInit'
+  'MouseEventInit',
+  'Worker',
+  'WorkerOptions',
+  'WorkerType',
 ] }
 
 [dev-dependencies]
