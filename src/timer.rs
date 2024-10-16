@@ -8,6 +8,7 @@ pub struct Timer<'a> {
     name: &'a str,
     #[cfg(not(target_arch = "wasm32"))]
     start: Instant,
+    has_ended: bool,
 }
 
 impl<'a> Timer<'a> {
@@ -15,17 +16,21 @@ impl<'a> Timer<'a> {
         #[cfg(target_arch = "wasm32")]
         {
             console::time_with_label(name);
-            Timer { name }
+            Timer { name, has_ended: false }
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let start = Instant::now();
             println!("Starting timer: {}", name);
-            Timer { name, start }
+            Timer { name, start, has_ended: false }
         }
     }
 
-    pub fn end(&self) {
+    pub fn end(&mut self) {
+        if self.has_ended {
+            return;
+        }
+        self.has_ended = true;
         #[cfg(target_arch = "wasm32")]
         {
             console::time_end_with_label(self.name);

@@ -40,7 +40,7 @@ pub struct Splat{
         pub r: f32,
         pub g: f32,
         pub b: f32,
-        pub cov3d: [f32; 6]
+        pub cov3d: [f32; 6],
 }
 
 // TODO: Remove copying of splats when sorting 
@@ -150,7 +150,8 @@ impl Splat{
             r: rgb[0],
             g: rgb[1],
             b: rgb[2],
-            cov3d: Splat::compute_cov3_d(scale, 1.0, rot)
+            cov3d: Splat::compute_cov3_d(scale, 1.0, rot),
+            // index: 0,
         };
         return splat;
 
@@ -179,8 +180,9 @@ impl Splat{
             r: 1.0,
             g: 0.0,
             b: 0.0,
-            cov3d: Splat::compute_cov3_d(vec3(0.01, 0.05, 0.01), 1.0, vec4(0.0, 0.0, 0.0, 1.0))
+            cov3d: Splat::compute_cov3_d(vec3(0.01, 0.05, 0.01), 1.0, vec4(0.0, 0.0, 0.0, 1.0)),
             // cov3d: [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+            // index: 0,
         };
 
         // return splat;
@@ -294,7 +296,7 @@ impl Scene {
     }
 
 
-    pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4){
+    pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4) -> Vec<u32>{
         let _timer = Timer::new("sort_splats_based_on_depth");
         // track start time
 
@@ -312,7 +314,7 @@ impl Scene {
         // log!("pos count is {pos_count} neg count is {neg_count}");
 
 
-        let depth_list_timer = Timer::new("create depth list");
+        let mut depth_list_timer = Timer::new("create depth list");
         // Precompute these values outside the loop
         let view_matrix_2 = view_matrix[2];
         let view_matrix_6 = view_matrix[6];
@@ -333,27 +335,28 @@ impl Scene {
         }
         depth_list_timer.end();
 
-        let count_array_timer = Timer::new("create count array");
+        let mut count_array_timer = Timer::new("create count array");
         let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
         count_array_timer.end();
 
         // Count the number of splats at each depth
         // log!("max is {max_depth} min is {min_depth}");
-        let count_array_timer = Timer::new("count splats at each depth");
+        let mut count_array_timer = Timer::new("count splats at each depth");
         for i in 0..self.splats.len(){
             depth_list[i] -= min_depth;
             count_array[depth_list[i] as usize] += 1;
         }
         count_array_timer.end();
         // Do prefix sum
-        let prefix_sum_timer = Timer::new("prefix sum");
+        let mut prefix_sum_timer = Timer::new("prefix sum");
         for i in 1..count_array.len(){
             count_array[i] += count_array[i-1];
         }
         prefix_sum_timer.end();
 
-        let output_vector_timer = Timer::new("creating output vector");
-        let mut outputIndices = vec![0; self.splats.len()];
+        let mut output_vector_timer = Timer::new("creating output vector");
+        let length = self.splats.len();
+        let mut output_indices = vec![0; length];
         for i in (0..self.splats.len()).rev(){
             let depth = depth_list[i];
             // if depth > 0 {
@@ -363,39 +366,43 @@ impl Scene {
             let index = count_array[depth as usize] - 1;
             // log!("depth is {depth} index is {index} i is {i}");
             // TODO: Remove copying of splats when sorting
-            outputIndices[index as usize] = i;
+            // want the order to be reverse
+            output_indices[length - index as usize - 1] = i as u32;
             count_array[depth as usize] -= 1;
+            // self.splats[i].index = index as u32;
         }
         output_vector_timer.end();
+        return output_indices;
 
-        let output_copy_timer = Timer::new("copying output vector");
-        let mut output : Vec<Splat> = vec![Splat{
-            nx: 0.0,
-            ny: 0.0,
-            nz: 0.0,
-            opacity: 0.0,
-            rot_0: 0.0,
-            rot_1: 0.0,
-            rot_2: 0.0,
-            rot_3: 0.0,
-            scale_0: 0.0,
-            scale_1: 0.0,
-            scale_2: 0.0,
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-            cov3d: [0.0; 6]
-        }; self.splats.len()];
-        for i in 0..self.splats.len(){
-            let index = outputIndices[i];
-            output[i] = self.splats[index];
-        }
-        output.reverse();
-        self.splats = output;
-        output_copy_timer.end();
+        // let output_copy_timer = Timer::new("copying output vector");
+        // let mut output : Vec<Splat> = vec![Splat{
+        //     nx: 0.0,
+        //     ny: 0.0,
+        //     nz: 0.0,
+        //     opacity: 0.0,
+        //     rot_0: 0.0,
+        //     rot_1: 0.0,
+        //     rot_2: 0.0,
+        //     rot_3: 0.0,
+        //     scale_0: 0.0,
+        //     scale_1: 0.0,
+        //     scale_2: 0.0,
+        //     x: 0.0,
+        //     y: 0.0,
+        //     z: 0.0,
+        //     r: 0.0,
+        //     g: 0.0,
+        //     b: 0.0,
+        //     cov3d: [0.0; 6],
+        //     index: 0,
+        // }; self.splats.len()];
+        // for i in 0..self.splats.len(){
+        //     let index = outputIndices[i];
+        //     output[i] = self.splats[index];
+        // }
+        // output.reverse();
+        // self.splats = output;
+        // output_copy_timer.end();
 
 
 

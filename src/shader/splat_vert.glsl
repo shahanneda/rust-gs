@@ -3,6 +3,7 @@
 #pragma debug(on)
 
 in vec3 v_pos;
+in uint s_index;
 // in vec3 s_color;
 // in vec3 s_center;
 // in vec3 s_cov3da;
@@ -41,7 +42,7 @@ uniform sampler2D u_cov3da_texture;
 uniform sampler2D u_cov3db_texture;
 uniform sampler2D u_opacity_texture;
 
-const int texture_width = 2000;
+const uint texture_width = 2000u;
 
 
 
@@ -93,12 +94,12 @@ vec3 get_value_from_texture(vec2 pixel_cord, sampler2D texture){
     return pixelValue.rgb;
 }
 
-vec2 convert_splat_index_to_texture_index(int splat_index){
+vec2 convert_splat_index_to_texture_index(uint splat_index){
     return vec2(splat_index % texture_width, splat_index / texture_width);
 }
 
 void main() {
-    vec2 texture_coord = convert_splat_index_to_texture_index(gl_InstanceID);
+    vec2 texture_coord = convert_splat_index_to_texture_index(s_index);
 
   vec3 s_cov3da = get_value_from_texture(texture_coord, u_cov3da_texture);
   vec3 s_cov3db = get_value_from_texture(texture_coord, u_cov3db_texture);

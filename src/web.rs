@@ -1,3 +1,5 @@
+use js_sys::Int32Array;
+use js_sys::Uint32Array;
 use nalgebra_glm::pi;
 use serde::{Serialize, Deserialize};
 use web_sys::Worker;
@@ -143,17 +145,36 @@ fn update_buffer_data(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: F
     );
 }
 
+fn update_buffer_data_u32(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: Uint32Array) {
+    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
+    gl.buffer_data_with_array_buffer_view(
+        WebGl2RenderingContext::ARRAY_BUFFER,
+        &data,
+        WebGl2RenderingContext::STATIC_DRAW,
+    );
+}
+
 fn create_buffer(gl: &WebGl2RenderingContext) -> Result<WebGlBuffer, &'static str> {
     let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
     return Ok(buffer);
 }
 
 
-fn create_attribute_and_get_location(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, program: &WebGlProgram, name: &str, divisor: bool, size: i32) -> u32{
+fn create_attribute_and_get_location(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, program: &WebGlProgram, name: &str, divisor: bool, size: i32, type_: u32) -> u32{
     gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
     let coord = gl.get_attrib_location(&program, name) as u32;
     gl.enable_vertex_attrib_array(coord);
-    gl.vertex_attrib_pointer_with_i32(coord, size, WebGl2RenderingContext::FLOAT, false, 0, 0);
+
+    if type_ == WebGl2RenderingContext::UNSIGNED_INT {
+        gl.vertex_attrib_i_pointer_with_i32(coord, size, type_, 0, 0);
+    } else if type_ == WebGl2RenderingContext::FLOAT {
+        // Data is converted to float in the shader
+        // the type referes to the type of the data in the buffer, not the type of the data in the shader
+        // https://stackoverflow.com/questions/78203199/webgl-2-0-unsigned-integer-input-variable#answer-78203412
+        gl.vertex_attrib_pointer_with_i32(coord, size, type_, false, 0, 0);
+    }else{
+        panic!("Invalid type for attribute");
+    }
     if divisor {
         gl.vertex_attrib_divisor(coord, 1);
     }
@@ -169,18 +190,27 @@ fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
     return Float32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
 }
 
+fn uint32_array_from_vec(vec: &[u32]) -> Uint32Array {
+    let memory_buffer = wasm_bindgen::memory()
+        .dyn_into::<WebAssembly::Memory>().unwrap()
+        .buffer();
+    let location: u32 = vec.as_ptr() as u32 / 4;
+    return Uint32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
+}
+
 struct WebGLSetupResult {
     gl: WebGl2RenderingContext,
     splat_shader: WebGlProgram,
     splat_vao: WebGlVertexArrayObject,
-    vertex_buffer: WebGlBuffer,
-    color_buffer: WebGlBuffer,
-    position_offset_buffer: WebGlBuffer,
-    cov3da_buffer: WebGlBuffer,
-    cov3db_buffer: WebGlBuffer,
-    opacity_buffer: WebGlBuffer,
+    // vertex_buffer: WebGlBuffer,
+    // color_buffer: WebGlBuffer,
+    // position_offset_buffer: WebGlBuffer,
+    // cov3da_buffer: WebGlBuffer,
+    // cov3db_buffer: WebGlBuffer,
+    // opacity_buffer: WebGlBuffer,
     geo_shader: WebGlProgram,
     geo_vertex_buffer: WebGlBuffer,
+    splat_index_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
     color_texture: WebGlTexture,
@@ -243,23 +273,37 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
     // let mut splat_cov3da = Vec::new();
     // let mut splat_cov3db = Vec::new();
     // let mut splat_opacities = Vec::new();
+    // let mut splat_indices = Vec::new();
 
 
     // for s in &scene.splats {
-    //     // splat_centers.extend_from_slice(&[s.x, s.y, s.z]);
-    //     // splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
-    //     // splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
-    //     // splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
-    //     // splat_opacities.push(s.opacity);
+    // //     // splat_centers.extend_from_slice(&[s.x, s.y, s.z]);
+    // //     // splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
+    // //     // splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
+    // //     // splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
+    // //     // splat_opacities.push(s.opacity);
+    //     splat_indices.push(s.index);
     // }
 
     // webgl.gl.use_program(Some(&webgl.splat_shader));
     // webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
+    // update_buffer_data_u32(&webgl.gl, &webgl.splat_index_buffer, int32_array_from_vec(&splat_indices));
+
     // update_buffer_data(&webgl.gl, &webgl.color_buffer, float32_array_from_vec(&splat_colors));
     // update_buffer_data(&webgl.gl, &webgl.position_offset_buffer, float32_array_from_vec(&splat_centers));
     // update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
     // update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
     // update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
+}
+
+
+fn update_splat_indices(scene: &Scene, webgl: &WebGLSetupResult, splat_indices: &Vec<u32>){
+    // print out first few
+    log!("updating splat_indices: {:?}", &splat_indices[0..3]);
+    let _timer = Timer::new("update_splat_indices");
+    webgl.gl.use_program(Some(&webgl.splat_shader));
+    webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
+    update_buffer_data_u32(&webgl.gl, &webgl.splat_index_buffer, uint32_array_from_vec(&splat_indices));
 }
 
 fn update_webgl_textures(scene: &Scene, webgl: &WebGLSetupResult) -> Result<(), JsValue>{
@@ -380,14 +424,16 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
 
     let splat_vao = gl.create_vertex_array().unwrap();
     gl.bind_vertex_array(Some(&splat_vao));
-    let vertex_buffer = create_buffer(&gl).unwrap();
-    let color_buffer = create_buffer(&gl).unwrap();
-    let position_offset_buffer = create_buffer(&gl).unwrap();
-    let cov3da_buffer = create_buffer(&gl).unwrap();
-    let cov3db_buffer = create_buffer(&gl).unwrap();
-    let opacity_buffer = create_buffer(&gl).unwrap();
+    // let vertex_buffer = create_buffer(&gl).unwrap();
+    // let color_buffer = create_buffer(&gl).unwrap();
+    // let position_offset_buffer = create_buffer(&gl).unwrap();
+    // let cov3da_buffer = create_buffer(&gl).unwrap();
+    // let cov3db_buffer = create_buffer(&gl).unwrap();
+    // let opacity_buffer = create_buffer(&gl).unwrap();
     let geo_vertex_buffer = create_buffer(&gl).unwrap();
-    update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
+    let splat_index_buffer = create_buffer(&gl).unwrap();
+
+    // update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
 
 
     let geo_vao = gl.create_vertex_array().unwrap();
@@ -412,15 +458,16 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     let result  = WebGLSetupResult{
         gl: gl,
         splat_shader,
-        vertex_buffer,
-        color_buffer,
-        position_offset_buffer,
-        cov3da_buffer,
-        cov3db_buffer,
-        opacity_buffer,
+        // vertex_buffer,
+        // color_buffer,
+        // position_offset_buffer,
+        // cov3da_buffer,
+        // cov3db_buffer,
+        // opacity_buffer,
         splat_vao,
         geo_shader,
         geo_vertex_buffer,
+        splat_index_buffer,
         geo_count: vertices.len() as i32,
         geo_vao,
         color_texture,
@@ -436,12 +483,13 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     update_webgl_buffers(scene, &result);
     update_webgl_textures(scene, &result).expect("failed to update webgl textures for the first time!");
 
-    create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.splat_shader, "v_pos", false, 3);
-    create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.splat_shader, "s_color", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.splat_shader, "s_center", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.cov3da_buffer, &result.splat_shader, "s_cov3da", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.cov3db_buffer, &result.splat_shader, "s_cov3db", true, 3);
-    create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.splat_shader, "s_opacity", true, 1);
+    // create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.splat_shader, "v_pos", false, 3, WebGl2RenderingContext::FLOAT);
+    // create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.splat_shader, "s_color", true, 3, WebGl2RenderingContext::FLOAT);
+    // create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.splat_shader, "s_center", true, 3, WebGl2RenderingContext::FLOAT);
+    // create_attribute_and_get_location(&result.gl, &result.cov3da_buffer, &result.splat_shader, "s_cov3da", true, 3, WebGl2RenderingContext::FLOAT);
+    // create_attribute_and_get_location(&result.gl, &result.cov3db_buffer, &result.splat_shader, "s_cov3db", true, 3, WebGl2RenderingContext::FLOAT);
+    // create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.splat_shader, "s_opacity", true, 1, WebGl2RenderingContext::FLOAT);
+    create_attribute_and_get_location(&result.gl, &result.splat_index_buffer, &result.splat_shader, "s_index", true, 1, WebGl2RenderingContext::UNSIGNED_INT);
 
     result.gl.pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
     result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
@@ -469,7 +517,7 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     // geo shader
     result.gl.use_program(Some(&result.geo_shader));
     result.gl.bind_vertex_array(Some(&result.geo_vao));
-    create_attribute_and_get_location(&result.gl, &result.geo_vertex_buffer, &result.geo_shader, "v_pos", false, 3);
+    create_attribute_and_get_location(&result.gl, &result.geo_vertex_buffer, &result.geo_shader, "v_pos", false, 3, WebGl2RenderingContext::FLOAT);
 
     return Ok(result);
 }
@@ -655,7 +703,7 @@ pub fn get_camera_to_world_matrix(cam : &CameraInfo) -> Mat4 {
     return get_world_to_camera_matrix(cam).try_inverse().unwrap();
 }
 
-pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4){
+pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4, Vec<u32>){
     let _timer = Timer::new("get_scene_ready_for_draw");
     let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     // camera = camera.try_inverse().unwrap();
@@ -667,8 +715,9 @@ pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam:
     invertRow(&mut vpm, 1);
     invertRow(&mut vm, 0);
     invertRow(&mut vpm, 0);
-    // scene.sort_splats_based_on_depth(vpm);
-    return (vm, vpm)
+
+    let splat_indices = scene.sort_splats_based_on_depth(vpm);
+    return (vm, vpm, splat_indices)
 }
 
 pub struct CameraInfo{
@@ -716,8 +765,8 @@ pub async fn start() -> Result<(), JsValue> {
     //     }
     // }
 
-    // let scene_name = "Shahan_03_id01-30000";
-    let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
@@ -858,8 +907,9 @@ pub async fn start() -> Result<(), JsValue> {
             cam_info.rot.y += 0.1;
         }
 
-        let (vm, vpm) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info);
+        let (vm, vpm, splat_indices) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info);
 
+        update_splat_indices(&scene, &webgl, &splat_indices);
         update_webgl_buffers(&scene, &webgl);
         draw(&webgl, &canvas, i, scene.splats.len() as i32, vpm, vm);
 
