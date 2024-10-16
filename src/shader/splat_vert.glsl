@@ -35,6 +35,9 @@ out vec4 con_o;
 out vec2 xy;
 out vec2 pixf;
 
+uniform sampler2D u_color_texture;
+
+
 
 vec3 computeCov2D(vec3 mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, float[6] cov3D, mat4 viewmatrix) {
     vec4 t = viewmatrix * vec4(mean, 1.0);
@@ -77,9 +80,18 @@ float ndc2Pix(float v, float S) {
     return ((v + 1.) * S - 1.) * .5;
 }
 
+vec3 get_value_from_texture(vec2 pixel_cord, sampler2D texture){
+    ivec2 pixelCoord = ivec2(pixel_cord.x, pixel_cord.y);
+    int mipLevel = 0;
+    vec4 pixelValue = texelFetch(texture, pixelCoord, mipLevel);
+    return pixelValue.rgb;
+}
+
 void main() {
 //   vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
-  vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
+//   vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
+  vec3 p_orig = get_value_from_texture(vec2(0, 0), u_color_texture);
+
   // mat4 model2 = model*12;
   mat4 projmatrix = projection;
   vec4 p_hom = projmatrix * vec4(p_orig, 1);
@@ -157,7 +169,16 @@ void main() {
 //       col = vec3(1, 1, 1);
 //   }
 
-  col = s_color;
+    // col = s_color;
+
+    // the texture is a 2d image with (2 rows and 3 columns)
+    /// the first row represents the color we want
+    // Sample the entire first row of the texture
+    // ivec2 pixelCoord = ivec2(0, 1);
+    // int mipLevel = 0;
+    // vec4 pixelValue = texelFetch(u_color_texture, pixelCoord, mipLevel);
+    col = get_value_from_texture(vec2(0, 1), u_color_texture);
+
 //   col = vec3(corner, 0);
 
   con_o = vec4(conic, s_opacity);

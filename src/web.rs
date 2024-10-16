@@ -48,6 +48,8 @@ use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
 use web_sys::WebGlVertexArrayObject;
 use web_sys::MouseEvent;
+use web_sys::WebGlTexture;
+use web_sys::WebGlUniformLocation;
 
 
 #[wasm_bindgen]
@@ -182,6 +184,49 @@ struct WebGLSetupResult {
     geo_vao: WebGlVertexArrayObject,
 }
 
+fn create_texture(gl: &WebGl2RenderingContext, program: &WebGlProgram) -> Result<(WebGlTexture, WebGlUniformLocation), JsValue> {
+    let texture = gl.create_texture().ok_or("Failed to create texture")?;
+    gl.active_texture(WebGl2RenderingContext::TEXTURE0);
+    gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&texture));
+
+    let level = 0;
+    let internal_format = WebGl2RenderingContext::RGB32F as i32;
+    let width = 1;
+    let height = 2;
+    let border = 0;
+    let format = WebGl2RenderingContext::RGB;
+    let type_ = WebGl2RenderingContext::FLOAT;
+    let data = [
+        0.1f32, 1.0, 0.6, // greenish
+        0.8f32, 0.1, 0.6, // meganta
+    ]; 
+
+    // Convert f32 array to Uint8Array
+    let data_array = unsafe { js_sys::Float32Array::view(&data) };
+
+    gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view(
+        WebGl2RenderingContext::TEXTURE_2D,
+        level,
+        internal_format,
+        width,
+        height,
+        border,
+        format,
+        type_,
+        Some(&data_array),
+    )?;
+
+    gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_MIN_FILTER, WebGl2RenderingContext::NEAREST as i32);
+    gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_MAG_FILTER, WebGl2RenderingContext::NEAREST as i32);
+    gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_WRAP_S, WebGl2RenderingContext::CLAMP_TO_EDGE as i32);
+    gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_WRAP_T, WebGl2RenderingContext::CLAMP_TO_EDGE as i32);
+
+    let location = gl.get_uniform_location(program, "u_color_texture")
+        .ok_or("Failed to get uniform location")?;
+
+    Ok((texture, location))
+}
+
 fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
     let _timer = Timer::new("update_webgl_buffers");
     let mut splat_centers = Vec::new();
@@ -206,6 +251,8 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
     update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
     update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
     update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
+
+ 
 
 
 }
@@ -285,6 +332,13 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     create_attribute_and_get_location(&result.gl, &result.cov3db_buffer, &result.splat_shader, "s_cov3db", true, 3);
     create_attribute_and_get_location(&result.gl, &result.opacity_buffer, &result.splat_shader, "s_opacity", true, 1);
 
+    result.gl.pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
+
+    let (texture, texture_location) = create_texture(&result.gl, &result.splat_shader)?;
+    result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_color_texture", &texture);
+    // result.gl.uniform1i(Some(&texture_location), 0);
 
     result.gl.use_program(Some(&result.geo_shader));
     result.gl.bind_vertex_array(Some(&result.geo_vao));
@@ -312,6 +366,12 @@ fn set_vec3_uniform_value(shader_program: &WebGlProgram, gl: &WebGl2RenderingCon
     // log!("name: {}", name);
     let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
     gl.uniform3fv_with_f32_array(Some(&uniform_location), value.as_slice());
+}
+
+fn set_texture_uniform_value(shader_program: &WebGlProgram, gl: &WebGl2RenderingContext, name: &str, texture: &WebGlTexture){
+    let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
+    gl.uniform1i(Some(&uniform_location), 0);
+    gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(texture));
 }
 
 // const invertRow = (mat, row) => {
@@ -516,22 +576,22 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "shahan_head";
     // let scene_name = "Shahan_03_id01-30000.cleaned";
     log!("Starting Web!");
-    unsafe {
-        if !worker_initialized {
-            let worker_options = WorkerOptions::new();
-            worker_options.set_type(WorkerType::Module);
+    // unsafe {
+    //     if !worker_initialized {
+    //         // let worker_options = WorkerOptions::new();
+    //         // worker_options.set_type(WorkerType::Module);
 
-                let worker_handle = Rc::new(RefCell::new(Worker::new_with_options("./worker.js", &worker_options).unwrap()));
-            console::log_1(&"Created a new worker from within Wasm".into());
-            worker_handle.borrow_mut().post_message(&JsValue::from_str("hello from wasm")).unwrap();
-        }
-        else {
-            return Ok(());
-        }
-        worker_initialized = true;
-    }
+    //         //     let worker_handle = Rc::new(RefCell::new(Worker::new_with_options("./worker.js", &worker_options).unwrap()));
+    //         // console::log_1(&"Created a new worker from within Wasm".into());
+    //         // worker_handle.borrow_mut().post_message(&JsValue::from_str("hello from wasm")).unwrap();
+    //         worker_initialized = true;
+    //     }
+    //     else {
+    //         return Ok(());
+    //     }
+    // }
 
-    let scene_name = "Shahan_03_id01-30000";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
