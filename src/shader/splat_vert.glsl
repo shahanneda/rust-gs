@@ -36,6 +36,11 @@ out vec2 xy;
 out vec2 pixf;
 
 uniform sampler2D u_color_texture;
+uniform sampler2D u_position_texture;
+uniform sampler2D u_cov3da_texture;
+uniform sampler2D u_cov3db_texture;
+uniform sampler2D u_opacity_texture;
+
 const int texture_width = 2000;
 
 
@@ -93,10 +98,11 @@ vec2 convert_splat_index_to_texture_index(int splat_index){
 }
 
 void main() {
+    vec2 texture_coord = convert_splat_index_to_texture_index(gl_InstanceID);
 
 //   vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
-  vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
-
+  vec3 p_orig = get_value_from_texture(texture_coord, u_position_texture);
+//   p_orig = vec3(s_center.x, s_center.y, s_center.z);
 
 
 
@@ -188,7 +194,7 @@ void main() {
     // int mipLevel = 0;
     // vec4 pixelValue = texelFetch(u_color_texture, pixelCoord, mipLevel);
     // col = get_value_from_texture(vec2(0, gl_InstanceID), u_color_texture);
-    col = get_value_from_texture(convert_splat_index_to_texture_index(gl_InstanceID), u_color_texture);
+    col = get_value_from_texture(texture_coord, u_color_texture);
     // col = s_color;
 
 //   col = vec3(corner, 0);
