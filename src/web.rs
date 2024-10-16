@@ -765,8 +765,9 @@ pub async fn start() -> Result<(), JsValue> {
     //     }
     // }
 
-    let scene_name = "Shahan_03_id01-30000";
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000";
+    // let scene_name = "E7_01_id01-30000";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
