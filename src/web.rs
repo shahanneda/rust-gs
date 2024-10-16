@@ -185,9 +185,9 @@ struct WebGLSetupResult {
     geo_vao: WebGlVertexArrayObject,
     color_texture: WebGlTexture,
     position_texture: WebGlTexture,
-    // cov3da_texture: WebGlTexture,
-    // cov3db_texture: WebGlTexture,
-    // opacity_texture: WebGlTexture,
+    cov3da_texture: WebGlTexture,
+    cov3db_texture: WebGlTexture,
+    opacity_texture: WebGlTexture,
 }
 
 fn create_texture(gl: &WebGl2RenderingContext, program: &WebGlProgram, name : &str, active_texture: u32) -> Result<(WebGlTexture, WebGlUniformLocation), JsValue> {
@@ -240,26 +240,26 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
     let _timer = Timer::new("update_webgl_buffers");
     // let mut splat_centers = Vec::new();
     // let mut splat_colors = Vec::new();
-    let mut splat_cov3da = Vec::new();
-    let mut splat_cov3db = Vec::new();
-    let mut splat_opacities = Vec::new();
+    // let mut splat_cov3da = Vec::new();
+    // let mut splat_cov3db = Vec::new();
+    // let mut splat_opacities = Vec::new();
 
 
-    for s in &scene.splats {
-        // splat_centers.extend_from_slice(&[s.x, s.y, s.z]);
-        // splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
-        splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
-        splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
-        splat_opacities.push(s.opacity);
-    }
+    // for s in &scene.splats {
+    //     // splat_centers.extend_from_slice(&[s.x, s.y, s.z]);
+    //     // splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
+    //     // splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
+    //     // splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
+    //     // splat_opacities.push(s.opacity);
+    // }
 
-    webgl.gl.use_program(Some(&webgl.splat_shader));
-    webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
+    // webgl.gl.use_program(Some(&webgl.splat_shader));
+    // webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
     // update_buffer_data(&webgl.gl, &webgl.color_buffer, float32_array_from_vec(&splat_colors));
     // update_buffer_data(&webgl.gl, &webgl.position_offset_buffer, float32_array_from_vec(&splat_centers));
-    update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
-    update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
-    update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
+    // update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
+    // update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
+    // update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
 }
 
 fn update_webgl_textures(scene: &Scene, webgl: &WebGLSetupResult) -> Result<(), JsValue>{
@@ -278,14 +278,20 @@ fn update_webgl_textures(scene: &Scene, webgl: &WebGLSetupResult) -> Result<(), 
     }
 
     // log!("splat_colors: {:?}", &splat_colors[0..3]);
-    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
+    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + COLOR_TEXTURE_UNIT);
     put_data_into_texture(&webgl.gl, &webgl.color_texture, &float32_array_from_vec(&splat_colors))?;
 
-    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE1);
+    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
     put_data_into_texture(&webgl.gl, &webgl.position_texture, &float32_array_from_vec(&splat_positions))?;
-    // put_data_into_texture(&webgl.gl, &webgl.cov3da_texture, &float32_array_from_vec(&splat_cov3da))?;
-    // put_data_into_texture(&webgl.gl, &webgl.cov3db_texture, &float32_array_from_vec(&splat_cov3db))?;
-    // put_data_into_texture(&webgl.gl, &webgl.opacity_texture, &float32_array_from_vec(&splat_opacities))?;
+
+    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DA_TEXTURE_UNIT);
+    put_data_into_texture(&webgl.gl, &webgl.cov3da_texture, &float32_array_from_vec(&splat_cov3da))?;
+
+    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DB_TEXTURE_UNIT);
+    put_data_into_texture(&webgl.gl, &webgl.cov3db_texture, &float32_array_from_vec(&splat_cov3db))?;
+
+    webgl.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT);
+    put_data_into_texture(&webgl.gl, &webgl.opacity_texture, &float32_array_from_vec(&splat_opacities))?;
 
     // put_data_into_texture(&webgl.gl, &webgl.color_texture, &float32_array_from_vec(&[
     //     1.0, 0.0, 0.0,
@@ -336,6 +342,13 @@ fn put_data_into_texture(gl: &WebGl2RenderingContext, texture: &WebGlTexture, da
     )?;
     Ok(())
 }
+
+const COLOR_TEXTURE_UNIT: u32 = 0;
+const POSITION_TEXTURE_UNIT: u32 = 1;
+const COV3DA_TEXTURE_UNIT: u32 = 2;
+const COV3DB_TEXTURE_UNIT: u32 = 3;
+const OPACITY_TEXTURE_UNIT: u32 = 4;
+
 
 
 fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupResult, JsValue> {
@@ -388,13 +401,13 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
 
 
     gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-    let (color_texture, color_texture_location) = create_texture(&gl, &splat_shader, "u_color_texture", WebGl2RenderingContext::TEXTURE0)?;
+    let (color_texture, color_texture_location) = create_texture(&gl, &splat_shader, "u_color_texture", WebGl2RenderingContext::TEXTURE0 + COLOR_TEXTURE_UNIT)?;
 
-    gl.active_texture(WebGl2RenderingContext::TEXTURE1);
-    let (position_texture, position_texture_location) = create_texture(&gl, &splat_shader, "u_position_texture", WebGl2RenderingContext::TEXTURE1)?;
-    // let (cov3da_texture, cov3da_texture_location) = create_texture(&gl, &splat_shader, "u_cov3da_texture")?;
-    // let (cov3db_texture, cov3db_texture_location) = create_texture(&gl, &splat_shader, "u_cov3db_texture")?;
-    // let (opacity_texture, opacity_texture_location) = create_texture(&gl, &splat_shader, "u_opacity_texture")?;
+    gl.active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
+    let (position_texture, position_texture_location) = create_texture(&gl, &splat_shader, "u_position_texture", WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT)?;
+    let (cov3da_texture, cov3da_texture_location) = create_texture(&gl, &splat_shader, "u_cov3da_texture", WebGl2RenderingContext::TEXTURE0 + COV3DA_TEXTURE_UNIT)?;
+    let (cov3db_texture, cov3db_texture_location) = create_texture(&gl, &splat_shader, "u_cov3db_texture", WebGl2RenderingContext::TEXTURE0 + COV3DB_TEXTURE_UNIT)?;
+    let (opacity_texture, opacity_texture_location) = create_texture(&gl, &splat_shader, "u_opacity_texture", WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT)?;
 
     let result  = WebGLSetupResult{
         gl: gl,
@@ -412,9 +425,9 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
         geo_vao,
         color_texture,
         position_texture,
-        // cov3da_texture,
-        // cov3db_texture,
-        // opacity_texture,
+        cov3da_texture,
+        cov3db_texture,
+        opacity_texture,
     };
 
     result.gl.use_program(Some(&result.splat_shader));
@@ -433,31 +446,25 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
     result.gl.pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
     result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
     result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.color_texture));
-    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_color_texture", &result.color_texture,   0);
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_color_texture", &result.color_texture, COLOR_TEXTURE_UNIT);
 
     result.gl.pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
     result.gl.active_texture(WebGl2RenderingContext::TEXTURE1);
     result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.position_texture));
-    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_position_texture", &result.position_texture, 1);
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_position_texture", &result.position_texture, POSITION_TEXTURE_UNIT);
 
-    // result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-    // result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.cov3da_texture));
-    // set_texture_uniform_value(&result.splat_shader, &result.gl, "u_cov3da_texture", &result.cov3da_texture);
+    result.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DA_TEXTURE_UNIT);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.cov3da_texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_cov3da_texture", &result.cov3da_texture, COV3DA_TEXTURE_UNIT);
 
-    // result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-    // result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.cov3db_texture));
-    // set_texture_uniform_value(&result.splat_shader, &result.gl, "u_cov3db_texture", &result.cov3db_texture);
+    result.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DB_TEXTURE_UNIT);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.cov3db_texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_cov3db_texture", &result.cov3db_texture, COV3DB_TEXTURE_UNIT);
 
-    // result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-    // result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.opacity_texture));
-    // set_texture_uniform_value(&result.splat_shader, &result.gl, "u_opacity_texture", &result.opacity_texture);
+    result.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.opacity_texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_opacity_texture", &result.opacity_texture, OPACITY_TEXTURE_UNIT);
     
-    
-
-
-
-
-
 
     // geo shader
     result.gl.use_program(Some(&result.geo_shader));

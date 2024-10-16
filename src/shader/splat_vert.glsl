@@ -3,11 +3,11 @@
 #pragma debug(on)
 
 in vec3 v_pos;
-in vec3 s_color;
-in vec3 s_center;
-in vec3 s_cov3da;
-in vec3 s_cov3db;
-in vec3 s_opacity;
+// in vec3 s_color;
+// in vec3 s_center;
+// in vec3 s_cov3da;
+// in vec3 s_cov3db;
+// in vec3 s_opacity;
 
 // uniform mat4 model;
 uniform mat4 camera;
@@ -100,9 +100,14 @@ vec2 convert_splat_index_to_texture_index(int splat_index){
 void main() {
     vec2 texture_coord = convert_splat_index_to_texture_index(gl_InstanceID);
 
+  vec3 s_cov3da = get_value_from_texture(texture_coord, u_cov3da_texture);
+  vec3 s_cov3db = get_value_from_texture(texture_coord, u_cov3db_texture);
+  float s_opacity = get_value_from_texture(texture_coord, u_opacity_texture).x;
+  vec3 s_color = get_value_from_texture(texture_coord, u_color_texture);
+  vec3 s_center = get_value_from_texture(texture_coord, u_position_texture);
+
 //   vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
-  vec3 p_orig = get_value_from_texture(texture_coord, u_position_texture);
-//   p_orig = vec3(s_center.x, s_center.y, s_center.z);
+  vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
 
 
 
@@ -126,6 +131,7 @@ void main() {
   }
 
   
+
   float cov3D[6] = float[6](s_cov3da.x, s_cov3da.y, s_cov3da.z, s_cov3db.x, s_cov3db.y, s_cov3db.z);
   vec3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, camera);
 
