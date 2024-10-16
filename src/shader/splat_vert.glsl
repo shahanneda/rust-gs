@@ -36,6 +36,7 @@ out vec2 xy;
 out vec2 pixf;
 
 uniform sampler2D u_color_texture;
+const int texture_width = 2000;
 
 
 
@@ -87,10 +88,20 @@ vec3 get_value_from_texture(vec2 pixel_cord, sampler2D texture){
     return pixelValue.rgb;
 }
 
+vec2 convert_splat_index_to_texture_index(int splat_index){
+    return vec2(splat_index % texture_width, splat_index / texture_width);
+}
+
 void main() {
+
 //   vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
-//   vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
-  vec3 p_orig = get_value_from_texture(vec2(0, 0), u_color_texture);
+  vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
+
+
+
+
+
+//   vec3 p_orig = get_value_from_texture(vec2(0, 0), u_color_texture);
 
   // mat4 model2 = model*12;
   mat4 projmatrix = projection;
@@ -169,7 +180,6 @@ void main() {
 //       col = vec3(1, 1, 1);
 //   }
 
-    // col = s_color;
 
     // the texture is a 2d image with (2 rows and 3 columns)
     /// the first row represents the color we want
@@ -177,7 +187,9 @@ void main() {
     // ivec2 pixelCoord = ivec2(0, 1);
     // int mipLevel = 0;
     // vec4 pixelValue = texelFetch(u_color_texture, pixelCoord, mipLevel);
-    col = get_value_from_texture(vec2(0, 1), u_color_texture);
+    // col = get_value_from_texture(vec2(0, gl_InstanceID), u_color_texture);
+    col = get_value_from_texture(convert_splat_index_to_texture_index(gl_InstanceID), u_color_texture);
+    // col = s_color;
 
 //   col = vec3(corner, 0);
 
@@ -192,7 +204,6 @@ void main() {
   gl_Position = vec4(clip_pos, 0, 1);
   // col = vec3(cov3D[3], cov3D[4], cov3D[5]);
   // col = p_orig;
-
 
   // vec3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, viewmatrix);
 

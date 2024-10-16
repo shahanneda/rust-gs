@@ -4,6 +4,7 @@ use web_sys::Worker;
 use web_sys::WorkerOptions;
 use web_sys::WorkerType;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use std::num;
 use std::ops::DerefMut;
 // use std::num;
@@ -182,46 +183,54 @@ struct WebGLSetupResult {
     geo_vertex_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
+    color_texture: WebGlTexture,
+    position_texture: WebGlTexture,
+    cov3da_texture: WebGlTexture,
+    cov3db_texture: WebGlTexture,
+    opacity_texture: WebGlTexture,
 }
 
-fn create_texture(gl: &WebGl2RenderingContext, program: &WebGlProgram) -> Result<(WebGlTexture, WebGlUniformLocation), JsValue> {
+fn create_texture(gl: &WebGl2RenderingContext, program: &WebGlProgram, name : &str) -> Result<(WebGlTexture, WebGlUniformLocation), JsValue> {
     let texture = gl.create_texture().ok_or("Failed to create texture")?;
     gl.active_texture(WebGl2RenderingContext::TEXTURE0);
     gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&texture));
 
-    let level = 0;
-    let internal_format = WebGl2RenderingContext::RGB32F as i32;
-    let width = 1;
-    let height = 2;
-    let border = 0;
-    let format = WebGl2RenderingContext::RGB;
-    let type_ = WebGl2RenderingContext::FLOAT;
-    let data = [
-        0.1f32, 1.0, 0.6, // greenish
-        0.8f32, 0.1, 0.6, // meganta
-    ]; 
+    let empty_array = Float32Array::new_with_length(0);
+    put_data_into_texture(&gl, &texture, &empty_array)?;
+    // let level = 0;
+    // let internal_format = WebGl2RenderingContext::RGB32F as i32;
+    // let width = 1;
+    // let height = number_of_items;
+    // let border = 0;
+    // let format = WebGl2RenderingContext::RGB;
+    // let type_ = WebGl2RenderingContext::FLOAT;
+    // let data = [
+    //     // 0.1f32, 1.0, 0.6, // greenish
+    //     // 0.8f32, 0.1, 0.6, // meganta
+    // ]; 
 
-    // Convert f32 array to Uint8Array
-    let data_array = unsafe { js_sys::Float32Array::view(&data) };
+    // // Convert f32 array to Uint8Array
+    // // Because we don't actually have rust bindings for Float32Arrays in the webgl crate, we do this to directly pass a JS array to the texture
+    // let data_array = unsafe { js_sys::Float32Array::view(&data) };
 
-    gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view(
-        WebGl2RenderingContext::TEXTURE_2D,
-        level,
-        internal_format,
-        width,
-        height,
-        border,
-        format,
-        type_,
-        Some(&data_array),
-    )?;
+    // gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view(
+    //     WebGl2RenderingContext::TEXTURE_2D,
+    //     level,
+    //     internal_format,
+    //     width,
+    //     height,
+    //     border,
+    //     format,
+    //     type_,
+    //     Some(&data_array),
+    // )?;
 
     gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_MIN_FILTER, WebGl2RenderingContext::NEAREST as i32);
     gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_MAG_FILTER, WebGl2RenderingContext::NEAREST as i32);
     gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_WRAP_S, WebGl2RenderingContext::CLAMP_TO_EDGE as i32);
     gl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_WRAP_T, WebGl2RenderingContext::CLAMP_TO_EDGE as i32);
 
-    let location = gl.get_uniform_location(program, "u_color_texture")
+    let location = gl.get_uniform_location(program, name)
         .ok_or("Failed to get uniform location")?;
 
     Ok((texture, location))
@@ -251,10 +260,66 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
     update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
     update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
     update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
+}
 
- 
+fn update_webgl_textures(scene: &Scene, webgl: &WebGLSetupResult) -> Result<(), JsValue>{
+    let mut splat_colors = Vec::new();
+    for s in &scene.splats {
+        splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
+    }
+    splat_colors[0] = 1.0;
+    // print first 3 values
+    log!("splat_colors: {:?}", &splat_colors[0..3]);
+    let data_array = float32_array_from_vec(&splat_colors);
+    put_data_into_texture(&webgl.gl, &webgl.color_texture, &data_array)?;
+    // put_data_into_texture(&webgl.gl, &webgl.color_texture, &float32_array_from_vec(&[
+    //     1.0, 0.0, 0.0,
+    //     0.0, 1.0, 0.0,
+    //     ]))?;
+    Ok(())
+}
 
+const TEXTURE_WIDTH: i32 = 2000;
 
+fn put_data_into_texture(gl: &WebGl2RenderingContext, texture: &WebGlTexture, data_array: &Float32Array) -> Result<(), JsValue>{
+    gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(texture));
+
+    let level = 0;
+    let internal_format = WebGl2RenderingContext::RGB32F as i32;
+    let width = TEXTURE_WIDTH;
+    let number_of_values = data_array.length() as i32;
+    // We add Texture_width -1 so that we always do a ceiling division
+    let height = (number_of_values + TEXTURE_WIDTH - 1) / TEXTURE_WIDTH;  // Assuming 3 components (RGB) per pixel
+    log!("height: {}", height);
+    log!("length: {}", data_array.length());
+    
+    // resize data array to match the texture size
+    // TODO: don't duplicat the array here, make sure arrays are the right size before passing into here
+    let resized_data_array = Float32Array::new_with_length((TEXTURE_WIDTH * height * 3).try_into().unwrap());
+    for i in 0..number_of_values {
+        resized_data_array.set_index(i as u32, data_array.get_index(i as u32));
+    }
+
+    let border = 0;
+    let format = WebGl2RenderingContext::RGB;
+    let type_ = WebGl2RenderingContext::FLOAT;
+
+    // Convert f32 array to Uint8Array
+    // Because we don't actually have rust bindings for Float32Arrays in the webgl crate, we do this to directly pass a JS array to the texture
+    // let data_array = unsafe { js_sys::Float32Array::view(data) };
+
+    gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_array_buffer_view(
+        WebGl2RenderingContext::TEXTURE_2D,
+        level,
+        internal_format,
+        width,
+        height,
+        border,
+        format,
+        type_,
+        Some(&resized_data_array),
+    )?;
+    Ok(())
 }
 
 
@@ -306,6 +371,13 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
 
     let geo_shader = shader::shader::create_geo_shader_program(&gl).unwrap();
 
+    let (color_texture, color_texture_location) = create_texture(&gl, &splat_shader, "u_color_texture")?;
+
+    let (position_texture, position_texture_location) = create_texture(&gl, &splat_shader, "u_position_texture")?;
+    let (cov3da_texture, cov3da_texture_location) = create_texture(&gl, &splat_shader, "u_cov3da_texture")?;
+    let (cov3db_texture, cov3db_texture_location) = create_texture(&gl, &splat_shader, "u_cov3db_texture")?;
+    let (opacity_texture, opacity_texture_location) = create_texture(&gl, &splat_shader, "u_opacity_texture")?;
+
     let result  = WebGLSetupResult{
         gl: gl,
         splat_shader,
@@ -319,12 +391,20 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
         geo_shader,
         geo_vertex_buffer,
         geo_count: vertices.len() as i32,
-        geo_vao
+        geo_vao,
+        color_texture,
+        position_texture,
+        cov3da_texture,
+        cov3db_texture,
+        opacity_texture,
     };
 
     result.gl.use_program(Some(&result.splat_shader));
     result.gl.bind_vertex_array(Some(&result.splat_vao));
+
     update_webgl_buffers(scene, &result);
+    update_webgl_textures(scene, &result).expect("failed to update webgl textures for the first time!");
+
     create_attribute_and_get_location(&result.gl, &result.vertex_buffer, &result.splat_shader, "v_pos", false, 3);
     create_attribute_and_get_location(&result.gl, &result.color_buffer, &result.splat_shader, "s_color", true, 3);
     create_attribute_and_get_location(&result.gl, &result.position_offset_buffer, &result.splat_shader, "s_center", true, 3);
@@ -334,18 +414,31 @@ fn setup_webgl(gl: WebGl2RenderingContext, scene : &Scene) -> Result<WebGLSetupR
 
     result.gl.pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
 
-    let (texture, texture_location) = create_texture(&result.gl, &result.splat_shader)?;
     result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&texture));
-    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_color_texture", &texture);
-    // result.gl.uniform1i(Some(&texture_location), 0);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.color_texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_color_texture", &result.color_texture);
 
+    result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.position_texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_position_texture", &result.position_texture);
+
+    result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
+    result.gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&result.cov3da_texture));
+    set_texture_uniform_value(&result.splat_shader, &result.gl, "u_cov3da_texture", &result.cov3da_texture);
+    
+    
+
+
+
+
+
+
+    // geo shader
     result.gl.use_program(Some(&result.geo_shader));
     result.gl.bind_vertex_array(Some(&result.geo_vao));
     create_attribute_and_get_location(&result.gl, &result.geo_vertex_buffer, &result.geo_shader, "v_pos", false, 3);
 
     return Ok(result);
-
 }
 
 
@@ -591,6 +684,7 @@ pub async fn start() -> Result<(), JsValue> {
     //     }
     // }
 
+    // let scene_name = "Shahan_03_id01-30000";
     let scene_name = "Shahan_03_id01-30000.cleaned";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);

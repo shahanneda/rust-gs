@@ -92,8 +92,13 @@ impl Splat{
 
         let quat = glm::Quat::new(w, x, y, z);
         let rot_mat = quat_to_mat3(&quat);
+
         let matrix = scaling_mat * rot_mat.transpose();
         let sigma = matrix.transpose() * matrix;
+
+        // let matrix = scaling_mat * rot_mat();
+        // let sigma = matrix * matrix.transpose();
+
         // let sigma = matrix * matrix.transpose();
         // log!("{sigma}");
         // Only store upper right since it's symmetric
@@ -320,7 +325,7 @@ impl Scene {
         for splat in &self.splats {
             let depth = ((splat.x * view_matrix_2 +
                           splat.y * view_matrix_6 +
-                          splat.z * view_matrix_10) * 64.0) as i32;
+                          splat.z * view_matrix_10) * 1000.0) as i32;
             
             depth_list.push(depth);
             max_depth = max_depth.max(depth);
