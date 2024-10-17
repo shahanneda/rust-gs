@@ -1,56 +1,19 @@
-// all webgl stuff should be here
-use js_sys::Int32Array;
 use js_sys::Uint32Array;
-use nalgebra_glm::pi;
-use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::num;
-use std::ops::DerefMut;
-use web_sys::Worker;
-use web_sys::WorkerOptions;
-use web_sys::WorkerType;
-// use std::num;
-use std::rc::Rc;
 
-use eframe::glow::TRIANGLES;
-use eframe::glow::TRIANGLE_STRIP;
-use egui::debug_text::print;
-use egui::util::undoer::Settings;
-// use egui::epaint::Vertex;
-// use egui::frame;
-use crate::camera::Camera;
-use crate::loader::loader; // If you need the loader
-use crate::log;
-use crate::scene::Scene; // Use crate:: to import from your lib.rs
-use crate::timer::Timer;
-use crate::utils::float32_array_from_vec;
-use crate::utils::set_panic_hook;
-use crate::utils::uint32_array_from_vec;
-use glm::log;
-use glm::vec2;
-use glm::vec3;
-use glm::vec4;
-use glm::vec4_to_vec3;
-use glm::Mat4;
-use glm::Vec2;
-use glm::Vec3;
-// use crate::shader;
+use crate::scene::Scene;
 use crate::shader;
+use crate::timer::Timer;
 extern crate eframe;
 extern crate js_sys;
 extern crate nalgebra_glm as glm;
 extern crate ply_rs;
 extern crate wasm_bindgen;
 use crate::scene_geo;
-use js_sys::{Float32Array, WebAssembly};
+use crate::utils::float32_array_from_vec;
+use crate::utils::uint32_array_from_vec;
+use js_sys::Float32Array;
+use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-use web_sys::console;
-use web_sys::Event;
-use web_sys::HtmlCanvasElement;
-use web_sys::HtmlInputElement;
-use web_sys::MouseEvent;
 use web_sys::WebGl2RenderingContext;
 use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
@@ -62,12 +25,6 @@ pub struct Renderer {
     gl: WebGl2RenderingContext,
     splat_shader: WebGlProgram,
     splat_vao: WebGlVertexArrayObject,
-    // vertex_buffer: WebGlBuffer,
-    // color_buffer: WebGlBuffer,
-    // position_offset_buffer: WebGlBuffer,
-    // cov3da_buffer: WebGlBuffer,
-    // cov3db_buffer: WebGlBuffer,
-    // opacity_buffer: WebGlBuffer,
     geo_shader: WebGlProgram,
     geo_vertex_buffer: WebGlBuffer,
     splat_index_buffer: WebGlBuffer,
@@ -94,8 +51,6 @@ impl Renderer {
         gl.bind_vertex_array(Some(&splat_vao));
         let geo_vertex_buffer = create_buffer(&gl).unwrap();
         let splat_index_buffer = create_buffer(&gl).unwrap();
-
-        // update_buffer_data(&gl, &vertex_buffer, float32_array_from_vec(&vertices));
 
         let geo_vao = gl.create_vertex_array().unwrap();
         gl.bind_vertex_array(Some(&geo_vao));
@@ -159,7 +114,8 @@ impl Renderer {
         result.gl.use_program(Some(&result.splat_shader));
         result.gl.bind_vertex_array(Some(&result.splat_vao));
 
-        result.update_webgl_textures(scene)
+        result
+            .update_webgl_textures(scene)
             .expect("failed to update webgl textures for the first time!");
 
         create_attribute_and_get_location(
@@ -191,7 +147,9 @@ impl Renderer {
         result
             .gl
             .pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
-        result.gl.active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
+        result
+            .gl
+            .active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
         result.gl.bind_texture(
             WebGl2RenderingContext::TEXTURE_2D,
             Some(&result.position_texture),

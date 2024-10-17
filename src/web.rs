@@ -1,62 +1,21 @@
-use eframe::Renderer;
-use js_sys::Int32Array;
-use js_sys::Uint32Array;
-use nalgebra_glm::pi;
-use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::convert::TryInto;
-use std::num;
-use std::ops::DerefMut;
-use web_sys::Worker;
-use web_sys::WorkerOptions;
-use web_sys::WorkerType;
-// use std::num;
-use std::rc::Rc;
-
-use eframe::glow::TRIANGLES;
-use eframe::glow::TRIANGLE_STRIP;
-use egui::debug_text::print;
-use egui::util::undoer::Settings;
-// use egui::epaint::Vertex;
-// use egui::frame;
 use crate::camera::Camera;
-use crate::loader::loader; // If you need the loader
 use crate::log;
 use crate::renderer;
 use crate::scene::Scene; // Use crate:: to import from your lib.rs
 use crate::timer::Timer;
-use crate::utils::invert_row;
 use crate::utils::set_panic_hook;
-use glm::log;
 use glm::vec2;
 use glm::vec3;
-use glm::vec4;
-use glm::vec4_to_vec3;
-use glm::Mat4;
-use glm::Vec2;
-use glm::Vec3;
-// use crate::shader;
-use crate::shader;
+use std::cell::RefCell;
+use std::rc::Rc;
 extern crate eframe;
 extern crate js_sys;
 extern crate nalgebra_glm as glm;
 extern crate ply_rs;
 extern crate wasm_bindgen;
-use crate::scene_geo;
-use js_sys::{Float32Array, WebAssembly};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::console;
-use web_sys::Event;
-use web_sys::HtmlCanvasElement;
-use web_sys::HtmlInputElement;
-use web_sys::MouseEvent;
 use web_sys::WebGl2RenderingContext;
-use web_sys::WebGlBuffer;
-use web_sys::WebGlProgram;
-use web_sys::WebGlTexture;
-use web_sys::WebGlUniformLocation;
-use web_sys::WebGlVertexArrayObject;
 
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
