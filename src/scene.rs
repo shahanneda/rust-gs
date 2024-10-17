@@ -213,12 +213,12 @@ impl Scene {
             .bytes()
             .await
             .expect("went wrong when reading!");
-        return Scene::new_from_json(&loaded_file);
+        return Scene::new_from_rkyv(&loaded_file);
     }
 
-    pub fn new_from_json(bytes: &[u8]) -> Self {
+    pub fn new_from_rkyv(bytes: &[u8]) -> Self {
         let _timer = Timer::new("new scene from json");
-        log!("Creating a new scene from json");
+        log!("Creating a new scene from rkyv");
         
         match rkyv::from_bytes::<Scene, Error>(bytes) {
             Ok(mut scene) => {
@@ -236,9 +236,7 @@ impl Scene {
 
     pub fn new(splats: Vec<PlySplat>) -> Self {
         let _timer = Timer::new("new scene");
-        log!("Creating a new scene");
         let splats = splats.iter().map(|splat| Splat::new(splat)).collect();
-        // let splats = splats.iter().take(1).map(|splat| Splat::new(splat)).collect();
 
         return Scene {
             splats: splats,
@@ -300,20 +298,6 @@ impl Scene {
         let _timer = Timer::new("sort_splats_based_on_depth");
         // track start time
 
-        // let mut pos_count = 0;
-        // let mut neg_count = 0;
-        // for splat in &self.splats{
-        //     let depth = calc_depth(&splat);
-        //     if depth > 0{
-        //         pos_count += 1;
-        //     } else {
-        //         neg_count += 1;
-        //     }
-        // }
-
-        // log!("pos count is {pos_count} neg count is {neg_count}");
-
-
         let mut depth_list_timer = Timer::new("create depth list");
         // Precompute these values outside the loop
         let view_matrix_2 = view_matrix[2];
@@ -359,66 +343,14 @@ impl Scene {
         let mut output_indices = vec![0; length];
         for i in (0..self.splats.len()).rev(){
             let depth = depth_list[i];
-            // if depth > 0 {
-            //     self.splats[i].opacity = 0.0;
-            // }
-
             let index = count_array[depth as usize] - 1;
-            // log!("depth is {depth} index is {index} i is {i}");
-            // TODO: Remove copying of splats when sorting
             // want the order to be reverse
             output_indices[length - index as usize - 1] = i as u32;
             count_array[depth as usize] -= 1;
-            // self.splats[i].index = index as u32;
         }
         output_vector_timer.end();
         return output_indices;
 
-        // let output_copy_timer = Timer::new("copying output vector");
-        // let mut output : Vec<Splat> = vec![Splat{
-        //     nx: 0.0,
-        //     ny: 0.0,
-        //     nz: 0.0,
-        //     opacity: 0.0,
-        //     rot_0: 0.0,
-        //     rot_1: 0.0,
-        //     rot_2: 0.0,
-        //     rot_3: 0.0,
-        //     scale_0: 0.0,
-        //     scale_1: 0.0,
-        //     scale_2: 0.0,
-        //     x: 0.0,
-        //     y: 0.0,
-        //     z: 0.0,
-        //     r: 0.0,
-        //     g: 0.0,
-        //     b: 0.0,
-        //     cov3d: [0.0; 6],
-        //     index: 0,
-        // }; self.splats.len()];
-        // for i in 0..self.splats.len(){
-        //     let index = outputIndices[i];
-        //     output[i] = self.splats[index];
-        // }
-        // output.reverse();
-        // self.splats = output;
-        // output_copy_timer.end();
-
-
-
-        // self.splats.sort_by(|a, b| 
-        //     calc_depth(&b).partial_cmp(&calc_depth(&a)).unwrap());
-        // const calcDepth = (i) =>
-        //     gaussians.positions[i * 3] * viewMatrix[2] +
-        //     gaussians.positions[i * 3 + 1] * viewMatrix[6] +
-        //     gaussians.positions[i * 3 + 2] * viewMatrix[10];
-            
-        //     0 1 2 3
-        //     4 5 6 7
-        //     8 9 10 11
-        //     12 13 14 15
-        //     a.z.partial_cmp(&b.z).unwrap())
-        // ;
     }
 }
 

@@ -1,6 +1,8 @@
+use js_sys::{Float32Array, Uint32Array, WebAssembly};
 use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
+extern crate nalgebra_glm as glm;
 
 pub fn compile_shader(
     context: &WebGl2RenderingContext,
@@ -71,4 +73,28 @@ pub fn set_panic_hook() {
     // https://github.com/rustwasm/console_error_panic_hook#readme
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
+}
+
+
+pub fn float32_array_from_vec(vec: &[f32]) -> Float32Array {
+    let memory_buffer = wasm_bindgen::memory()
+        .dyn_into::<WebAssembly::Memory>().unwrap()
+        .buffer();
+    let location: u32 = vec.as_ptr() as u32 / 4;
+    return Float32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
+}
+
+pub fn uint32_array_from_vec(vec: &[u32]) -> Uint32Array {
+    let memory_buffer = wasm_bindgen::memory()
+        .dyn_into::<WebAssembly::Memory>().unwrap()
+        .buffer();
+    let location: u32 = vec.as_ptr() as u32 / 4;
+    return Uint32Array::new(&memory_buffer).subarray(location, location + vec.len() as u32);
+}
+
+pub fn invert_row(mat: &mut glm::Mat4, row: usize) {
+    mat[row + 0] = -mat[row + 0];
+    mat[row + 4] = -mat[row + 4];
+    mat[row + 8] = -mat[row + 8];
+    mat[row + 12] = -mat[row + 12];
 }
