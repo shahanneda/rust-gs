@@ -4,13 +4,15 @@ use std::cell::RefMut;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use crate::log;
+use crate::timer::Timer;
+use crate::utils::invert_row;
 use glm::vec2;
 use glm::vec3;
 use glm::Mat4;
 use glm::Vec2;
 use glm::Vec3;
 use nalgebra_glm::vec4;
-use crate::log;
 extern crate eframe;
 extern crate js_sys;
 extern crate nalgebra_glm as glm;
@@ -90,16 +92,19 @@ impl Camera {
         Ok(())
     }
 
-//     fn clone(&self) -> Self {
-//         Self {
-//             pos: self.pos.clone(),
-//             rot: self.rot.clone(),
-//             is_dragging: self.is_dragging,
-//             last_mouse_pos: self.last_mouse_pos.clone(),
-//         }
-//     }
+    //     fn clone(&self) -> Self {
+    //         Self {
+    //             pos: self.pos.clone(),
+    //             rot: self.rot.clone(),
+    //             is_dragging: self.is_dragging,
+    //             last_mouse_pos: self.last_mouse_pos.clone(),
+    //         }
+    //     }
 
-    pub fn update_translation_from_keys(self: &mut Camera, keys_pressed: &RefCell<HashSet<String>>) {
+    pub fn update_translation_from_keys(
+        self: &mut Camera,
+        keys_pressed: &RefCell<HashSet<String>>,
+    ) {
         let keys = keys_pressed.borrow();
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
         if keys.contains("w") {
@@ -123,8 +128,18 @@ impl Camera {
 
         if cam_translation_local != vec3(0.0, 0.0, 0.0) {
             let cam_to_world = self.get_camera_to_world_matrix();
-            let cam_pos_after_moving = cam_to_world * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 0.0);
-            self.pos += vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
+            let cam_pos_after_moving = cam_to_world
+                * vec4(
+                    cam_translation_local.x,
+                    cam_translation_local.y,
+                    cam_translation_local.z,
+                    0.0,
+                );
+            self.pos += vec3(
+                cam_pos_after_moving.x,
+                cam_pos_after_moving.y,
+                cam_pos_after_moving.z,
+            );
         }
 
         if keys.contains("ArrowUp") {
@@ -152,5 +167,24 @@ impl Camera {
 
     pub fn get_camera_to_world_matrix(self: &Camera) -> Mat4 {
         return self.get_world_to_camera_matrix().try_inverse().unwrap();
+    }
+
+    pub fn get_vm_and_vpm(self: &Camera, width: i32, height: i32) -> (Mat4, Mat4) {
+        let _timer = Timer::new("get_scene_ready_for_draw");
+        let mut proj = glm::perspective(
+            (width as f32) / (height as f32),
+            0.820176f32,
+            0.1f32,
+            100f32,
+        );
+
+        let mut vm = self.get_world_to_camera_matrix();
+        let mut vpm = proj * vm;
+        invert_row(&mut vm, 1);
+        invert_row(&mut vm, 2);
+        invert_row(&mut vpm, 1);
+        invert_row(&mut vm, 0);
+        invert_row(&mut vpm, 0);
+        return (vm, vpm);
     }
 }
