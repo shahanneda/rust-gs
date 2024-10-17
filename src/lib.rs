@@ -13,3 +13,5 @@ pub mod web;
 pub mod utils;
 #[cfg(target_arch = "wasm32")]
 pub mod shader;
+#[cfg(target_arch = "wasm32")]
+pub mod camera;

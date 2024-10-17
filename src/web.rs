@@ -26,6 +26,7 @@ use glm::vec4_to_vec3;
 use glm::Mat4;
 use glm::Vec2;
 use glm::Vec3;
+use crate::camera::Camera;
 use crate::scene::Scene;  // Use crate:: to import from your lib.rs
 use crate::loader::loader;  // If you need the loader
 use crate::log;
@@ -299,7 +300,6 @@ fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult){
 
 fn update_splat_indices(scene: &Scene, webgl: &WebGLSetupResult, splat_indices: &Vec<u32>){
     // print out first few
-    log!("updating splat_indices: {:?}", &splat_indices[0..3]);
     let _timer = Timer::new("update_splat_indices");
     webgl.gl.use_program(Some(&webgl.splat_shader));
     webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
@@ -355,8 +355,6 @@ fn put_data_into_texture(gl: &WebGl2RenderingContext, texture: &WebGlTexture, da
     let number_of_values = data_array.length() as i32;
     // We add Texture_width -1 so that we always do a ceiling division
     let height = (number_of_values + TEXTURE_WIDTH - 1) / TEXTURE_WIDTH;  // Assuming 3 components (RGB) per pixel
-    log!("height: {}", height);
-    log!("length: {}", data_array.length());
     
     // resize data array to match the texture size
     // TODO: don't duplicat the array here, make sure arrays are the right size before passing into here
@@ -690,25 +688,13 @@ fn get_canvas_context(canvas_id: &str) -> web_sys::CanvasRenderingContext2d {
         .unwrap()
 }
 
-pub fn get_world_to_camera_matrix(cam : &CameraInfo) -> Mat4{
-    let mut camera: Mat4 = glm::identity();
-    camera = glm::rotate_z(&camera, 1.0 * glm::pi::<f32>());
-    camera = glm::rotate_x(&camera, cam.rot.x);
-    camera = glm::rotate_y(&camera, cam.rot.y);
-    camera = glm::translate(&camera, &cam.pos);
-    return camera;
-}
 
-pub fn get_camera_to_world_matrix(cam : &CameraInfo) -> Mat4 {
-    return get_world_to_camera_matrix(cam).try_inverse().unwrap();
-}
-
-pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &CameraInfo) -> (Mat4, Mat4, Vec<u32>){
+pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam: &Camera) -> (Mat4, Mat4, Vec<u32>){
     let _timer = Timer::new("get_scene_ready_for_draw");
     let mut proj = glm::perspective((width as f32)/ (height as f32), 0.820176f32, 0.1f32, 100f32);
     // camera = camera.try_inverse().unwrap();
 
-    let mut vm = get_world_to_camera_matrix(&cam);
+    let mut vm = cam.get_world_to_camera_matrix();
     let mut vpm = proj * vm;
     invertRow(&mut vm, 1);
     invertRow(&mut vm, 2);
@@ -720,12 +706,6 @@ pub fn get_scene_ready_for_draw(width: i32, height: i32, scene: &mut Scene, cam:
     return (vm, vpm, splat_indices)
 }
 
-pub struct CameraInfo{
-    pub pos: Vec3,
-    pub rot: Vec2,
-    pub is_dragging: bool,
-    pub last_mouse_pos: Vec2,
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Point {
@@ -749,7 +729,6 @@ pub async fn start() -> Result<(), JsValue> {
     // let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/one-corn.json").await;
     // let scene_name = "shahan_head";
     // let scene_name = "Shahan_03_id01-30000.cleaned";
-    log!("Starting Web!");
     // unsafe {
     //     if !worker_initialized {
     //         // let worker_options = WorkerOptions::new();
@@ -764,14 +743,15 @@ pub async fn start() -> Result<(), JsValue> {
     //         return Ok(());
     //     }
     // }
+    log!("Starting Web!");
 
-    // let scene_name = "Shahan_03_id01-30000";
+    let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
-    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000-2024";
     let mut scene: Scene = Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
-
     // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
     // log!("Done loading!");
 
@@ -779,28 +759,19 @@ pub async fn start() -> Result<(), JsValue> {
 
 
     let _timer = Timer::new("start function");
-
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
     let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
-
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
     let gl = getWebGLContext();
-
-
     let webgl = setup_webgl(gl, &scene).unwrap();
-    let cam_info = Rc::new(RefCell::new(CameraInfo {
-        pos: Vec3::new(0.0, 0.0, 5.0),
-        rot: Vec2::new(0.0, 0.0),
-        is_dragging: false,
-        last_mouse_pos: Vec2::new(0.0, 0.0),
-    }));
 
-    let cam_info_clone = cam_info.clone();
-    let move_speed = 0.05;
+    let camera = Rc::new(RefCell::new(Camera::new(vec3(0.0, 0.0, 5.0), vec2(0.0, 0.0))));
+    Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
+
+
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
-    
     let keys_pressed_clone = keys_pressed.clone();
     let keydown_cb = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
         keys_pressed_clone.borrow_mut().insert(e.key());
@@ -815,100 +786,15 @@ pub async fn start() -> Result<(), JsValue> {
     document.add_event_listener_with_callback("keyup", keyup_cb.as_ref().unchecked_ref())?;
     keyup_cb.forget();
 
-    // Add mouse event handlers
-    let cam_info_mousedown = cam_info.clone();
-    let mousedown_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
-        let mut cam_info = cam_info_mousedown.borrow_mut();
-        cam_info.is_dragging = true;
-        cam_info.last_mouse_pos = Vec2::new(e.client_x() as f32, e.client_y() as f32);
-    }) as Box<dyn FnMut(_)>);
-    canvas.add_event_listener_with_callback("mousedown", mousedown_cb.as_ref().unchecked_ref())?;
-    mousedown_cb.forget();
-
-    let cam_info_mousemove = cam_info.clone();
-    let mousemove_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
-        let mut cam_info = cam_info_mousemove.borrow_mut();
-        if cam_info.is_dragging {
-            let current_pos = Vec2::new(e.client_x() as f32, e.client_y() as f32);
-            let delta = current_pos - cam_info.last_mouse_pos;
-            
-            // Adjust these factors to control rotation speed
-            let rotation_factor_x = 0.001;
-            let rotation_factor_y = 0.001;
-
-            cam_info.rot.y -= -delta.x * rotation_factor_x;
-            cam_info.rot.x -= -delta.y * rotation_factor_y;
-
-            // Clamp vertical rotation to avoid flipping
-            cam_info.rot.x = cam_info.rot.x.clamp(-std::f32::consts::FRAC_PI_2, std::f32::consts::FRAC_PI_2);
-
-            cam_info.last_mouse_pos = current_pos;
-        }
-    }) as Box<dyn FnMut(_)>);
-    document.add_event_listener_with_callback("mousemove", mousemove_cb.as_ref().unchecked_ref())?;
-    mousemove_cb.forget();
-
-    let cam_info_mouseup = cam_info.clone();
-    let mouseup_cb = Closure::wrap(Box::new(move |_: MouseEvent| {
-        let mut cam_info = cam_info_mouseup.borrow_mut();
-        cam_info.is_dragging = false;
-    }) as Box<dyn FnMut(_)>);
-    document.add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;
-    mouseup_cb.forget();
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
-
     let mut i = 0;
-
-    let cam_info_clone2 = cam_info.clone();
-    let keys_pressed_clone = keys_pressed.clone();
     *g.borrow_mut() = Some(Closure::new(move || {
         let _timer = Timer::new("main loop");
-        let mut cam_info = cam_info_clone2.borrow_mut();
-        let keys = keys_pressed_clone.borrow();
+        camera.borrow_mut().update_translation_from_keys(&keys_pressed);
 
-        let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
-
-        if keys.contains("w") {
-            cam_translation_local.z -= move_speed;
-        }
-        if keys.contains("s") {
-            cam_translation_local.z += move_speed;
-        }
-        if keys.contains("a") {
-            cam_translation_local.x += move_speed;
-        }
-        if keys.contains("d") {
-            cam_translation_local.x -= move_speed;
-        }
-        if keys.contains(" ") {
-            cam_translation_local.y -= move_speed;
-        }
-        if keys.contains("Shift") {
-            cam_translation_local.y += move_speed;
-        }
-
-        if cam_translation_local != vec3(0.0, 0.0, 0.0) {
-            let cam_to_world = get_camera_to_world_matrix(&cam_info);
-            let cam_pos_after_moving = cam_to_world * vec4(cam_translation_local.x, cam_translation_local.y, cam_translation_local.z, 0.0);
-            cam_info.pos += vec3(cam_pos_after_moving.x, cam_pos_after_moving.y, cam_pos_after_moving.z);
-        }
-
-        if keys.contains("ArrowUp") {
-            cam_info.rot.x -= 0.1;
-        }
-        if keys.contains("ArrowDown") {
-            cam_info.rot.x += 0.1;
-        }
-        if keys.contains("ArrowLeft") {
-            cam_info.rot.y -= 0.1;
-        }
-        if keys.contains("ArrowRight") {
-            cam_info.rot.y += 0.1;
-        }
-
-        let (vm, vpm, splat_indices) = get_scene_ready_for_draw(width, height, &mut scene, &cam_info);
+        let (vm, vpm, splat_indices) = get_scene_ready_for_draw(width, height, &mut scene, &camera.borrow());
 
         update_splat_indices(&scene, &webgl, &splat_indices);
         update_webgl_buffers(&scene, &webgl);
@@ -931,64 +817,3 @@ pub struct AppState{
     height: i32,
     i: i32,
 }
-
-// #[wasm_bindgen]
-// impl AppState {
-//     #[wasm_bindgen(constructor)]
-//     pub async fn new() -> Result<Rc<RefCell<AppState>>, JsValue> {
-//         let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
-//         set_panic_hook(); 
-//         let mut scene = Scene::new(ply_splat);
-
-//         let document = web_sys::window().unwrap().document().unwrap();
-//         let canvas = document.get_element_by_id("canvas").unwrap();
-//         let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
-
-//         let width = canvas.width() as i32;
-//         let height = canvas.height() as i32;
-//         let gl = getWebGLContext();
-
-
-//         let webgl = setup_webgl(gl, &scene).unwrap();
-
-//         Ok(Rc::new(RefCell::new(AppState {
-//             scene,
-//             webgl,
-//             canvas,
-//             width,
-//             height,
-//             i: 0,
-//         })))
-//     }
-
-//     // pub fn handle_keyboard(&mut self, key: &str) {
-//     //     log!("Key pressed: {}", key);
-
-//     //     // Update the scene's view matrix or any other state based on the key input
-//     //     match key {
-//     //         "ArrowUp" => {
-//     //             // Example: Adjust the view matrix for upward arrow key
-//     //             self.scene.view_matrix[1][3] += 0.1;
-//     //         }
-//     //         "ArrowDown" => {
-//     //             // Example: Adjust the view matrix for downward arrow key
-//     //             self.scene.view_matrix[1][3] -= 0.1;
-//     //         }
-//     //         // Add more key handling as needed
-//     //         _ => {}
-//     //     }
-//     // }
-
-//     // pub fn render_frame(&mut self) {
-//     //     let (vm, vpm) = get_scene_ready_for_draw(self.width, self.height, &mut self.scene);
-//     //     update_webgl_buffers(&self.scene, &self.webgl);
-//     //     draw(&self.webgl.gl, &self.webgl.program, &self.canvas, self.i, self.scene.splats.len() as i32, vpm, vm);
-//     //     self.i += 1;
-//     // }
-// }
-
-// #[wasm_bindgen(start)]
-// pub async fn start() -> Result<Rc<RefCell<AppState>>, JsValue> {
-//     set_panic_hook();
-//     AppState::new().await
-// }

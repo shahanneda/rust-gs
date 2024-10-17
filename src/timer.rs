@@ -4,6 +4,7 @@ use web_sys::console;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
+const DISABLED: bool = true;
 pub struct Timer<'a> {
     name: &'a str,
     #[cfg(not(target_arch = "wasm32"))]
@@ -13,6 +14,9 @@ pub struct Timer<'a> {
 
 impl<'a> Timer<'a> {
     pub fn new(name: &'a str) -> Timer<'a> {
+        if DISABLED {
+            return Timer { name, has_ended: true };
+        }
         #[cfg(target_arch = "wasm32")]
         {
             console::time_with_label(name);
@@ -28,6 +32,9 @@ impl<'a> Timer<'a> {
 
     pub fn end(&mut self) {
         if self.has_ended {
+            return;
+        }
+        if DISABLED {
             return;
         }
         self.has_ended = true;
