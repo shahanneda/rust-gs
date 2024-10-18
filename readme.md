@@ -8,8 +8,8 @@
 - Uses a WebGL2 data texture to send splat data to shader
 
 - Uses https://github.com/rkyv/rkyv to serialize splats super fast
-- See `src/local/local.rs` to compress a splat and run `./buildLocal.sh``
-To build normally, run `./build`
+- See `src/local/local.rs` to compress a splat and run `./buildLocal.sh`
+- To build normally, run `./build`
 
 
 
