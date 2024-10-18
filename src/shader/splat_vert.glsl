@@ -4,13 +4,6 @@
 
 in vec3 v_pos;
 in uint s_index;
-// in vec3 s_color;
-// in vec3 s_center;
-// in vec3 s_cov3da;
-// in vec3 s_cov3db;
-// in vec3 s_opacity;
-
-// uniform mat4 model;
 uniform mat4 camera;
 uniform mat4 projection;
 
@@ -20,14 +13,8 @@ uniform float focal_x;
 uniform float focal_y;
 uniform float tan_fovx;
 uniform float tan_fovy;
-// uniform float scale_modifier;
 uniform vec3 boxmin;
 uniform vec3 boxmax;
-// uniform mat4 projmatrix;
-// uniform mat4 viewmatrix;
-
-// out mat4 x;
-// out vec3 color;
 
 out vec3 col;
 out float depth;
@@ -110,17 +97,10 @@ void main() {
 //   vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
   vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
 
-
-
-
-//   vec3 p_orig = get_value_from_texture(vec2(0, 0), u_color_texture);
-
-  // mat4 model2 = model*12;
   mat4 projmatrix = projection;
   vec4 p_hom = projmatrix * vec4(p_orig, 1);
   float p_w = 1. / (p_hom.w + 1e-7); // add 1e-7 so we don't divide by zero
 
-  // Do the projection
   vec3 p_proj = p_hom.xyz * p_w;
   vec4 p_view = camera * vec4(p_orig, 1);
 
@@ -149,15 +129,11 @@ void main() {
   float lambda2 = mid - sqrt(max(0.1, mid * mid - det));
   float my_radius = ceil(3. * sqrt(max(lambda1, lambda2)));
   vec2 point_image = vec2(ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H));
-  // my_radius *= .15 + scale_modifier * .85;
-  // scale_modif = 1. / scale_modifier;
 
   float scale_modifier = 1.0;
   my_radius *= .15 + scale_modifier * .85;
   scale_modif = 1. / scale_modifier;
 
-  // vec2 corner = vec2(0,0);
-//   vec2 corner = v_pos.xy;
     vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2) - 1.;
     vec2 screen_pos = point_image + my_radius * corner;
 
@@ -193,58 +169,12 @@ void main() {
 //       col = vec3(1, 1, 1);
 //   }
 
-
-    // the texture is a 2d image with (2 rows and 3 columns)
-    /// the first row represents the color we want
-    // Sample the entire first row of the texture
-    // ivec2 pixelCoord = ivec2(0, 1);
-    // int mipLevel = 0;
-    // vec4 pixelValue = texelFetch(u_color_texture, pixelCoord, mipLevel);
-    // col = get_value_from_texture(vec2(0, gl_InstanceID), u_color_texture);
-    col = get_value_from_texture(texture_coord, u_color_texture);
-    // col = s_color;
-
-//   col = vec3(corner, 0);
-
+  col = get_value_from_texture(texture_coord, u_color_texture);
   con_o = vec4(conic, s_opacity);
   xy = point_image;
   pixf = screen_pos;
   depth = p_view.z;
 
-  // (Webgl-specific) Convert from screen-space to clip-space
   vec2 clip_pos = screen_pos / vec2(W, H) * 2. - 1.;
-
   gl_Position = vec4(clip_pos, 0, 1);
-  // col = vec3(cov3D[3], cov3D[4], cov3D[5]);
-  // col = p_orig;
-
-  // vec3 cov = computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, viewmatrix);
-
-  // gl_Position is a special variable a vertex shader
-  // is responsible for setting
-  // color = s_color;
-  // gl_Position = projection*camera*model*vec4(v_pos + s_center, 1.0);
-  // color = vec3(cov3D[0], cov3D[4], s_color[1]);
-  // color = vec3(cov3D[0], cov3D[1] , cov3D[2]);
-  // color = vec3(cov3D[3], cov3D[4] , cov3D[5]);
-  // color = vec3(s_cov3da, s_cov3db)
-
-  // if(gl_VertexID == 0){
-  //     color = vec3(1,0,0);
-  // }
-  // else if(gl_VertexID == 1){
-  //     color = vec3(0,1,0);
-  // }
-  // else if(gl_VertexID == 2){
-  //     color = vec3(0,0,1);
-  // }
-  // else if(gl_VertexID == 3){
-  //     color = vec3(1,1,0);
-  // }
-  // else{
-  //     color = vec3(1, 1, 1);
-  // }
-
-  // color = vec3(1, 0, 0);
-  // gl_PointSize = 1.0;
 }

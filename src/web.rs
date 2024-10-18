@@ -49,9 +49,9 @@ pub async fn start() -> Result<(), JsValue> {
     // }
     log!("Starting Web!");
 
-    let scene_name = "Shahan_03_id01-30000";
+    // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut scene: Scene =
         Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
