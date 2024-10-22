@@ -74,10 +74,11 @@ pub async fn start() -> Result<(), JsValue> {
     let height = canvas.height() as i32;
     let gl = getWebGLContext();
     let renderer = renderer::Renderer::new(gl, &scene).unwrap();
-
+    // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
+    // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
-        vec3(0.0, 0.0, 5.0),
-        vec2(0.0, 0.0),
+        vec3(-1.020468, 1.4699098, -2.7163901),
+        vec2(0.11999998, 2.8230002),
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
 

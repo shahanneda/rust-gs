@@ -30,8 +30,8 @@ pub struct Camera {
 impl Camera {
     pub fn new(pos: Vec3, rot: Vec2) -> Self {
         Self {
-            pos: vec3(0.0, 0.0, 0.0),
-            rot: vec2(0.0, 0.0),
+            pos: pos,
+            rot: rot,
             is_dragging: false,
             last_mouse_pos: vec2(0.0, 0.0),
         }
