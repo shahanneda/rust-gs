@@ -15,18 +15,39 @@ pub struct Timer<'a> {
 impl<'a> Timer<'a> {
     pub fn new(name: &'a str) -> Timer<'a> {
         if DISABLED {
-            return Timer { name, has_ended: true };
+            #[cfg(target_arch = "wasm32")]
+            {
+                return Timer {
+                    name,
+                    has_ended: true,
+                };
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                return Timer {
+                    name,
+                    start: Instant::now(),
+                    has_ended: false,
+                };
+            }
         }
         #[cfg(target_arch = "wasm32")]
         {
             console::time_with_label(name);
-            Timer { name, has_ended: false }
+            Timer {
+                name,
+                has_ended: false,
+            }
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let start = Instant::now();
             println!("Starting timer: {}", name);
-            Timer { name, start, has_ended: false }
+            Timer {
+                name,
+                start,
+                has_ended: false,
+            }
         }
     }
 
@@ -48,7 +69,6 @@ impl<'a> Timer<'a> {
             println!("Timer '{}' ended after {:?}", self.name, duration);
         }
     }
-
 }
 
 impl<'a> Drop for Timer<'a> {
