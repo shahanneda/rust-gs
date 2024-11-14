@@ -14,13 +14,22 @@ out vec4 fragColor;
 
 // https://github.com/graphdeco-inria/diff-gaussian-rasterization/blob/main/cuda_rasterizer/forward.cu#L263
 void main() {
+
+  // distance of this fragment compared to the centerd of the splat
   vec2 d = xy - pixf;
+
+  // this just represents the exponent of a 2d gaussian function f(x,y) =
+  // exp(-0.5 * [x y] * Σ^-1 * [x]) inside con_o.xyz we stored the inverse sigma
+  // matrix
   float power =
       -0.5 * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
+
   if (power > 0.) {
     discard;
   }
-  power *= scale_modif;
+
+  // power *= scale_modif;
+  // the con_o.w is the oirigal opacity of the splat
   float alpha = min(.99f, con_o.w * exp(power));
   vec3 color = col;
 
@@ -29,7 +38,7 @@ void main() {
   }
   // fragColor = vec4(1,0,0,1);
   fragColor = vec4(color * alpha, alpha);
-  //   fragColor = vec4(color, 1);
+  // fragColor = vec4(color, 1);
   // fragColor = vec4(color,  1);
   // fragColor = vec4(con_o.x,  0, 0, 1);
   // fragColor = vec4(con_o.x*128.0, 0, 0, 1);
