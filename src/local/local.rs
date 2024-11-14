@@ -1,9 +1,9 @@
 use std::io::Write;
 use std::{fs::File, io::Read};
 
-use gs_rust::loader::loader;
-use gs_rust::log;
-use gs_rust::scene::Scene;
+use final_project::loader::loader;
+use final_project::log;
+use final_project::scene::Scene;
 use tokio;
 // use serde_json;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
@@ -13,7 +13,8 @@ async fn main() {
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "E7_01_id01-30000";
-    let scene_name = "soc_01_polycam";
+    //     let scene_name = "soc_01_polycam";
+    let scene_name = "corn";
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "Shahan_03_id01-30000";
     let url = format!("http://127.0.0.1:5501/splats/{}.ply", scene_name);

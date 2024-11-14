@@ -51,6 +51,7 @@ pub async fn start() -> Result<(), JsValue> {
 
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
+    // let scene_name = "corn";
     let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "soc_01_polycam";
     //
