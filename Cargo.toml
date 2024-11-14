@@ -1,5 +1,5 @@
 [package]
-name = "gs-rust"
+name = "final_project"
 version = "0.1.0"
 authors = ["Shahan Neda <shahan.neda@gmail.com>"]
 edition = "2018"

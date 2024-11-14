@@ -47,20 +47,20 @@ pub async fn start() -> Result<(), JsValue> {
     //         return Ok(());
     //     }
     // }
-    log!("Starting Web!");
+    // log!("Starting Web!");
 
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
-    // let mut scene: Scene =
-    //     Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
-    let mut scene: Scene = Scene::new_from_url(
-        "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/e7eb4bda-1d7c-4ca8-ac6b-a4c2c722f014.rkyv",
-    )
-    .await;
+    let mut scene: Scene =
+        Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
+    // let mut scene: Scene = Scene::new_from_url(
+    //     "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/e7eb4bda-1d7c-4ca8-ac6b-a4c2c722f014.rkyv",
+    // )
+    // .await;
     // let mut scene: Scene = Scene::new_from_json(&loaded_file);
     // log!("deserialized = {:?}", scene);
     // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");

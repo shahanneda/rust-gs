@@ -137,38 +137,6 @@ void main() {
     vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2) - 1.;
     vec2 screen_pos = point_image + my_radius * corner;
 
-    // if (corner == vec2(-1, -1)) {
-    //     col = vec3(1,0,0);
-    // }
-    // else if (corner == vec2(1, -1)) {
-    //     col = vec3(0,1,0);
-    // }
-    // else if (corner == vec2(1, 1)) {
-    //     col = vec3(0,0,1);
-    // }
-    // else {
-    //     col = vec3(1,1,0);
-    // }
-//   if(gl_VertexID == 0){
-//       col = vec3(1,0,0);
-//       corner = vec2(-1, -1);
-//   }
-//   else if(gl_VertexID == 1){
-//       col = vec3(0,1,0);
-//       corner = vec2(1, -1);
-//   }
-//   else if(gl_VertexID == 2){
-//       col = vec3(0,0,1);
-//       corner = vec2(1, 1);
-//   }
-//   else if(gl_VertexID == 3){
-//       col = vec3(1,1,0);
-//       corner = vec2(-1, 1);
-//   }
-//   else{
-//       col = vec3(1, 1, 1);
-//   }
-
   col = get_value_from_texture(texture_coord, u_color_texture);
   con_o = vec4(conic, s_opacity);
   xy = point_image;

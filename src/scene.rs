@@ -9,9 +9,6 @@ use nalgebra_glm as glm;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};
 
-
-
-
 // #[derive(Clone, Serialize, Deserialize, Debug)]
 #[derive(Clone, Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[rkyv(
@@ -22,69 +19,78 @@ use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
     derive(Debug),
 )]
 // #[derive(Clone, PartialEq, Debug, Readable, Writable)]
-pub struct Splat{
-        pub nx: f32,
-        pub ny: f32,
-        pub nz: f32,
-        pub opacity: f32,
-        pub rot_0: f32,
-        pub rot_1: f32,
-        pub rot_2: f32,
-        pub rot_3: f32,
-        pub scale_0: f32,
-        pub scale_1: f32,
-        pub scale_2: f32,
-        pub x: f32,
-        pub y: f32,
-        pub z: f32,
-        pub r: f32,
-        pub g: f32,
-        pub b: f32,
-        pub cov3d: [f32; 6],
+pub struct Splat {
+    pub nx: f32,
+    pub ny: f32,
+    pub nz: f32,
+    pub opacity: f32,
+    pub rot_0: f32,
+    pub rot_1: f32,
+    pub rot_2: f32,
+    pub rot_3: f32,
+    pub scale_0: f32,
+    pub scale_1: f32,
+    pub scale_2: f32,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub cov3d: [f32; 6],
 }
 
-// TODO: Remove copying of splats when sorting 
+// TODO: Remove copying of splats when sorting
 impl Copy for Splat {}
 
+impl Splat {
+    // function computeCov3D(scale, mod, rot) {
+    //   //   console.log("computing cov 3d");
+    //   // Create scaling matrix
+    //   mat3.set(S, mod * scale[0], 0, 0, 0, mod * scale[1], 0, 0, 0, mod * scale[2]);
+    //   const r = rot[0];
+    //   const x = rot[1];
+    //   const y = rot[2];
+    //   const z = rot[3];
 
-impl Splat{
-// function computeCov3D(scale, mod, rot) {
-//   //   console.log("computing cov 3d");
-//   // Create scaling matrix
-//   mat3.set(S, mod * scale[0], 0, 0, 0, mod * scale[1], 0, 0, 0, mod * scale[2]);
-//   const r = rot[0];
-//   const x = rot[1];
-//   const y = rot[2];
-//   const z = rot[3];
+    //   // Compute rotation matrix from quaternion
+    //   mat3.set(
+    //     R,
+    //     1 - 2 * (y * y + z * z),
+    //     2 * (x * y - r * z),
+    //     2 * (x * z + r * y),
+    //     2 * (x * y + r * z),
+    //     1 - 2 * (x * x + z * z),
+    //     2 * (y * z - r * x),
+    //     2 * (x * z - r * y),
+    //     2 * (y * z + r * x),
+    //     1 - 2 * (x * x + y * y)
+    //   );
 
-//   // Compute rotation matrix from quaternion
-//   mat3.set(
-//     R,
-//     1 - 2 * (y * y + z * z),
-//     2 * (x * y - r * z),
-//     2 * (x * z + r * y),
-//     2 * (x * y + r * z),
-//     1 - 2 * (x * x + z * z),
-//     2 * (y * z - r * x),
-//     2 * (x * z - r * y),
-//     2 * (y * z + r * x),
-//     1 - 2 * (x * x + y * y)
-//   );
+    //   mat3.multiply(M, S, R); // M = S * R
 
-//   mat3.multiply(M, S, R); // M = S * R
+    //   // Compute 3D world covariance matrix Sigma
+    //   mat3.multiply(Sigma, mat3.transpose(tmp, M), M); // Sigma = transpose(M) * M
 
-//   // Compute 3D world covariance matrix Sigma
-//   mat3.multiply(Sigma, mat3.transpose(tmp, M), M); // Sigma = transpose(M) * M
+    //   // Covariance is symmetric, only store upper right
+    //   const cov3D = [Sigma[0], Sigma[1], Sigma[2], Sigma[4], Sigma[5], Sigma[8]];
 
-//   // Covariance is symmetric, only store upper right
-//   const cov3D = [Sigma[0], Sigma[1], Sigma[2], Sigma[4], Sigma[5], Sigma[8]];
-
-//   return cov3D;
-// }
+    //   return cov3D;
+    // }
 
     fn compute_cov3_d(scale: Vec3, md: f32, rot: Vec4) -> [f32; 6] {
         // mat3.set(S, mod * scale[0], 0, 0, 0, mod * scale[1], 0, 0, 0, mod * scale[2]);
-        let scaling_mat = glm::mat3(md*scale[0], 0.0, 0.0, 0.0, md*scale[1], 0.0, 0.0, 0.0, md*scale[2]);
+        let scaling_mat = glm::mat3(
+            md * scale[0],
+            0.0,
+            0.0,
+            0.0,
+            md * scale[1],
+            0.0,
+            0.0,
+            0.0,
+            md * scale[2],
+        );
         let w = rot[0];
         let x = rot[1];
         let y = rot[2];
@@ -105,7 +111,7 @@ impl Splat{
         let cov3d = [sigma[0], sigma[1], sigma[2], sigma[4], sigma[5], sigma[8]];
         // log!("{cov3d:?}");
         // 0 1 2
-        // 3 4 5 
+        // 3 4 5
         // 6 7 8
 
         // const r = rot[0];
@@ -116,11 +122,11 @@ impl Splat{
         return cov3d;
     }
 
-    fn rgb_from_sh(f_dc_0: f32, f_dc_1: f32, f_dc_2: f32) -> [f32; 3]{
+    fn rgb_from_sh(f_dc_0: f32, f_dc_1: f32, f_dc_2: f32) -> [f32; 3] {
         const SH_C0: f32 = 0.28209479177387814;
-        let r = 0.5 + SH_C0* f_dc_0;
-        let g = 0.5 + SH_C0* f_dc_1;
-        let b = 0.5 + SH_C0 *f_dc_2;
+        let r = 0.5 + SH_C0 * f_dc_0;
+        let g = 0.5 + SH_C0 * f_dc_1;
+        let b = 0.5 + SH_C0 * f_dc_2;
         return [r, g, b];
     }
 
@@ -129,9 +135,19 @@ impl Splat{
         // let _timer = Timer::new("new individual splat");
         let rgb = Splat::rgb_from_sh(ply_splat.f_dc_0, ply_splat.f_dc_1, ply_splat.f_dc_2);
 
-        let rot = vec4(ply_splat.rot_0, ply_splat.rot_1, ply_splat.rot_2, ply_splat.rot_3).normalize();
-        let scale = exp(&vec3(ply_splat.scale_0, ply_splat.scale_1, ply_splat.scale_2));
-        
+        let rot = vec4(
+            ply_splat.rot_0,
+            ply_splat.rot_1,
+            ply_splat.rot_2,
+            ply_splat.rot_3,
+        )
+        .normalize();
+        let scale = exp(&vec3(
+            ply_splat.scale_0,
+            ply_splat.scale_1,
+            ply_splat.scale_2,
+        ));
+
         let splat = Splat {
             nx: ply_splat.nx,
             ny: ply_splat.ny,
@@ -156,12 +172,15 @@ impl Splat{
         return splat;
 
         let rad = 120.0 * std::f32::consts::PI / 180.0;
-        let quat = mat3_to_quat(&glm::mat4_to_mat3(&glm::rotation(rad, &glm::vec3(0.0, 0.0, 1.0))));
+        let quat = mat3_to_quat(&glm::mat4_to_mat3(&glm::rotation(
+            rad,
+            &glm::vec3(0.0, 0.0, 1.0),
+        )));
         // quat.coords()
         // quat.as_vector()
         // log!("cov is");
         // log!("{:?}", Splat::compute_cov3_d(vec3(1.0, 2.0, 1.0), 1.0, vec4(0.0, 0.0, 0.0, 1.0)));
-        return Splat{
+        return Splat {
             nx: ply_splat.nx,
             ny: ply_splat.ny,
             nz: ply_splat.nz,
@@ -187,7 +206,6 @@ impl Splat{
 
         // return splat;
     }
-    
 }
 
 // #[derive(Serialize, Deserialize, Debug)]
@@ -199,13 +217,12 @@ impl Splat{
     // Derives can be passed through to the generated type:
     derive(Debug),
 )]
-pub struct Scene{
+pub struct Scene {
     pub splats: Vec<Splat>,
 }
 
 impl Scene {
     pub async fn new_from_url(url: &str) -> Self {
-
         let _timer = Timer::new("loading json file");
         let loaded_file = reqwest::get(url)
             .await
@@ -219,14 +236,14 @@ impl Scene {
     pub fn new_from_rkyv(bytes: &[u8]) -> Self {
         let _timer = Timer::new("new scene from json");
         log!("Creating a new scene from rkyv");
-        
+
         match rkyv::from_bytes::<Scene, Error>(bytes) {
             Ok(mut scene) => {
                 // only take 100 splats
                 // scene.splats.truncate(5);
                 log!("scene has {} splats", scene.splats.len());
                 return scene;
-            },
+            }
             Err(e) => {
                 // Handle the error appropriately. For now, we'll panic with a message.
                 panic!("Failed to deserialize scene: {:?}", e);
@@ -238,9 +255,7 @@ impl Scene {
         let _timer = Timer::new("new scene");
         let splats = splats.iter().map(|splat| Splat::new(splat)).collect();
 
-        return Scene {
-            splats: splats,
-        };
+        return Scene { splats: splats };
     }
 
     pub fn splat_count(&self) -> usize {
@@ -255,46 +270,45 @@ impl Scene {
         return y;
     }
 
-    pub fn compress_splats_into_buffer(&self) -> Vec<u8>{
+    pub fn compress_splats_into_buffer(&self) -> Vec<u8> {
         let num_properties_per_splat = 15;
         let mut buffer = vec![0.0; self.splat_count() * num_properties_per_splat];
 
-        for i in 0..self.splat_count(){
-
+        for i in 0..self.splat_count() {
             // s_color, s_center, s_cov3da, s_cov3db, s_opacity;
             let splat = &self.splats[i];
 
-            buffer[i*num_properties_per_splat + 0] = splat.r;
-            buffer[i*num_properties_per_splat + 1] = splat.g;
-            buffer[i*num_properties_per_splat + 2] = splat.b;
+            buffer[i * num_properties_per_splat + 0] = splat.r;
+            buffer[i * num_properties_per_splat + 1] = splat.g;
+            buffer[i * num_properties_per_splat + 2] = splat.b;
 
-            buffer[i*num_properties_per_splat + 3] = splat.x;
-            buffer[i*num_properties_per_splat + 4] = splat.y;
-            buffer[i*num_properties_per_splat + 5] = splat.z;
+            buffer[i * num_properties_per_splat + 3] = splat.x;
+            buffer[i * num_properties_per_splat + 4] = splat.y;
+            buffer[i * num_properties_per_splat + 5] = splat.z;
 
-            buffer[i*num_properties_per_splat + 6] = splat.cov3d[0];
-            buffer[i*num_properties_per_splat + 7] = splat.cov3d[1];
-            buffer[i*num_properties_per_splat + 8] = splat.cov3d[2];
-            buffer[i*num_properties_per_splat + 9] = splat.cov3d[3];
-            buffer[i*num_properties_per_splat + 10] = splat.cov3d[4];
-            buffer[i*num_properties_per_splat + 11] = splat.cov3d[5];
+            buffer[i * num_properties_per_splat + 6] = splat.cov3d[0];
+            buffer[i * num_properties_per_splat + 7] = splat.cov3d[1];
+            buffer[i * num_properties_per_splat + 8] = splat.cov3d[2];
+            buffer[i * num_properties_per_splat + 9] = splat.cov3d[3];
+            buffer[i * num_properties_per_splat + 10] = splat.cov3d[4];
+            buffer[i * num_properties_per_splat + 11] = splat.cov3d[5];
 
-            buffer[i*num_properties_per_splat + 12] = splat.opacity;
-            buffer[i*num_properties_per_splat + 13] = splat.nx;
-            buffer[i*num_properties_per_splat + 14] = splat.ny;
+            buffer[i * num_properties_per_splat + 12] = splat.opacity;
+            buffer[i * num_properties_per_splat + 13] = splat.nx;
+            buffer[i * num_properties_per_splat + 14] = splat.ny;
         }
 
-        let mut out : Vec<u8> = vec![0; self.nearest_power_of_2_bigger_than(buffer.len()*4)];
-        for i in 0..buffer.len(){
-            f32_to_4_bytes(buffer[i]).iter()
+        let mut out: Vec<u8> = vec![0; self.nearest_power_of_2_bigger_than(buffer.len() * 4)];
+        for i in 0..buffer.len() {
+            f32_to_4_bytes(buffer[i])
+                .iter()
                 .enumerate()
-                .for_each(|(j, &byte)| out[i*4 + j] = byte);
+                .for_each(|(j, &byte)| out[i * 4 + j] = byte);
         }
         return out;
     }
 
-
-    pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4) -> Vec<u32>{
+    pub fn sort_splats_based_on_depth(&mut self, view_matrix: glm::Mat4) -> Vec<u32> {
         let _timer = Timer::new("sort_splats_based_on_depth");
         // track start time
 
@@ -309,10 +323,10 @@ impl Scene {
         let mut min_depth = i32::MAX;
 
         for splat in &self.splats {
-            let depth = ((splat.x * view_matrix_2 +
-                          splat.y * view_matrix_6 +
-                          splat.z * view_matrix_10) * 1000.0) as i32;
-            
+            let depth =
+                ((splat.x * view_matrix_2 + splat.y * view_matrix_6 + splat.z * view_matrix_10)
+                    * 1000.0) as i32;
+
             depth_list.push(depth);
             max_depth = max_depth.max(depth);
             min_depth = min_depth.min(depth);
@@ -320,28 +334,28 @@ impl Scene {
         depth_list_timer.end();
 
         let mut count_array_timer = Timer::new("create count array");
-        let mut count_array = vec![0; (max_depth - min_depth +1) as usize];
+        let mut count_array = vec![0; (max_depth - min_depth + 1) as usize];
         count_array_timer.end();
 
         // Count the number of splats at each depth
         // log!("max is {max_depth} min is {min_depth}");
         let mut count_array_timer = Timer::new("count splats at each depth");
-        for i in 0..self.splats.len(){
+        for i in 0..self.splats.len() {
             depth_list[i] -= min_depth;
             count_array[depth_list[i] as usize] += 1;
         }
         count_array_timer.end();
         // Do prefix sum
         let mut prefix_sum_timer = Timer::new("prefix sum");
-        for i in 1..count_array.len(){
-            count_array[i] += count_array[i-1];
+        for i in 1..count_array.len() {
+            count_array[i] += count_array[i - 1];
         }
         prefix_sum_timer.end();
 
         let mut output_vector_timer = Timer::new("creating output vector");
         let length = self.splats.len();
         let mut output_indices = vec![0; length];
-        for i in (0..self.splats.len()).rev(){
+        for i in (0..self.splats.len()).rev() {
             let depth = depth_list[i];
             let index = count_array[depth as usize] - 1;
             // want the order to be reverse
@@ -350,7 +364,6 @@ impl Scene {
         }
         output_vector_timer.end();
         return output_indices;
-
     }
 }
 
