@@ -1,5 +1,7 @@
 use js_sys::Uint32Array;
 
+use crate::log;
+use crate::scene;
 use crate::scene::Scene;
 use crate::shader;
 use crate::timer::Timer;
@@ -27,6 +29,7 @@ pub struct Renderer {
     splat_vao: WebGlVertexArrayObject,
     geo_shader: WebGlProgram,
     geo_vertex_buffer: WebGlBuffer,
+    geo_color_buffer: WebGlBuffer,
     splat_index_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
@@ -39,27 +42,44 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(gl: WebGl2RenderingContext, scene: &Scene) -> Result<Renderer, JsValue> {
-        let vertices: [f32; 3 * 4] = [
-            -1.0, -1.0, 0.0, //
-            1.0, -1.0, 0.0, //
-            -1.0, 1.0, 0.0, //
-            1.0, 1.0, 0.0, //
-        ];
-        let vertices = vertices.map(|v| v);
+        // let vertices: [f32; 3 * 4] = [
+        //     -1.0, -1.0, 0.0, //
+        //     1.0, -1.0, 0.0, //
+        //     -1.0, 1.0, 0.0, //
+        //     1.0, 1.0, 0.0, //
+        // ];
+        // let vertices = vertices.map(|v| v);
 
+        // Create Splat VAO and buffers
         let splat_vao = gl.create_vertex_array().unwrap();
         gl.bind_vertex_array(Some(&splat_vao));
-        let geo_vertex_buffer = create_buffer(&gl).unwrap();
         let splat_index_buffer = create_buffer(&gl).unwrap();
+        // END SPLAT VAO AND BUFFERS
 
+        // Create Geo VAO and buffers
         let geo_vao = gl.create_vertex_array().unwrap();
         gl.bind_vertex_array(Some(&geo_vao));
+
+        let geo_vertex_buffer = create_buffer(&gl).unwrap();
         let vertices = scene_geo::VERTICES.map(|v| v);
+
+        log!("vertex count: {}", vertices.len());
         update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
+        let geo_color_buffer = create_buffer(&gl).unwrap();
+        update_buffer_data(
+            &gl,
+            &geo_color_buffer,
+            float32_array_from_vec(&scene_geo::COLORS),
+        );
+        // END GEO VAO
 
+        // Create Shaders
         let splat_shader = shader::shader::create_splat_shader_program(&gl).unwrap();
-
         let geo_shader = shader::shader::create_geo_shader_program(&gl).unwrap();
+        // END SHADERS
+
+        // Activate splat vao
+        gl.bind_vertex_array(Some(&splat_vao));
 
         gl.active_texture(WebGl2RenderingContext::TEXTURE0);
         let (color_texture, color_texture_location) = create_texture(
@@ -101,8 +121,9 @@ impl Renderer {
             splat_vao,
             geo_shader,
             geo_vertex_buffer,
+            geo_color_buffer,
             splat_index_buffer,
-            geo_count: vertices.len() as i32,
+            geo_count: vertices.len() as i32 / 3,
             geo_vao,
             color_texture,
             position_texture,
@@ -207,7 +228,6 @@ impl Renderer {
             OPACITY_TEXTURE_UNIT,
         );
 
-        // geo shader
         result.gl.use_program(Some(&result.geo_shader));
         result.gl.bind_vertex_array(Some(&result.geo_vao));
         create_attribute_and_get_location(
@@ -215,6 +235,15 @@ impl Renderer {
             &result.geo_vertex_buffer,
             &result.geo_shader,
             "v_pos",
+            false,
+            3,
+            WebGl2RenderingContext::FLOAT,
+        );
+        create_attribute_and_get_location(
+            &result.gl,
+            &result.geo_color_buffer,
+            &result.geo_shader,
+            "v_col",
             false,
             3,
             WebGl2RenderingContext::FLOAT,
@@ -276,30 +305,75 @@ impl Renderer {
         gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
 
         // Clear the color buffer bit
-        gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+        gl.clear(
+            WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
+        );
+        // gl.clear_depth(1.0);
 
+        // gl.depth_func(WebGl2RenderingContext::ALWAYS);
+        // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+        gl.depth_mask(true);
         gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+
         gl.enable(WebGl2RenderingContext::BLEND);
+
         gl.blend_func(
             WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
             WebGl2RenderingContext::ONE,
         );
         let gaussian_count = num_vertices;
-
         gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
+        // END SPLAT DRAWING
 
         gl.use_program(Some(&self.geo_shader));
         gl.bind_vertex_array(Some(&self.geo_vao));
+        gl.depth_func(WebGl2RenderingContext::LEQUAL);
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-        gl.enable(WebGl2RenderingContext::BLEND);
+        // gl.depth_func(WebGl2RenderingContext::GEQUAL);
+        gl.depth_mask(true);
+
+        gl.disable(WebGl2RenderingContext::BLEND);
+
+        // gl.enable(WebGl2RenderingContext::BLEND);
+        update_buffer_data(
+            &gl,
+            &self.geo_vertex_buffer,
+            float32_array_from_vec(&scene_geo::VERTICES),
+        );
+        update_buffer_data(
+            &gl,
+            &self.geo_color_buffer,
+            float32_array_from_vec(&scene_geo::COLORS),
+        );
+        // log!("colors length: {:?}", scene_geo::COLORS.len());
+        // gl.blend_func(
+        //     WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
+        //     WebGl2RenderingContext::ONE,
+        // );
+
         let proj_uniform_location = gl
             .get_uniform_location(&self.geo_shader, "projection")
             .unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
+
+        // try muliplying just for checking
+        for vertex in scene_geo::VERTICES.chunks(3) {
+            // after vpm
+            log!("vertex: {:?}", vertex);
+            let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
+            log!("vertex_vpm: {:?}", vertex_vpm);
+        }
+
         let camera_uniform_location = gl.get_uniform_location(&self.geo_shader, "camera").unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
 
+        set_float_uniform_value(&self.geo_shader, &gl, "W", width as f32);
+        set_float_uniform_value(&self.geo_shader, &gl, "H", height as f32);
+
+        // log!("Drawing geometry:");
+        // log!("Vertex count: {}", self.geo_count);
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, self.geo_count);
+
         return;
     }
 

@@ -37,7 +37,11 @@ void main() {
     discard;
   }
   // fragColor = vec4(1,0,0,1);
-  fragColor = vec4(color * alpha, alpha);
+  gl_FragDepth = -depth / 10.0;
+  // fragColor = vec4(vec3(-depth), 1.0);
+  fragColor = vec4(vec3(-(depth / 10.0)), 1.0);
+
+  // fragColor = vec4(color * alpha, alpha);
   // fragColor = vec4(color, 1);
   // fragColor = vec4(color,  1);
   // fragColor = vec4(con_o.x,  0, 0, 1);

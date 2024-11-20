@@ -2,11 +2,13 @@
 	"rust-analyzer.linkedProjects": [
 		"./Cargo.toml"
 	],
-	"liveServer.settings.port": 5501,
+	"liveServer.settings.port": 5502,
 	"svn.ignoreMissingSvnWarning": true,
 	"rust-analyzer.cargo.target": "wasm32-unknown-unknown",
 	"rust-analyzer.checkOnSave.allTargets": false,
-	"rust-analyzer.cargo.features": ["default"],
+	"rust-analyzer.cargo.features": [
+		"default"
+	],
 	"rust-analyzer.procMacro.enable": true,
 	"rust-analyzer.cargo.loadOutDirsFromCheck": true,
 	"editor.formatOnSave": true

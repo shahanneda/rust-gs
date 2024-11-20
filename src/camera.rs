@@ -185,4 +185,16 @@ impl Camera {
         invert_row(&mut vpm, 0);
         return (vm, vpm);
     }
+
+    pub fn get_ray_origin_and_direction(self: &Camera, ndc_x: f32, ndc_y: f32) -> (Vec3, Vec3) {
+        let vm = self.get_camera_to_world_matrix();
+        let screen_pos = vec4(ndc_x, ndc_y, 1.0, 1.0);
+
+        let world_pos = vm * screen_pos;
+        let world_pos = vec3(world_pos.x, world_pos.y, world_pos.z);
+
+        let ray_origin = self.pos;
+        let ray_direction = world_pos - ray_origin;
+        return (ray_origin, ray_direction);
+    }
 }

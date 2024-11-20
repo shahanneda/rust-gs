@@ -17,6 +17,14 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::WebGl2RenderingContext;
 
+#[derive(Default)]
+struct ClickState {
+    clicked: bool,
+    x: i32,
+    y: i32,
+    button: i16,
+}
+
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
@@ -57,7 +65,7 @@ pub async fn start() -> Result<(), JsValue> {
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut scene: Scene =
-        Scene::new_from_url(&format!("http://127.0.0.1:5501/splats/{}.rkyv", scene_name)).await;
+        Scene::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_url(
     //     "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/e7eb4bda-1d7c-4ca8-ac6b-a4c2c722f014.rkyv",
     // )
@@ -98,6 +106,20 @@ pub async fn start() -> Result<(), JsValue> {
     document.add_event_listener_with_callback("keyup", keyup_cb.as_ref().unchecked_ref())?;
     keyup_cb.forget();
 
+    let click_state = Rc::new(RefCell::new(ClickState::default()));
+    let click_state_clone = click_state.clone();
+
+    let click_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
+        let mut state = click_state_clone.borrow_mut();
+        state.clicked = true;
+        state.x = e.client_x();
+        state.y = e.client_y();
+        state.button = e.button();
+    }) as Box<dyn FnMut(_)>);
+
+    canvas.add_event_listener_with_callback("mousedown", click_cb.as_ref().unchecked_ref())?;
+    click_cb.forget();
+
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
     let mut i = 0;
@@ -105,7 +127,32 @@ pub async fn start() -> Result<(), JsValue> {
         let _timer = Timer::new("main loop");
         let mut cam_mut = camera.borrow_mut();
 
+        if click_state.borrow().clicked {
+            let state = click_state.borrow();
+            let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
+            let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
+
+            let (ray_origin, ray_direction) = cam_mut.get_ray_origin_and_direction(ndc_x, ndc_y);
+
+            log!("Click detected at x: {}, y: {}", state.x, state.y);
+            log!("Unprojected: x: {}, y: {}", state.x, state.y);
+            log!("Ray origin: {:?}", ray_origin);
+            log!("Ray direction: {:?}", ray_direction);
+
+            match state.button {
+                0 => log!("Left click"),
+                1 => log!("Middle click"),
+                2 => log!("Right click"),
+                _ => log!("Other button"),
+            }
+
+            // Reset the click state
+            drop(state);
+            click_state.borrow_mut().clicked = false;
+        }
+
         cam_mut.update_translation_from_keys(&keys_pressed);
+        log!("camera pos: {:?}", cam_mut.pos);
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
 
         let splat_indices = scene.sort_splats_based_on_depth(vpm);
