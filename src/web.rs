@@ -30,6 +30,52 @@ struct ClickState {
     button: i16,
 }
 
+fn handle_click(
+    state: &ClickState,
+    width: i32,
+    height: i32,
+    camera: &Camera,
+    scene: &mut Scene,
+    renderer: &renderer::Renderer,
+    keys_pressed: &std::collections::HashSet<String>,
+) {
+    let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
+    let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
+    if !keys_pressed.contains("Alt") {
+        return;
+    }
+
+    let (ray_origin, ray_direction) =
+        camera.get_ray_origin_and_direction(width, height, ndc_x, ndc_y);
+
+    log!("Click detected at x: {}, y: {}", state.x, state.y);
+    log!("Unprojected: x: {}, y: {}", state.x, state.y);
+    log!("Ray origin: {:?}", ray_origin);
+    log!("Ray direction: {:?}", ray_direction);
+
+    // Remove splats near the ray
+    for t in 0..10 {
+        let t = t as f32 / 2.0;
+        let pos = ray_origin + ray_direction * t;
+        for mut splat in scene.splat_data.splats.iter_mut() {
+            if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.5 {
+                splat.opacity = 0.0;
+            }
+        }
+    }
+
+    renderer
+        .update_webgl_textures(&scene)
+        .expect("failed to update webgl textures when editing");
+
+    match state.button {
+        0 => log!("Left click"),
+        1 => log!("Middle click"),
+        2 => log!("Right click"),
+        _ => log!("Other button"),
+    }
+}
+
 #[allow(non_snake_case)]
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
@@ -169,41 +215,15 @@ pub async fn start() -> Result<(), JsValue> {
 
         if click_state.borrow().clicked {
             let state = click_state.borrow();
-            let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
-            let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
-
-            let (ray_origin, ray_direction) =
-                cam_mut.get_ray_origin_and_direction(width, height, ndc_x, ndc_y);
-
-            log!("Click detected at x: {}, y: {}", state.x, state.y);
-            log!("Unprojected: x: {}, y: {}", state.x, state.y);
-            log!("Ray origin: {:?}", ray_origin);
-            log!("Ray direction: {:?}", ray_direction);
-
-            scene.objects.push(SceneObject::new(
-                pyramid_mesh.clone(),
-                vec3(ray_origin.x, ray_origin.y, ray_origin.z),
-                vec3(0.0, 0.0, 0.0),
-                vec3(0.03, 0.03, 0.03),
-            ));
-
-            for t in 0..10 {
-                let t = t as f32 / 10.0;
-                let pos = ray_origin + ray_direction * t;
-                scene.objects.push(SceneObject::new(
-                    pyramid_mesh.clone(),
-                    pos,
-                    vec3(0.0, 0.0, 0.0),
-                    vec3(0.03, 0.03, 0.03),
-                ));
-            }
-
-            match state.button {
-                0 => log!("Left click"),
-                1 => log!("Middle click"),
-                2 => log!("Right click"),
-                _ => log!("Other button"),
-            }
+            handle_click(
+                &state,
+                width,
+                height,
+                &cam_mut,
+                &mut scene,
+                &renderer,
+                &keys_pressed.borrow(),
+            );
 
             // Reset the click state
             drop(state);

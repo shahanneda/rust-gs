@@ -356,7 +356,7 @@ impl Renderer {
         gl.use_program(Some(&self.geo_shader));
         gl.bind_vertex_array(Some(&self.geo_vao));
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-        gl.depth_func(WebGl2RenderingContext::LESS);
+        gl.depth_func(WebGl2RenderingContext::LEQUAL);
         gl.depth_mask(true);
         // gl.depth_func(WebGl2RenderingContext::GEQUAL);
 
@@ -424,7 +424,7 @@ impl Renderer {
         );
     }
 
-    fn update_webgl_textures(self: &Renderer, scene: &Scene) -> Result<(), JsValue> {
+    pub fn update_webgl_textures(self: &Renderer, scene: &Scene) -> Result<(), JsValue> {
         let mut splat_positions = Vec::new();
         let mut splat_colors = Vec::new();
         let mut splat_cov3da = Vec::new();
