@@ -187,7 +187,7 @@ impl Camera {
     }
 
     pub fn get_ray_origin_and_direction(
-        self: &Camera,
+        &self,
         width: i32,
         height: i32,
         ndc_x: f32,
@@ -195,31 +195,28 @@ impl Camera {
     ) -> (Vec3, Vec3) {
         let ray_origin = self.pos;
 
-        // Create view-projection matrix
-        let (mut vm, _) = self.get_vm_and_vpm(width, height);
-        invert_row(&mut vm, 0);
-        invert_row(&mut vm, 2);
-        invert_row(&mut vm, 1);
+        // Create projection and view matrices
+        let aspect_ratio = (width as f32) / (height as f32);
+        let fov = 0.820176f32; // Field of view
+        let proj = glm::perspective(aspect_ratio, fov, 0.1f32, 100f32);
+        let vm = self.get_world_to_camera_matrix();
 
+        // Invert projection and view matrices
+        let inv_proj = proj.try_inverse().unwrap();
         let inv_view = vm.try_inverse().unwrap();
 
-        log!("position is {:?}", self.pos);
-        log!("ndc_x is {:?}", ndc_x);
-        log!("ndc_y is {:?}", ndc_y);
-
         // Convert NDC to homogeneous clip space
-        let clip = vec4(-ndc_x, -ndc_y, -1.0, 1.0);
-        log!("clip is {:?}", clip);
+        let clip = vec4(ndc_x, ndc_y, -1.0, 1.0);
 
-        // Transform back to world space
-        let world_pos = inv_view * clip;
-        log!("world_pos is {:?}", world_pos);
+        // Transform to eye space (view space)
+        let eye_coords = inv_proj * clip;
+        let eye_coords = vec4(eye_coords.x, eye_coords.y, 1.0, 0.0);
 
-        // Calculate direction from camera to point
-        let mut ray_direction = vec3(world_pos.x, world_pos.y, world_pos.z) - ray_origin;
-        log!("ray_direction is {:?}", ray_direction);
-        ray_direction = glm::normalize(&ray_direction);
-        ray_direction = -vec3(ray_direction.x, ray_direction.y, ray_direction.z);
+        // Transform to world space
+        let world_coords = inv_view * eye_coords;
+
+        // Normalize the direction
+        let ray_direction = glm::normalize(&vec3(world_coords.x, world_coords.y, world_coords.z));
 
         (-ray_origin, ray_direction)
     }
