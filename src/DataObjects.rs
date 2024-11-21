@@ -186,6 +186,49 @@ impl SplatData {
     }
 }
 
+pub struct OctTreeNode {
+    pub children: Vec<OctTreeNode>,
+    pub splats: Vec<Splat>,
+    pub center: Vec3,
+    pub half_width: f32,
+}
+
+pub struct OctTree {
+    pub root: OctTreeNode,
+}
+
+impl OctTreeNode {
+    pub fn new(splats: Vec<Splat>) -> Self {
+        let center = splats
+            .iter()
+            .map(|splat| vec3(splat.x, splat.y, splat.z))
+            .sum::<Vec3>()
+            / splats.len() as f32;
+
+        let fartherst_splat = splats
+            .iter()
+            .map(|splat| glm::distance(&center, &vec3(splat.x, splat.y, splat.z)))
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+
+        let half_width = fartherst_splat * 2.0;
+
+        return OctTreeNode {
+            children: vec![],
+            splats,
+            center,
+            half_width,
+        };
+    }
+}
+
+impl OctTree {
+    pub fn new(splats: Vec<Splat>) -> Self {
+        let root = OctTreeNode::new(splats);
+        return OctTree { root: root };
+    }
+}
+
 pub fn u32_to_4_bytes(x: u32) -> [u8; 4] {
     let bytes = x.to_be_bytes();
     let result = [bytes[0], bytes[1], bytes[2], bytes[3]];

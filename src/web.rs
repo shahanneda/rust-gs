@@ -60,6 +60,17 @@ fn handle_click(
         let t = t as f32 / 10.0;
         let pos = ray_origin + ray_direction * t;
 
+        // scene.objects.push(SceneObject::new(
+        //     MeshData::new(
+        //         scene_geo::PYRAMID_VERTICES.to_vec(),
+        //         vec![],
+        //         scene_geo::PYRAMID_COLORS.to_vec(),
+        //     ),
+        //     pos,
+        //     vec3(0.0, 0.0, 0.0),
+        //     vec3(0.05, 0.05, 0.05),
+        // ));
+
         for mut splat in scene.splat_data.splats.iter_mut() {
             if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.1 && splat.opacity > 0.1 {
                 splat_pos = vec3(splat.x, splat.y, splat.z);
@@ -126,8 +137,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
-    let scene_name = "soc_01_polycam";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut splat: SplatData =
@@ -150,7 +161,7 @@ pub async fn start() -> Result<(), JsValue> {
         pyramid_mesh.clone(),
         vec3(3.0, 0.0, 0.0),
         vec3(0.0, 0.0, 0.0),
-        vec3(0.1, 0.1, 0.1),
+        vec3(1.05, 1.05, 1.05),
     ));
 
     // scene.objects.push(SceneObject::new(

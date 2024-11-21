@@ -31,6 +31,7 @@ pub struct Renderer {
     geo_shader: WebGlProgram,
     geo_vertex_buffer: WebGlBuffer,
     geo_color_buffer: WebGlBuffer,
+    geo_index_buffer: WebGlBuffer,
     splat_index_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
@@ -71,6 +72,13 @@ impl Renderer {
             &gl,
             &geo_color_buffer,
             float32_array_from_vec(&scene_geo::PYRAMID_COLORS),
+        );
+
+        let geo_index_buffer = create_buffer(&gl).unwrap();
+        update_buffer_data(
+            &gl,
+            &geo_index_buffer,
+            uint32_array_from_vec(&scene_geo::PYRAMID_INDICES),
         );
         // END GEO VAO
 
