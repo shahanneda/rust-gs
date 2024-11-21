@@ -54,11 +54,26 @@ fn handle_click(
     log!("Ray direction: {:?}", ray_direction);
 
     // Remove splats near the ray
-    for t in 0..10 {
-        let t = t as f32 / 2.0;
+    let mut splat_pos = vec3(0.0, 0.0, 0.0);
+    let mut found = false;
+    for t in 0..100 {
+        let t = t as f32 / 10.0;
         let pos = ray_origin + ray_direction * t;
+
         for mut splat in scene.splat_data.splats.iter_mut() {
-            if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.5 {
+            if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.1 && splat.opacity > 0.1 {
+                splat_pos = vec3(splat.x, splat.y, splat.z);
+                found = true;
+                break;
+            }
+        }
+        if found {
+            break;
+        }
+    }
+    if found {
+        for mut splat in scene.splat_data.splats.iter_mut() {
+            if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
                 splat.opacity = 0.0;
             }
         }
@@ -111,8 +126,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
-    let scene_name = "Shahan_03_id01-30000.cleaned";
-    // let scene_name = "soc_01_polycam";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut splat: SplatData =
