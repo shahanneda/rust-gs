@@ -310,10 +310,9 @@ impl Renderer {
         );
         // gl.clear_depth(1.0);
 
-        // gl.depth_func(WebGl2RenderingContext::ALWAYS);
-        // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+        gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+        gl.depth_func(WebGl2RenderingContext::ALWAYS);
         gl.depth_mask(true);
-        gl.disable(WebGl2RenderingContext::DEPTH_TEST);
 
         gl.enable(WebGl2RenderingContext::BLEND);
 
@@ -327,10 +326,10 @@ impl Renderer {
 
         gl.use_program(Some(&self.geo_shader));
         gl.bind_vertex_array(Some(&self.geo_vao));
-        gl.depth_func(WebGl2RenderingContext::LEQUAL);
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-        // gl.depth_func(WebGl2RenderingContext::GEQUAL);
+        gl.depth_func(WebGl2RenderingContext::LEQUAL);
         gl.depth_mask(true);
+        // gl.depth_func(WebGl2RenderingContext::GEQUAL);
 
         gl.disable(WebGl2RenderingContext::BLEND);
 

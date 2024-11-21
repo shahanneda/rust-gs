@@ -15,6 +15,6 @@ void main() {
   //         mod((position.x + position.y), 256.0) / 255.0
   //     );
   gl_FragDepth = -depth / 10.0;
-  fragColor = vec4(vec3(-(depth / 10.0)), 1.0);
-  //   fragColor = vec4(1, 0, 0, 1);
+  //   fragColor = vec4(vec3(-(depth / 10.0)), 1.0);
+  fragColor = vec4(1, 0, 0, 1);
 }

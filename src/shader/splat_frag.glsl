@@ -33,15 +33,17 @@ void main() {
   float alpha = min(.99f, con_o.w * exp(power));
   vec3 color = col;
 
-  if (alpha < 1. / 255.) {
+  if (alpha < 1. / 25.) {
+    gl_FragDepth = -1000000.0;
     discard;
   }
-  // fragColor = vec4(1,0,0,1);
-  gl_FragDepth = -depth / 10.0;
-  // fragColor = vec4(vec3(-depth), 1.0);
-  fragColor = vec4(vec3(-(depth / 10.0)), 1.0);
 
-  // fragColor = vec4(color * alpha, alpha);
+  gl_FragDepth = -depth / 10.0;
+  // fragColor = vec4(1,0,0,1);
+  // fragColor = vec4(vec3(-depth), 1.0);
+  // fragColor = vec4(vec3(-(depth / 10.0)), 1.0);
+
+  fragColor = vec4(color * alpha, alpha);
   // fragColor = vec4(color, 1);
   // fragColor = vec4(color,  1);
   // fragColor = vec4(con_o.x,  0, 0, 1);
