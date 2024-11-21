@@ -6,7 +6,6 @@ pub mod loader {
     use std::io::{BufRead, BufReader, Cursor, Read};
     const MAX_ITERATIONS: u32 = 500;
 
-
     struct ReadHeaderResult<'a> {
         num_splats: usize,
         data_start: usize,
@@ -17,7 +16,7 @@ pub mod loader {
 
     fn read_header(bytes: &Bytes) -> Result<ReadHeaderResult, String> {
         let mut reader = BufReader::new(Cursor::new(bytes));
-        let mut current_line ;
+        let mut current_line;
         let mut found_end = false;
         let mut i = 0;
         let mut num_splats = 0;
@@ -179,7 +178,7 @@ pub mod loader {
         return splats;
     }
 
-    pub async fn load_ply(url : &str) -> Result<Vec<PlySplat>, String> {
+    pub async fn load_ply(url: &str) -> Result<Vec<PlySplat>, String> {
         // return Ok(vec![]);
         // log!("### loading ply!!!");
         // let body = reqwest::get("http://127.0.0.1:5501/splats/gaussians.ply")

@@ -11,14 +11,22 @@ use nalgebra_glm as glm;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MeshData {
     pub vertices: Vec<f32>,
     pub indices: Vec<u32>,
     pub colors: Vec<f32>,
 }
 
-impl MeshData {}
+impl MeshData {
+    pub fn new(vertices: Vec<f32>, indices: Vec<u32>, colors: Vec<f32>) -> Self {
+        Self {
+            vertices,
+            indices,
+            colors,
+        }
+    }
+}
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[rkyv(

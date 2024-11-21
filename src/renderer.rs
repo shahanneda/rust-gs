@@ -3,6 +3,7 @@ use js_sys::Uint32Array;
 use crate::log;
 use crate::scene;
 use crate::scene::Scene;
+use crate::scene_object::SceneObject;
 use crate::shader;
 use crate::timer::Timer;
 extern crate eframe;
@@ -252,17 +253,22 @@ impl Renderer {
         return Ok(result);
     }
 
-    pub fn draw(
+    pub fn draw_scene(
         self: &Renderer,
         canvas: &web_sys::HtmlCanvasElement,
-        frame_num: i32,
-        num_vertices: i32,
+        scene: &Scene,
         vpm: glm::Mat4,
         vm: glm::Mat4,
     ) {
         let gl = &self.gl;
         let width = canvas.width() as i32;
         let height = canvas.height() as i32;
+
+        self.draw_splat(width, height, scene.splat_data.splats.len() as i32, vpm, vm);
+        for object in &scene.objects {
+            self.draw_geo(width, height, vpm, vm, object);
+        }
+
         // let mut model: Mat4 = glm::identity();
         // let model_scale = 3.0f32;
         // model = glm::translate(&model, &glm::vec3(0.0f32, 0.0f32, 0.0f32));
@@ -275,6 +281,20 @@ impl Renderer {
 
         // let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
         // gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
+        // END SPLAT DRAWING
+
+        return;
+    }
+
+    pub fn draw_splat(
+        self: &Renderer,
+        width: i32,
+        height: i32,
+        num_vertices: i32,
+        vpm: glm::Mat4,
+        vm: glm::Mat4,
+    ) {
+        let gl = &self.gl;
         gl.use_program(Some(&self.splat_shader));
         gl.bind_vertex_array(Some(&self.splat_vao));
 
@@ -302,7 +322,7 @@ impl Renderer {
         set_float_uniform_value(&self.splat_shader, &gl, "tan_fovy", tan_fovy);
 
         gl.clear_color(0.0, 0.0, 0.0, 0.0);
-        gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
+        gl.viewport(0, 0, width as i32, height as i32);
 
         // Clear the color buffer bit
         gl.clear(
@@ -322,12 +342,21 @@ impl Renderer {
         );
         let gaussian_count = num_vertices;
         gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
-        // END SPLAT DRAWING
+    }
 
+    pub fn draw_geo(
+        self: &Renderer,
+        width: i32,
+        height: i32,
+        vpm: glm::Mat4,
+        vm: glm::Mat4,
+        object: &SceneObject,
+    ) {
+        let gl = &self.gl;
         gl.use_program(Some(&self.geo_shader));
         gl.bind_vertex_array(Some(&self.geo_vao));
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-        gl.depth_func(WebGl2RenderingContext::LEQUAL);
+        gl.depth_func(WebGl2RenderingContext::LESS);
         gl.depth_mask(true);
         // gl.depth_func(WebGl2RenderingContext::GEQUAL);
 
@@ -337,12 +366,12 @@ impl Renderer {
         update_buffer_data(
             &gl,
             &self.geo_vertex_buffer,
-            float32_array_from_vec(&scene_geo::PYRAMID_VERTICES),
+            float32_array_from_vec(&object.mesh_data.vertices),
         );
         update_buffer_data(
             &gl,
             &self.geo_color_buffer,
-            float32_array_from_vec(&scene_geo::PYRAMID_COLORS),
+            float32_array_from_vec(&object.mesh_data.colors),
         );
         // log!("colors length: {:?}", scene_geo::COLORS.len());
         // gl.blend_func(
@@ -356,18 +385,22 @@ impl Renderer {
         gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
 
         // try muliplying just for checking
-        for vertex in scene_geo::PYRAMID_VERTICES.chunks(3) {
-            // after vpm
-            log!("vertex: {:?}", vertex);
-            let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
-            log!("vertex_vpm: {:?}", vertex_vpm);
-        }
+        // for vertex in scene_geo::PYRAMID_VERTICES.chunks(3) {
+        //     // after vpm
+        //     log!("vertex: {:?}", vertex);
+        //     let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
+        //     log!("vertex_vpm: {:?}", vertex_vpm);
+        // }
 
         let camera_uniform_location = gl.get_uniform_location(&self.geo_shader, "camera").unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
 
         let mut model = glm::identity::<f32, 4>();
-        model = glm::translate(&model, &glm::vec3(0.0, 1.0, 1.0));
+        model = glm::translate(&model, &object.pos);
+        model = glm::rotate(&model, object.rot.x, &glm::vec3(1.0, 0.0, 0.0));
+        model = glm::rotate(&model, object.rot.y, &glm::vec3(0.0, 1.0, 0.0));
+        model = glm::rotate(&model, object.rot.z, &glm::vec3(0.0, 0.0, 1.0));
+        model = glm::scale(&model, &object.scale);
 
         let model_uniform_location = gl.get_uniform_location(&self.geo_shader, "model").unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
@@ -378,8 +411,6 @@ impl Renderer {
         // log!("Drawing geometry:");
         // log!("Vertex count: {}", self.geo_count);
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, self.geo_count);
-
-        return;
     }
 
     pub fn update_splat_indices(self: &Renderer, splat_indices: &Vec<u32>) {

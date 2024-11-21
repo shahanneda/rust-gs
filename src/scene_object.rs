@@ -18,3 +18,14 @@ pub struct SceneObject {
     pub rot: Vec3,
     pub scale: Vec3,
 }
+
+impl SceneObject {
+    pub fn new(mesh_data: MeshData, pos: Vec3, rot: Vec3, scale: Vec3) -> Self {
+        Self {
+            mesh_data,
+            pos,
+            rot,
+            scale,
+        }
+    }
+}

@@ -1,9 +1,13 @@
 use crate::camera::Camera;
 use crate::log;
 use crate::renderer;
-use crate::scene::Scene; // Use crate:: to import from your lib.rs
+use crate::scene::Scene;
+use crate::scene_geo;
+use crate::scene_object::SceneObject;
+// Use crate:: to import from your lib.rs
 use crate::timer::Timer;
 use crate::utils::set_panic_hook;
+use crate::DataObjects::MeshData;
 use crate::DataObjects::SplatData;
 use glm::vec2;
 use glm::vec3;
@@ -68,6 +72,36 @@ pub async fn start() -> Result<(), JsValue> {
     let mut splat: SplatData =
         SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
     let mut scene = Scene::new(splat);
+    let pyramid_mesh = MeshData::new(
+        scene_geo::PYRAMID_VERTICES.to_vec(),
+        // scene_geo::PYRAMID_INDICES,
+        vec![],
+        scene_geo::PYRAMID_COLORS.to_vec(),
+    );
+    // scene.objects.push(SceneObject::new(
+    //     pyramid_mesh.clone(),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(1.0, 1.0, 1.0),
+    // ));
+
+    scene.objects.push(SceneObject::new(
+        pyramid_mesh.clone(),
+        vec3(3.0, 0.0, 0.0),
+        vec3(0.0, 0.0, 0.0),
+        vec3(1.0, 1.0, 1.0),
+    ));
+
+    // scene.objects.push(SceneObject::new(
+    //     MeshData::new(
+    //         scene_geo::CUBE_VERTICES.to_vec(),
+    //         vec![],
+    //         scene_geo::CUBE_COLORS.to_vec(),
+    //     ),
+    //     vec3(-5.0, 0.0, 0.0),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(1.0, 1.0, 1.0),
+    // ));
     // let mut scene: Scene =
     //     Scene::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_url(
@@ -154,6 +188,13 @@ pub async fn start() -> Result<(), JsValue> {
             drop(state);
             click_state.borrow_mut().clicked = false;
         }
+        // if i % 1000 < 500 {
+        //     // scene.objects[0].rot.y += 0.01;
+        //     scene.objects[0].pos.y += 0.01;
+        // } else {
+        //     // scene.objects[0].rot.y -= 0.01;
+        //     scene.objects[0].pos.y -= 0.01;
+        // }
 
         cam_mut.update_translation_from_keys(&keys_pressed);
         log!("camera pos: {:?}", cam_mut.pos);
@@ -161,7 +202,7 @@ pub async fn start() -> Result<(), JsValue> {
 
         let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
         renderer.update_splat_indices(&splat_indices);
-        renderer.draw(&canvas, i, scene.splat_data.splats.len() as i32, vpm, vm);
+        renderer.draw_scene(&canvas, &scene, vpm, vm);
 
         i += 1;
         request_animation_frame(f.borrow().as_ref().unwrap());
