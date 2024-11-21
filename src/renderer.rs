@@ -63,7 +63,7 @@ impl Renderer {
         gl.bind_vertex_array(Some(&geo_vao));
 
         let geo_vertex_buffer = create_buffer(&gl).unwrap();
-        let vertices = scene_geo::PYRAMID_VERTICES.map(|v| v);
+        let vertices = scene_geo::CUBE_VERTICES.map(|v| v);
 
         log!("vertex count: {}", vertices.len());
         update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
@@ -71,15 +71,17 @@ impl Renderer {
         update_buffer_data(
             &gl,
             &geo_color_buffer,
-            float32_array_from_vec(&scene_geo::PYRAMID_COLORS),
+            float32_array_from_vec(&scene_geo::CUBE_COLORS),
         );
 
         let geo_index_buffer = create_buffer(&gl).unwrap();
-        update_buffer_data(
+        update_buffer_data_u32(
             &gl,
             &geo_index_buffer,
-            uint32_array_from_vec(&scene_geo::PYRAMID_INDICES),
+            uint32_array_from_vec(&scene_geo::CUBE_INDICES),
+            WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
         );
+
         // END GEO VAO
 
         // Create Shaders
@@ -131,6 +133,7 @@ impl Renderer {
             geo_shader,
             geo_vertex_buffer,
             geo_color_buffer,
+            geo_index_buffer,
             splat_index_buffer,
             geo_count: vertices.len() as i32 / 3,
             geo_vao,
@@ -365,7 +368,9 @@ impl Renderer {
         gl.bind_vertex_array(Some(&self.geo_vao));
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
         gl.depth_func(WebGl2RenderingContext::LEQUAL);
+        // gl.disable(WebGl2RenderingContext::DEPTH_TEST);
         gl.depth_mask(true);
+        // gl.disable(WebGl2RenderingContext::CULL_FACE);
         // gl.depth_func(WebGl2RenderingContext::GEQUAL);
 
         gl.disable(WebGl2RenderingContext::BLEND);
@@ -381,6 +386,13 @@ impl Renderer {
             &self.geo_color_buffer,
             float32_array_from_vec(&object.mesh_data.colors),
         );
+        update_buffer_data_u32(
+            &gl,
+            &self.geo_index_buffer,
+            uint32_array_from_vec(&object.mesh_data.indices),
+            WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
+        );
+        // log!("indicies are {:?}", object.mesh_data.indices);
         // log!("colors length: {:?}", scene_geo::COLORS.len());
         // gl.blend_func(
         //     WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
@@ -416,9 +428,30 @@ impl Renderer {
         set_float_uniform_value(&self.geo_shader, &gl, "W", width as f32);
         set_float_uniform_value(&self.geo_shader, &gl, "H", height as f32);
 
+        for i in (0..object.mesh_data.indices.len()).step_by(3) {
+            log!(
+                "Triangle {}: [{}, {}, {}]",
+                i / 3,
+                object.mesh_data.indices[i],
+                object.mesh_data.indices[i + 1],
+                object.mesh_data.indices[i + 2]
+            );
+        }
+
         // log!("Drawing geometry:");
         // log!("Vertex count: {}", self.geo_count);
-        gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, self.geo_count);
+        log!("Number of indices: {}", object.mesh_data.indices.len());
+        log!("First few indices: {:?}", &object.mesh_data.indices[..3]);
+        gl.bind_buffer(
+            WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
+            Some(&self.geo_index_buffer),
+        );
+        gl.draw_elements_with_i32(
+            WebGl2RenderingContext::TRIANGLES,
+            object.mesh_data.indices.len() as i32,
+            WebGl2RenderingContext::UNSIGNED_INT,
+            0,
+        );
     }
 
     pub fn update_splat_indices(self: &Renderer, splat_indices: &Vec<u32>) {
@@ -429,6 +462,7 @@ impl Renderer {
             &self.gl,
             &self.splat_index_buffer,
             uint32_array_from_vec(&splat_indices),
+            WebGl2RenderingContext::ARRAY_BUFFER,
         );
     }
 
@@ -499,13 +533,14 @@ fn update_buffer_data(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: F
     );
 }
 
-fn update_buffer_data_u32(gl: &WebGl2RenderingContext, buffer: &WebGlBuffer, data: Uint32Array) {
-    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
-    gl.buffer_data_with_array_buffer_view(
-        WebGl2RenderingContext::ARRAY_BUFFER,
-        &data,
-        WebGl2RenderingContext::STATIC_DRAW,
-    );
+fn update_buffer_data_u32(
+    gl: &WebGl2RenderingContext,
+    buffer: &WebGlBuffer,
+    data: Uint32Array,
+    type_: u32,
+) {
+    gl.bind_buffer(type_, Some(&buffer));
+    gl.buffer_data_with_array_buffer_view(type_, &data, WebGl2RenderingContext::STATIC_DRAW);
 }
 
 fn create_buffer(gl: &WebGl2RenderingContext) -> Result<WebGlBuffer, &'static str> {

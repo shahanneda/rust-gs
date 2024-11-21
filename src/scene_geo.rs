@@ -1,115 +1,125 @@
-pub static PYRAMID_COLORS: [f32; 54] = [
-    // Red
-    1.0, 0.0, 0.0, //
-    1.0, 0.0, 0.0, //
-    1.0, 0.0, 0.0, //
-    // Blue
-    0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // Green
-    0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, // Yellow
-    1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, // Cyan
-    0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, // Magenta
-    1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
+// pub static PYRAMID_COLORS: [f32; 54] = [
+//     // Red
+//     1.0, 0.0, 0.0, //
+//     1.0, 0.0, 0.0, //
+//     1.0, 0.0, 0.0, //
+//     // Blue
+//     0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // Green
+//     0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, // Yellow
+//     1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, // Cyan
+//     0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, // Magenta
+//     1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,
+// ];
+
+// pub static PYRAMID_VERTICES: [f32; 54] = [
+//     0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
+//     // # Side 1
+//     0.0, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0, 0.0, 0.0, //
+//     // # Side 2
+//     1.0, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.0, // # Side 3
+//     1.0, 1.0, 0.0, 0.5, 0.5, 1.0, 0.0, 1.0, 0.0, // # Side 4
+//     0.0, 1.0, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.0,
+// ];
+
+// pub static CUBE_VERTICES: [f32; 72] = [
+//     // Front face (+Z)
+//     -1.0, -1.0, 1.0, // Vertex 0
+//     1.0, -1.0, 1.0, // Vertex 1
+//     1.0, 1.0, 1.0, // Vertex 2
+//     -1.0, 1.0, 1.0, // Vertex 3
+//     // Back face (-Z)
+//     -1.0, -1.0, -1.0, // Vertex 4
+//     -1.0, 1.0, -1.0, // Vertex 5
+//     1.0, 1.0, -1.0, // Vertex 6
+//     1.0, -1.0, -1.0, // Vertex 7
+//     // Top face (+Y)
+//     -1.0, 1.0, -1.0, // Vertex 8
+//     -1.0, 1.0, 1.0, // Vertex 9
+//     1.0, 1.0, 1.0, // Vertex 10
+//     1.0, 1.0, -1.0, // Vertex 11
+//     // Bottom face (-Y)
+//     -1.0, -1.0, -1.0, // Vertex 12
+//     1.0, -1.0, -1.0, // Vertex 13
+//     1.0, -1.0, 1.0, // Vertex 14
+//     -1.0, -1.0, 1.0, // Vertex 15
+//     // Right face (+X)
+//     1.0, -1.0, -1.0, // Vertex 16
+//     1.0, 1.0, -1.0, // Vertex 17
+//     1.0, 1.0, 1.0, // Vertex 18
+//     1.0, -1.0, 1.0, // Vertex 19
+//     // // Left face (-X)
+//     -1.0, -1.0, -1.0, // Vertex 20
+//     -1.0, -1.0, 1.0, // Vertex 21
+//     -1.0, 1.0, 1.0, // Vertex 22
+//     -1.0, 1.0, -1.0, // Vertex 23
+// ];
+
+// pub static CUBE_INDICES: [u32; 36] = [
+//     // Front face
+//     0, 1, 2, 0, 2, 3, // Front face
+//     4, 5, 6, 4, 6, 7, // Back face
+//     8, 9, 10, 8, 10, 11, // Top face
+//     12, 13, 14, 12, 14, 15, // Bottom face
+//     16, 17, 18, 16, 18, 19, // Right face
+//     20, 21, 22, 20, 22, 23, // Left face
+// ];
+pub static CUBE_INDICES: [u32; 36] = [
+    //Top
+    2, 6, 7, 2, 3, 7, //Bottom
+    0, 4, 5, 0, 1, 5, //Left
+    0, 2, 6, 0, 4, 6, //Right
+    1, 3, 7, 1, 5, 7, //Front
+    0, 2, 3, 0, 1, 3, //Back
+    4, 6, 7, 4, 5, 7,
 ];
 
-pub static PYRAMID_VERTICES: [f32; 54] = [
-    0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-    // # Side 1
-    0.0, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0, 0.0, 0.0, //
-    // # Side 2
-    1.0, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0, 1.0, 0.0, // # Side 3
-    1.0, 1.0, 0.0, 0.5, 0.5, 1.0, 0.0, 1.0, 0.0, // # Side 4
-    0.0, 1.0, 0.0, 0.5, 0.5, 1.0, 0.0, 0.0, 0.0,
+// pub static CUBE_VERTICES: [f32; 72] = [
+pub static CUBE_VERTICES: [f32; 24] = [
+    -1.0, -1.0, 1.0, //0
+    1.0, -1.0, 1.0, //1
+    -1.0, 1.0, 1.0, //2
+    1.0, 1.0, 1.0, //3
+    -1.0, -1.0, -1.0, //4
+    1.0, -1.0, -1.0, //5
+    -1.0, 1.0, -1.0, //6
+    1.0, 1.0, -1.0, //7
 ];
 
-
-
-
-pub static CUBE_VERTICES: [f32; 108] = [
-    // Front face
-    -1.0, -1.0, 1.0, // bottom left
-    1.0, -1.0, 1.0, // bottom right
-    1.0, 1.0, 1.0, // top right
-    -1.0, -1.0, 1.0, // bottom left
-    1.0, 1.0, 1.0, // top right
-    -1.0, 1.0, 1.0, // top left
-    // Back face
-    -1.0, -1.0, -1.0, // bottom left
-    -1.0, 1.0, -1.0, // top left
-    1.0, 1.0, -1.0, // top right
-    -1.0, -1.0, -1.0, // bottom left
-    1.0, 1.0, -1.0, // top right
-    1.0, -1.0, -1.0, // bottom right
-    // Top face
-    -1.0, 1.0, -1.0, // back left
-    -1.0, 1.0, 1.0, // front left
-    1.0, 1.0, 1.0, // front right
-    -1.0, 1.0, -1.0, // back left
-    1.0, 1.0, 1.0, // front right
-    1.0, 1.0, -1.0, // back right
-    // Bottom face (fixed)
-    -1.0, -1.0, -1.0, // back left
-    1.0, -1.0, -1.0, // back right
-    1.0, -1.0, 1.0, // front right
-    -1.0, -1.0, -1.0, // back left
-    1.0, -1.0, 1.0, // front right
-    -1.0, -1.0, 1.0, // front left
-    // Right face (fixed)
-    1.0, -1.0, -1.0, // bottom back
-    1.0, 1.0, -1.0, // top back
-    1.0, 1.0, 1.0, // top front
-    1.0, -1.0, -1.0, // bottom back
-    1.0, 1.0, 1.0, // top front
-    1.0, -1.0, 1.0, // bottom front
-    // Left face (fixed)
-    -1.0, -1.0, -1.0, // bottom back
-    -1.0, -1.0, 1.0, // bottom front
-    -1.0, 1.0, 1.0, // top front
-    -1.0, -1.0, -1.0, // bottom back
-    -1.0, 1.0, 1.0, // top front
-    -1.0, 1.0, -1.0, // top back
-];
-
-pub static CUBE_COLORS: [f32; 108] = [
-    // Front face (red)
-    1.0, 0.0, 0.0, // bottom left
-    1.0, 0.0, 0.0, // bottom right
-    1.0, 0.0, 0.0, // top right
-    1.0, 0.0, 0.0, // bottom left
-    1.0, 0.0, 0.0, // top right
-    1.0, 0.0, 0.0, // top left
-    // Back face (green)
-    0.0, 1.0, 0.0, // bottom left
-    0.0, 1.0, 0.0, // top left
-    0.0, 1.0, 0.0, // top right
-    0.0, 1.0, 0.0, // bottom left
-    0.0, 1.0, 0.0, // top right
-    0.0, 1.0, 0.0, // bottom right
-    // Top face (blue)
-    0.0, 0.0, 1.0, // back left
-    0.0, 0.0, 1.0, // front left
-    0.0, 0.0, 1.0, // front right
-    0.0, 0.0, 1.0, // back left
-    0.0, 0.0, 1.0, // front right
-    0.0, 0.0, 1.0, // back right
-    // Bottom face (yellow)
-    1.0, 1.0, 0.0, // back left
-    1.0, 1.0, 0.0, // back right
-    1.0, 1.0, 0.0, // front right
-    1.0, 1.0, 0.0, // back left
-    1.0, 1.0, 0.0, // front right
-    1.0, 1.0, 0.0, // front left
-    // Right face (magenta)
-    1.0, 0.0, 1.0, // bottom back
-    1.0, 0.0, 1.0, // top back
-    1.0, 0.0, 1.0, // top front
-    1.0, 0.0, 1.0, // bottom back
-    1.0, 0.0, 1.0, // top front
-    1.0, 0.0, 1.0, // bottom front
-    // Left face (cyan)
-    0.0, 1.0, 1.0, // bottom back
-    0.0, 1.0, 1.0, // bottom front
-    0.0, 1.0, 1.0, // top front
-    0.0, 1.0, 1.0, // bottom back
-    0.0, 1.0, 1.0, // top front
-    0.0, 1.0, 1.0, // top back
+pub static CUBE_COLORS: [f32; 24] = [
+    // Front face (Red)
+    1.0, 0.0, 0.0, // Vertex 0
+    1.0, 0.0, 0.0, // Vertex 1
+    1.0, 0.0, 0.0, // Vertex 2
+    1.0, 0.0, 0.0, // Vertex 3
+    // Back face (Green)
+    1.0, 0.0, 0.0, // Vertex 0
+    1.0, 0.0, 0.0, // Vertex 1
+    1.0, 0.0, 0.0, // Vertex 2
+    1.0, 0.0,
+    0.0,
+    // Vertex 3
+    // 0.0, 1.0, 0.0, // Vertex 4
+    // 0.0, 1.0, 0.0, // Vertex 5
+    // 0.0, 1.0, 0.0, // Vertex 6
+    // 0.0, 1.0, 0.0, // Vertex 7
+    // Top face (Blue)
+    // 1.0, 0.0, 0.0, // Vertex 8
+    // 1.0, 0.0, 0.0, // Vertex 9
+    // 1.0, 0.0, 0.0, // Vertex 10
+    // 1.0, 0.0, 0.0, // Vertex 11
+    // // Bottom face (Yellow)
+    // 1.0, 0.0, 0.0, // Vertex 12
+    // 1.0, 0.0, 0.0, // Vertex 13
+    // 1.0, 0.0, 0.0, // Vertex 14
+    // 1.0, 0.0, 0.0, // Vertex 15
+    // // Right face (Magenta)
+    // 1.0, 0.0, 1.0, // Vertex 16
+    // 1.0, 0.0, 1.0, // Vertex 17
+    // 1.0, 0.0, 1.0, // Vertex 18
+    // 1.0, 0.0, 1.0, // Vertex 19
+    // // Left face (Cyan)
+    // 1.0, 0.0, 0.0, // Vertex 20
+    // 1.0, 0.0, 0.0, // Vertex 21
+    // 1.0, 0.0, 0.0, // Vertex 22
+    // 1.0, 0.0, 0.0, // Vertex 23
 ];

@@ -35,8 +35,6 @@ void main() {
   float p_w = 1. / (p_hom.w + 1e-7); // add 1e-7 so we don't divide by zero
   vec3 p_proj = p_hom.xyz * p_w;
 
-  // check if the splat is behind the camera
-  // key difference is negative vs positive
   if (p_view.z > 0.0) {
     gl_Position = vec4(0, 0, 0, 1);
     return;

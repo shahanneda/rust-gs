@@ -49,6 +49,7 @@ pub mod loader {
             }
         }
         if !["binary_little_endian", "binary_big_endian"].contains(&format.as_str()) {
+            log!("format is: {}", format);
             return Err(format!("format not supported! {}", format));
         }
 

@@ -138,17 +138,23 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
     let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "sci_01";
     // let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut splat: SplatData =
         SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
     let mut scene = Scene::new(splat);
-    let pyramid_mesh = MeshData::new(
-        scene_geo::PYRAMID_VERTICES.to_vec(),
-        // scene_geo::PYRAMID_INDICES,
-        vec![],
-        scene_geo::PYRAMID_COLORS.to_vec(),
+    // let pyramid_mesh = MeshData::new(
+    //     scene_geo::PYRAMID_VERTICES.to_vec(),
+    //     // scene_geo::PYRAMID_INDICES,
+    //     vec![],
+    //     scene_geo::PYRAMID_COLORS.to_vec(),
+    // );
+    let cube_mesh = MeshData::new(
+        scene_geo::CUBE_VERTICES.to_vec(),
+        scene_geo::CUBE_INDICES.to_vec(),
+        scene_geo::CUBE_COLORS.to_vec(),
     );
     // scene.objects.push(SceneObject::new(
     //     pyramid_mesh.clone(),
@@ -158,7 +164,7 @@ pub async fn start() -> Result<(), JsValue> {
     // ));
 
     scene.objects.push(SceneObject::new(
-        pyramid_mesh.clone(),
+        cube_mesh.clone(),
         vec3(3.0, 0.0, 0.0),
         vec3(0.0, 0.0, 0.0),
         vec3(1.05, 1.05, 1.05),
