@@ -4,6 +4,7 @@ use crate::renderer;
 use crate::scene::Scene; // Use crate:: to import from your lib.rs
 use crate::timer::Timer;
 use crate::utils::set_panic_hook;
+use crate::DataObjects::SplatData;
 use glm::vec2;
 use glm::vec3;
 use std::cell::RefCell;
@@ -64,8 +65,11 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
-    let mut scene: Scene =
-        Scene::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    let mut splat: SplatData =
+        SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    let mut scene = Scene::new(splat);
+    // let mut scene: Scene =
+    //     Scene::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
     // let mut scene: Scene = Scene::new_from_url(
     //     "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/e7eb4bda-1d7c-4ca8-ac6b-a4c2c722f014.rkyv",
     // )
@@ -155,9 +159,9 @@ pub async fn start() -> Result<(), JsValue> {
         log!("camera pos: {:?}", cam_mut.pos);
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
 
-        let splat_indices = scene.sort_splats_based_on_depth(vpm);
+        let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
         renderer.update_splat_indices(&splat_indices);
-        renderer.draw(&canvas, i, scene.splats.len() as i32, vpm, vm);
+        renderer.draw(&canvas, i, scene.splat_data.splats.len() as i32, vpm, vm);
 
         i += 1;
         request_animation_frame(f.borrow().as_ref().unwrap());

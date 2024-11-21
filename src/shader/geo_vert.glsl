@@ -7,8 +7,10 @@ in vec3 v_col;
 out vec3 v_color;
 out float depth;
 
+uniform mat4 model;
 uniform mat4 camera;
 uniform mat4 projection;
+
 uniform float W;
 uniform float H;
 
@@ -23,12 +25,15 @@ void main() {
   //   1) * 0.0 +
   //                 projection * scaling_mat *
   //                 vec4(v_pos, 1.0);
+  vec4 v_pos_model = model * vec4(v_pos, 1);
 
   mat4 projmatrix = projection;
-  vec4 p_hom = projmatrix * vec4(v_pos, 1);
+
+  vec4 p_hom = projmatrix * v_pos_model;
+  vec4 p_view = camera * v_pos_model;
+
   float p_w = 1. / (p_hom.w + 1e-7); // add 1e-7 so we don't divide by zero
   vec3 p_proj = p_hom.xyz * p_w;
-  vec4 p_view = camera * vec4(v_pos, 1);
 
   // check if the splat is behind the camera
   // key difference is negative vs positive

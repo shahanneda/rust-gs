@@ -61,7 +61,7 @@ impl Renderer {
         gl.bind_vertex_array(Some(&geo_vao));
 
         let geo_vertex_buffer = create_buffer(&gl).unwrap();
-        let vertices = scene_geo::VERTICES.map(|v| v);
+        let vertices = scene_geo::PYRAMID_VERTICES.map(|v| v);
 
         log!("vertex count: {}", vertices.len());
         update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
@@ -69,7 +69,7 @@ impl Renderer {
         update_buffer_data(
             &gl,
             &geo_color_buffer,
-            float32_array_from_vec(&scene_geo::COLORS),
+            float32_array_from_vec(&scene_geo::PYRAMID_COLORS),
         );
         // END GEO VAO
 
@@ -337,12 +337,12 @@ impl Renderer {
         update_buffer_data(
             &gl,
             &self.geo_vertex_buffer,
-            float32_array_from_vec(&scene_geo::VERTICES),
+            float32_array_from_vec(&scene_geo::PYRAMID_VERTICES),
         );
         update_buffer_data(
             &gl,
             &self.geo_color_buffer,
-            float32_array_from_vec(&scene_geo::COLORS),
+            float32_array_from_vec(&scene_geo::PYRAMID_COLORS),
         );
         // log!("colors length: {:?}", scene_geo::COLORS.len());
         // gl.blend_func(
@@ -356,7 +356,7 @@ impl Renderer {
         gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
 
         // try muliplying just for checking
-        for vertex in scene_geo::VERTICES.chunks(3) {
+        for vertex in scene_geo::PYRAMID_VERTICES.chunks(3) {
             // after vpm
             log!("vertex: {:?}", vertex);
             let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
@@ -365,6 +365,12 @@ impl Renderer {
 
         let camera_uniform_location = gl.get_uniform_location(&self.geo_shader, "camera").unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
+
+        let mut model = glm::identity::<f32, 4>();
+        model = glm::translate(&model, &glm::vec3(0.0, 1.0, 1.0));
+
+        let model_uniform_location = gl.get_uniform_location(&self.geo_shader, "model").unwrap();
+        gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
 
         set_float_uniform_value(&self.geo_shader, &gl, "W", width as f32);
         set_float_uniform_value(&self.geo_shader, &gl, "H", height as f32);
@@ -394,7 +400,7 @@ impl Renderer {
         let mut splat_cov3db = Vec::new();
         let mut splat_opacities = Vec::new();
 
-        for s in &scene.splats {
+        for s in &scene.splat_data.splats {
             splat_positions.extend_from_slice(&[s.x, s.y, s.z]);
             splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
             splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
