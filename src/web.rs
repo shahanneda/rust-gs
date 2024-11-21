@@ -89,7 +89,7 @@ pub async fn start() -> Result<(), JsValue> {
         pyramid_mesh.clone(),
         vec3(3.0, 0.0, 0.0),
         vec3(0.0, 0.0, 0.0),
-        vec3(1.0, 1.0, 1.0),
+        vec3(0.1, 0.1, 0.1),
     ));
 
     // scene.objects.push(SceneObject::new(
@@ -124,8 +124,10 @@ pub async fn start() -> Result<(), JsValue> {
     // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
     // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
-        vec3(-1.020468, 1.4699098, -2.7163901),
-        vec2(0.11999998, 2.8230002),
+        vec3(0.0, 0.0, 0.0),
+        // vec3(-1.020468, 1.4699098, -2.7163901),
+        // vec2(0.11999998, 2.8230002),
+        vec2(0.0, 3.14 / 2.0),
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
 
@@ -170,12 +172,31 @@ pub async fn start() -> Result<(), JsValue> {
             let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
             let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
 
-            let (ray_origin, ray_direction) = cam_mut.get_ray_origin_and_direction(ndc_x, ndc_y);
+            let (ray_origin, ray_direction) =
+                cam_mut.get_ray_origin_and_direction(width, height, ndc_x, ndc_y);
 
             log!("Click detected at x: {}, y: {}", state.x, state.y);
             log!("Unprojected: x: {}, y: {}", state.x, state.y);
             log!("Ray origin: {:?}", ray_origin);
             log!("Ray direction: {:?}", ray_direction);
+
+            scene.objects.push(SceneObject::new(
+                pyramid_mesh.clone(),
+                vec3(ray_origin.x, ray_origin.y, ray_origin.z),
+                vec3(0.0, 0.0, 0.0),
+                vec3(0.03, 0.03, 0.03),
+            ));
+
+            for t in 0..10 {
+                let t = t as f32 / 10.0;
+                let pos = ray_origin + ray_direction * t;
+                scene.objects.push(SceneObject::new(
+                    pyramid_mesh.clone(),
+                    pos,
+                    vec3(0.0, 0.0, 0.0),
+                    vec3(0.03, 0.03, 0.03),
+                ));
+            }
 
             match state.button {
                 0 => log!("Left click"),

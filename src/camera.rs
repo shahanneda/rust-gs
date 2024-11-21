@@ -180,21 +180,47 @@ impl Camera {
         let mut vpm = proj * vm;
         invert_row(&mut vm, 1);
         invert_row(&mut vm, 2);
-        invert_row(&mut vpm, 1);
         invert_row(&mut vm, 0);
+        invert_row(&mut vpm, 1);
         invert_row(&mut vpm, 0);
         return (vm, vpm);
     }
 
-    pub fn get_ray_origin_and_direction(self: &Camera, ndc_x: f32, ndc_y: f32) -> (Vec3, Vec3) {
-        let vm = self.get_camera_to_world_matrix();
-        let screen_pos = vec4(ndc_x, ndc_y, 1.0, 1.0);
-
-        let world_pos = vm * screen_pos;
-        let world_pos = vec3(world_pos.x, world_pos.y, world_pos.z);
-
+    pub fn get_ray_origin_and_direction(
+        self: &Camera,
+        width: i32,
+        height: i32,
+        ndc_x: f32,
+        ndc_y: f32,
+    ) -> (Vec3, Vec3) {
         let ray_origin = self.pos;
-        let ray_direction = world_pos - ray_origin;
-        return (ray_origin, ray_direction);
+
+        // Create view-projection matrix
+        let (mut vm, _) = self.get_vm_and_vpm(width, height);
+        invert_row(&mut vm, 0);
+        invert_row(&mut vm, 2);
+        invert_row(&mut vm, 1);
+
+        let inv_view = vm.try_inverse().unwrap();
+
+        log!("position is {:?}", self.pos);
+        log!("ndc_x is {:?}", ndc_x);
+        log!("ndc_y is {:?}", ndc_y);
+
+        // Convert NDC to homogeneous clip space
+        let clip = vec4(-ndc_x, -ndc_y, -1.0, 1.0);
+        log!("clip is {:?}", clip);
+
+        // Transform back to world space
+        let world_pos = inv_view * clip;
+        log!("world_pos is {:?}", world_pos);
+
+        // Calculate direction from camera to point
+        let mut ray_direction = vec3(world_pos.x, world_pos.y, world_pos.z) - ray_origin;
+        log!("ray_direction is {:?}", ray_direction);
+        ray_direction = glm::normalize(&ray_direction);
+        ray_direction = -vec3(ray_direction.x, ray_direction.y, ray_direction.z);
+
+        (-ray_origin, ray_direction)
     }
 }
