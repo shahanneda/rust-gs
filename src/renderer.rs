@@ -35,6 +35,10 @@ pub struct Renderer {
     splat_index_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
+    line_vao: WebGlVertexArrayObject,
+    line_vertex_buffer: WebGlBuffer,
+    line_color_buffer: WebGlBuffer,
+    line_shader: WebGlProgram,
     color_texture: WebGlTexture,
     position_texture: WebGlTexture,
     cov3da_texture: WebGlTexture,
@@ -85,8 +89,24 @@ impl Renderer {
         // END GEO VAO
 
         // Create Shaders
-        let splat_shader = shader::shader::create_splat_shader_program(&gl).unwrap();
-        let geo_shader = shader::shader::create_geo_shader_program(&gl).unwrap();
+        let splat_shader = shader::shader::create_shader_program(
+            &gl,
+            include_str!("./shader/splat_vert.glsl"),
+            include_str!("./shader/splat_frag.glsl"),
+        )
+        .unwrap();
+        let geo_shader = shader::shader::create_shader_program(
+            &gl,
+            include_str!("./shader/geo_vert.glsl"),
+            include_str!("./shader/geo_frag.glsl"),
+        )
+        .unwrap();
+        let line_shader = shader::shader::create_shader_program(
+            &gl,
+            include_str!("./shader/line_vert.glsl"),
+            include_str!("./shader/line_frag.glsl"),
+        )
+        .unwrap();
         // END SHADERS
 
         // Activate splat vao
@@ -126,6 +146,21 @@ impl Renderer {
             WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT,
         )?;
 
+        let line_vao = gl.create_vertex_array().unwrap();
+        gl.bind_vertex_array(Some(&line_vao));
+        let line_vertex_buffer = create_buffer(&gl).unwrap();
+        update_buffer_data(
+            &gl,
+            &line_vertex_buffer,
+            float32_array_from_vec(&vec![0.0, 0.0, 0.0]),
+        );
+        let line_color_buffer = create_buffer(&gl).unwrap();
+        update_buffer_data(
+            &gl,
+            &line_color_buffer,
+            float32_array_from_vec(&vec![1.0, 0.0, 0.0]),
+        );
+
         let result = Renderer {
             gl: gl,
             splat_shader,
@@ -137,6 +172,10 @@ impl Renderer {
             splat_index_buffer,
             geo_count: vertices.len() as i32 / 3,
             geo_vao,
+            line_vao,
+            line_vertex_buffer,
+            line_color_buffer,
+            line_shader,
             color_texture,
             position_texture,
             cov3da_texture,
@@ -261,6 +300,27 @@ impl Renderer {
             WebGl2RenderingContext::FLOAT,
         );
 
+        result.gl.use_program(Some(&result.line_shader));
+        result.gl.bind_vertex_array(Some(&result.line_vao));
+        create_attribute_and_get_location(
+            &result.gl,
+            &result.line_vertex_buffer,
+            &result.line_shader,
+            "v_pos",
+            false,
+            3,
+            WebGl2RenderingContext::FLOAT,
+        );
+        create_attribute_and_get_location(
+            &result.gl,
+            &result.line_color_buffer,
+            &result.line_shader,
+            "v_col",
+            false,
+            3,
+            WebGl2RenderingContext::FLOAT,
+        );
+
         return Ok(result);
     }
 
@@ -270,15 +330,26 @@ impl Renderer {
         scene: &Scene,
         vpm: glm::Mat4,
         vm: glm::Mat4,
+        normal_projection_matrix: glm::Mat4,
+        normal_view_matrix: glm::Mat4,
     ) {
         let gl = &self.gl;
         let width = canvas.width() as i32;
         let height = canvas.height() as i32;
 
         self.draw_splat(width, height, scene.splat_data.splats.len() as i32, vpm, vm);
-        for object in &scene.objects {
-            self.draw_geo(width, height, vpm, vm, object);
-        }
+        // for object in &scene.objects {
+        //     self.draw_geo(width, height, vpm, vm, object);
+        // }
+
+        self.draw_lines(
+            width,
+            height,
+            &scene.line_verts,
+            &scene.line_colors,
+            normal_view_matrix,
+            normal_projection_matrix,
+        );
 
         // let mut model: Mat4 = glm::identity();
         // let model_scale = 3.0f32;
@@ -437,6 +508,93 @@ impl Renderer {
             object.mesh_data.indices.len() as i32,
             WebGl2RenderingContext::UNSIGNED_INT,
             0,
+        );
+    }
+
+    pub fn draw_lines(
+        self: &Renderer,
+        width: i32,
+        height: i32,
+        line_verts: &Vec<f32>,
+        line_colors: &Vec<f32>,
+        view_mat: glm::Mat4,
+        projection_mat: glm::Mat4,
+    ) {
+        let gl = &self.gl;
+        // log!("about to draw lines");
+        gl.use_program(Some(&self.geo_shader));
+        gl.bind_vertex_array(Some(&self.line_vao));
+        gl.bind_buffer(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            Some(&self.line_vertex_buffer),
+        );
+        gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+        gl.depth_mask(false);
+        gl.disable(WebGl2RenderingContext::BLEND);
+        gl.disable(WebGl2RenderingContext::CULL_FACE);
+        update_buffer_data(
+            &gl,
+            &self.line_vertex_buffer,
+            float32_array_from_vec(line_verts),
+        );
+
+        update_buffer_data(
+            &gl,
+            &self.line_color_buffer,
+            float32_array_from_vec(line_colors),
+        );
+        log!("line_verts length: {:?}", line_verts.len());
+
+        log!("projection_mat: {:?}", projection_mat);
+        // multipling the line as a sample
+        for i in 0..line_verts.len() / 3 {
+            let vertex = glm::vec3(
+                line_verts[i * 3],
+                line_verts[i * 3 + 1],
+                line_verts[i * 3 + 2],
+            );
+            let vertex_proj =
+                projection_mat * view_mat * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
+            log!("vertex_proj: {:?}", vertex_proj);
+        }
+
+        let proj_uniform_location = gl
+            .get_uniform_location(&self.line_shader, "projection")
+            .unwrap();
+        gl.uniform_matrix4fv_with_f32_array(
+            Some(&proj_uniform_location),
+            false,
+            projection_mat.as_slice(),
+        );
+
+        let camera_uniform_location = gl
+            .get_uniform_location(&self.line_shader, "camera")
+            .unwrap();
+        gl.uniform_matrix4fv_with_f32_array(
+            Some(&camera_uniform_location),
+            false,
+            view_mat.as_slice(),
+        );
+
+        let model_uniform_location = gl.get_uniform_location(&self.line_shader, "model").unwrap();
+        gl.uniform_matrix4fv_with_f32_array(
+            Some(&model_uniform_location),
+            false,
+            model.as_slice(),
+        );
+
+        // try muliplying just for checking
+        // for vertex in scene_geo::PYRAMID_VERTICES.chunks(3) {
+        //     // after vpm
+        //     log!("vertex: {:?}", vertex);
+        //     let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
+        //     log!("vertex_vpm: {:?}", vertex_vpm);
+        // }
+
+        gl.draw_arrays(
+            WebGl2RenderingContext::LINES,
+            0,
+            line_verts.len() as i32 / 3,
         );
     }
 

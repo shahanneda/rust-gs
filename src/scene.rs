@@ -16,6 +16,8 @@ use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 pub struct Scene {
     pub splat_data: SplatData,
     pub objects: Vec<SceneObject>,
+    pub line_verts: Vec<f32>,
+    pub line_colors: Vec<f32>,
 }
 
 impl Scene {
@@ -23,6 +25,8 @@ impl Scene {
         Self {
             splat_data,
             objects: Vec::new(),
+            line_verts: Vec::new(),
+            line_colors: Vec::new(),
         }
     }
 }

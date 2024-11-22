@@ -164,12 +164,30 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(1.0, 1.0, 1.0),
     // ));
 
-    scene.objects.push(SceneObject::new(
-        cube_mesh.clone(),
-        vec3(3.0, 0.0, 0.0),
-        vec3(0.0, 0.0, 0.0),
-        vec3(1.05, 1.05, 1.05),
-    ));
+    // scene.objects.push(SceneObject::new(
+    //     cube_mesh.clone(),
+    //     vec3(3.0, 0.0, 0.0),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(1.05, 1.05, 1.05),
+    // ));
+
+    for i in 0..10 {
+        scene.line_verts.push(i as f32 - 10.0);
+        scene.line_verts.push(0.0);
+        scene.line_verts.push(1.0);
+
+        scene.line_verts.push(i as f32 - 10.0);
+        scene.line_verts.push(10.0);
+        scene.line_verts.push(1.0);
+
+        scene.line_colors.push(i as f32 / 100.0);
+        scene.line_colors.push(1.0 - i as f32 / 100.0);
+        scene.line_colors.push(0.0);
+
+        scene.line_colors.push(i as f32 / 100.0);
+        scene.line_colors.push(1.0 - i as f32 / 100.0);
+        scene.line_colors.push(0.0);
+    }
 
     // scene.objects.push(SceneObject::new(
     //     MeshData::new(
@@ -242,11 +260,11 @@ pub async fn start() -> Result<(), JsValue> {
     canvas.add_event_listener_with_callback("mousedown", click_cb.as_ref().unchecked_ref())?;
     click_cb.forget();
 
-    let oct_tree = OctTree::new(scene.splat_data.splats.clone());
-    let cubes = oct_tree.get_cubes();
-    for cube in cubes {
-        scene.objects.push(cube);
-    }
+    // let oct_tree = OctTree::new(scene.splat_data.splats.clone());
+    // let cubes = oct_tree.get_cubes();
+    // for cube in cubes {
+    //     scene.objects.push(cube);
+    // }
     // let cube =
     // scene.objects.push(SceneObject::new_cube(
     //     vec3(0.0, 0.0, 0.0),
@@ -301,7 +319,17 @@ pub async fn start() -> Result<(), JsValue> {
 
         let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
         renderer.update_splat_indices(&splat_indices);
-        renderer.draw_scene(&canvas, &scene, vpm, vm);
+        let (normal_projection_matrix, normal_view_matrix) =
+            cam_mut.get_normal_projection_and_view_matrices(width, height);
+
+        renderer.draw_scene(
+            &canvas,
+            &scene,
+            vpm,
+            vm,
+            normal_projection_matrix,
+            normal_view_matrix,
+        );
 
         i += 1;
         request_animation_frame(f.borrow().as_ref().unwrap());

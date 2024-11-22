@@ -185,6 +185,26 @@ impl Camera {
         invert_row(&mut vpm, 0);
         return (vm, vpm);
     }
+    // TODO: clean this up
+    pub fn get_normal_projection_and_view_matrices(
+        self: &Camera,
+        width: i32,
+        height: i32,
+    ) -> (Mat4, Mat4) {
+        let mut proj = glm::perspective(
+            (width as f32) / (height as f32),
+            0.820176f32,
+            0.1f32,
+            100f32,
+        );
+        let mut vm = self.get_world_to_camera_matrix();
+        // invert_row(&mut vm, 1);
+        // invert_row(&mut vm, 2);
+        // invert_row(&mut vm, 0);
+        // invert_row(&mut proj, 1);
+        // invert_row(&mut proj, 0);
+        return (proj, vm);
+    }
 
     pub fn get_ray_origin_and_direction(
         &self,
