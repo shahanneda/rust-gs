@@ -428,20 +428,6 @@ impl Renderer {
         set_float_uniform_value(&self.geo_shader, &gl, "W", width as f32);
         set_float_uniform_value(&self.geo_shader, &gl, "H", height as f32);
 
-        for i in (0..object.mesh_data.indices.len()).step_by(3) {
-            log!(
-                "Triangle {}: [{}, {}, {}]",
-                i / 3,
-                object.mesh_data.indices[i],
-                object.mesh_data.indices[i + 1],
-                object.mesh_data.indices[i + 2]
-            );
-        }
-
-        // log!("Drawing geometry:");
-        // log!("Vertex count: {}", self.geo_count);
-        log!("Number of indices: {}", object.mesh_data.indices.len());
-        log!("First few indices: {:?}", &object.mesh_data.indices[..3]);
         gl.bind_buffer(
             WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
             Some(&self.geo_index_buffer),

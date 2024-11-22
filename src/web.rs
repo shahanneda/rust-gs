@@ -8,6 +8,7 @@ use crate::scene_object::SceneObject;
 use crate::timer::Timer;
 use crate::utils::set_panic_hook;
 use crate::DataObjects::MeshData;
+use crate::DataObjects::OctTree;
 use crate::DataObjects::SplatData;
 use glm::vec2;
 use glm::vec3;
@@ -234,9 +235,34 @@ pub async fn start() -> Result<(), JsValue> {
         state.y = e.client_y();
         state.button = e.button();
     }) as Box<dyn FnMut(_)>);
+    // scene
+    //     .objects
+    //     .push(SceneObject::new_cube(vec3(0.0, 0.0, 0.0), 1.0));
 
     canvas.add_event_listener_with_callback("mousedown", click_cb.as_ref().unchecked_ref())?;
     click_cb.forget();
+
+    let oct_tree = OctTree::new(scene.splat_data.splats.clone());
+    let cubes = oct_tree.get_cubes();
+    for cube in cubes {
+        scene.objects.push(cube);
+    }
+    // let cube =
+    // scene.objects.push(SceneObject::new_cube(
+    //     vec3(0.0, 0.0, 0.0),
+    //     1.0,
+    //     vec3(0.0, 1.0, 0.0),
+    // ));
+    // scene.objects.push(SceneObject::new_cube(
+    //     vec3(1.0, 0.0, 0.0),
+    //     1.0,
+    //     vec3(0.0, 0.0, 1.0),
+    // ));
+    // scene.objects.push(SceneObject::new_cube(
+    //     vec3(-1.0, 0.0, 0.0),
+    //     0.5,
+    //     vec3(0.0, 1.0, 1.0),
+    // ));
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
