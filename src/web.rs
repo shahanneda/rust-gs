@@ -187,7 +187,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "socratica_01_edited";
     log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
@@ -212,7 +213,7 @@ pub async fn start() -> Result<(), JsValue> {
     );
     let mut settings = Settings {
         show_octtree: true,
-        only_show_clicks: false,
+        only_show_clicks: true,
     };
     // scene.objects.push(SceneObject::new(
     //     pyramid_mesh.clone(),
