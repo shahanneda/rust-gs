@@ -16,6 +16,7 @@ pub struct OctTreeNode {
     pub splats: Vec<Splat>,
     pub center: Vec3,
     pub half_width: f32,
+    pub touched: bool,
 }
 
 pub struct OctTree {
@@ -39,6 +40,7 @@ impl OctTreeNode {
             splats,
             center,
             half_width,
+            touched: false,
         };
 
         // let fartherst_splat = splats
@@ -107,16 +109,25 @@ impl OctTreeNode {
         return out;
     }
 
-    fn get_lines_of_children(&self) -> Vec<Line> {
+    fn get_lines_of_children(&self, only_clicks: bool) -> Vec<Line> {
         let mut out = vec![];
+
+        log!("in octtree only clicks is {:?}", only_clicks);
+        if only_clicks && !self.touched {
+            log!("returning early because only clicks and not touched");
+            return out;
+        }
+
         for (i, child) in self.children.iter().enumerate() {
             let color = OctTreeNode::index_to_color(i);
             if child.children.len() != 0 {
-                let lines = child.get_lines_of_children();
+                let lines = child.get_lines_of_children(only_clicks);
                 for line in lines {
                     out.push(line);
                 }
-            } else {
+            }
+
+            if true {
                 out.push(Line {
                     start: child.center + vec3(-1.0, 1.0, 1.0) * child.half_width,
                     end: child.center + vec3(1.0, 1.0, 1.0) * child.half_width,
@@ -249,6 +260,70 @@ impl OctTreeNode {
             child.propogate_splats_to_children(depth + 1);
         }
     }
+
+    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<Splat> {
+        let mut out = vec![];
+        log!("finding splats in radius {:?}", center);
+        // if center.x > self.center.x + self.half_width || center.x < self.center.x - self.half_width
+        // {
+        //     log!(
+        //         "returning early x: {}, max x: {}, min x: {}",
+        //         center.x,
+        //         self.center.x + self.half_width,
+        //         self.center.x - self.half_width
+        //     );
+        //     self.touched = false;
+        //     return out;
+        // }
+        // if center.y > self.center.y + self.half_width || center.y < self.center.y - self.half_width
+        // {
+        //     self.touched = false;
+        //     return out;
+        // }
+        // if center.z > self.center.z + self.half_width || center.z < self.center.z - self.half_width
+        // {
+        //     self.touched = false;
+        //     return out;
+        // }
+        if center.x - radius > self.center.x + self.half_width
+            || center.x + radius < self.center.x - self.half_width
+            || center.y - radius > self.center.y + self.half_width
+            || center.y + radius < self.center.y - self.half_width
+            || center.z - radius > self.center.z + self.half_width
+            || center.z + radius < self.center.z - self.half_width
+        {
+            log!(
+                "returning early x: {}, max x: {}, min x: {}",
+                center.x,
+                self.center.x + self.half_width,
+                self.center.x - self.half_width
+            );
+            self.touched = false;
+            return out;
+        }
+        self.touched = true;
+
+        if self.children.len() == 0 {
+            log!(
+                "have no children checking splats in child center: {:?}, request center: {:?} request radius: {}",
+                self.center, center, radius
+        );
+            for splat in &self.splats {
+                // out.push(splat.clone());
+                if glm::distance(&vec3(splat.x, splat.y, splat.z), &center) <= radius {
+                    //     log!("found splat {:?}", splat);
+                    out.push(splat.clone());
+                }
+            }
+        } else {
+            for child in &mut self.children {
+                let child_splats = child.find_splats_in_radius(center, radius);
+                out.extend(child_splats);
+            }
+        }
+
+        return out;
+    }
 }
 
 impl OctTree {
@@ -262,7 +337,12 @@ impl OctTree {
         return self.root.get_cubes_of_children();
     }
 
-    pub fn get_lines(&self) -> Vec<Line> {
-        return self.root.get_lines_of_children();
+    pub fn get_lines(&self, only_clicks: bool) -> Vec<Line> {
+        return self.root.get_lines_of_children(only_clicks);
+    }
+
+    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<Splat> {
+        log!("finding splats in radius {:?}", center);
+        return self.root.find_splats_in_radius(center, radius);
     }
 }

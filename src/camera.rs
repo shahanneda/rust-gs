@@ -230,7 +230,7 @@ impl Camera {
 
         // Transform to eye space (view space)
         let eye_coords = inv_proj * clip;
-        let eye_coords = vec4(eye_coords.x, eye_coords.y, 1.0, 0.0);
+        let eye_coords = vec4(eye_coords.x, eye_coords.y, -1.0, 0.0);
 
         // Transform to world space
         let world_coords = inv_view * eye_coords;

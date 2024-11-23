@@ -33,6 +33,7 @@ struct ClickState {
 
 pub struct Settings {
     pub show_octtree: bool,
+    pub only_show_clicks: bool,
 }
 
 fn handle_click(
@@ -43,6 +44,8 @@ fn handle_click(
     scene: &mut Scene,
     renderer: &renderer::Renderer,
     keys_pressed: &std::collections::HashSet<String>,
+    oct_tree: &mut OctTree,
+    settings: &Settings,
 ) {
     let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
     let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
@@ -64,36 +67,77 @@ fn handle_click(
     for t in 0..100 {
         let t = t as f32 / 10.0;
         let pos = ray_origin + ray_direction * t;
+        // scene.add_line(
+        //     pos,
+        //     pos + 0.2 * ray_direction,
+        //     vec3(pos.x / 100.0, pos.y / 100.0, pos.z / 100.0),
+        // );
 
         // scene.objects.push(SceneObject::new(
         //     MeshData::new(
-        //         scene_geo::PYRAMID_VERTICES.to_vec(),
-        //         vec![],
-        //         scene_geo::PYRAMID_COLORS.to_vec(),
+        //         scene_geo::CUBE_VERTICES.to_vec(),
+        //         scene_geo::CUBE_INDICES.to_vec(),
+        //         scene_geo::CUBE_COLORS.to_vec(),
         //     ),
         //     pos,
         //     vec3(0.0, 0.0, 0.0),
-        //     vec3(0.05, 0.05, 0.05),
+        //     vec3(0.01, 0.01, 0.01),
         // ));
 
-        for mut splat in scene.splat_data.splats.iter_mut() {
-            if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.1 && splat.opacity > 0.1 {
+        // let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.1);
+        // log!("octree found splats: {:?}", octree_found_splats.len());
+
+        // for mut splat in scene.splat_data.splats.iter_mut() {
+        //     if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.1 && splat.opacity > 0.1 {
+        //         splat_pos = vec3(splat.x, splat.y, splat.z);
+        //         found = true;
+        //         break;
+        //     }
+        // }
+
+        log!("finding splats in radius {:?}", pos);
+        let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.05);
+        // if octree_found_splats.len() > 0 {
+        //     log!("#### octree found splats: {:?}", octree_found_splats.len());
+        // }
+        for splat in octree_found_splats {
+            // log!("octree found splat {:?}", splat.opacity);
+            if splat.opacity >= 0.8 {
                 splat_pos = vec3(splat.x, splat.y, splat.z);
+                log!("found splat {:?}!! ### EXiting", splat_pos);
                 found = true;
+                scene.redraw_from_oct_tree(oct_tree, settings.only_show_clicks);
                 break;
             }
         }
+        // if octree_found_splats.len() > 0 {
+        //     log!("octree found splats: {:?}", octree_found_splats.len());
+        //     found = true;
+        // }
+
         if found {
             break;
         }
     }
-    if found {
-        for mut splat in scene.splat_data.splats.iter_mut() {
-            if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
-                splat.opacity = 0.0;
-            }
-        }
-    }
+    // let octree_found_splats = oct_tree.find_splats_in_radius(vec3(-0.8, 0.0, 0.0), 0.1);
+    // log!("octree found splats: {:?}", octree_found_splats.len());
+
+    // scene.clear_lines();
+    // let lines = oct_tree.get_lines();
+    // for line in lines {
+    //     scene.add_line(line.start, line.end, line.color);
+    // }
+
+    // log!("octree found splats: {:?}", octree_found_splats.len());
+
+    // log!("splat pos is {:?}", splat_pos);
+    // if found {
+    //     for mut splat in scene.splat_data.splats.iter_mut() {
+    //         if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
+    //             splat.opacity = 0.0;
+    //         }
+    //     }
+    // }
 
     renderer
         .update_webgl_textures(&scene)
@@ -167,7 +211,8 @@ pub async fn start() -> Result<(), JsValue> {
         scene_geo::CUBE_COLORS.to_vec(),
     );
     let mut settings = Settings {
-        show_octtree: false,
+        show_octtree: true,
+        only_show_clicks: false,
     };
     // scene.objects.push(SceneObject::new(
     //     pyramid_mesh.clone(),
@@ -271,7 +316,7 @@ pub async fn start() -> Result<(), JsValue> {
     canvas.add_event_listener_with_callback("mousedown", click_cb.as_ref().unchecked_ref())?;
     click_cb.forget();
 
-    let oct_tree = OctTree::new(scene.splat_data.splats.clone());
+    let mut oct_tree = OctTree::new(scene.splat_data.splats.clone());
     // scene.add_line(
     //     vec3(0.0, 0.0, 0.0),
     //     vec3(10.0, 0.0, 0.0),
@@ -284,10 +329,7 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(0.0, 0.0, 0.0),
     //     vec3(1.0, 1.0, 1.0),
     // ));
-    let lines = oct_tree.get_lines();
-    for line in lines {
-        scene.add_line(line.start, line.end, line.color);
-    }
+    scene.redraw_from_oct_tree(&oct_tree, settings.only_show_clicks);
 
     // let cubes = oct_tree.get_cubes();
     // for cube in cubes {
@@ -327,6 +369,8 @@ pub async fn start() -> Result<(), JsValue> {
                 &mut scene,
                 &renderer,
                 &keys_pressed.borrow(),
+                &mut oct_tree,
+                &settings,
             );
 
             // Reset the click state
@@ -346,11 +390,21 @@ pub async fn start() -> Result<(), JsValue> {
         {
             settings.show_octtree = !settings.show_octtree;
             key_change_handled.borrow_mut().remove(&"o".to_string());
+            log!("show octtree: {:?}", settings.show_octtree);
+            scene.redraw_from_oct_tree(&oct_tree, settings.only_show_clicks);
+        }
+        if keys_pressed.borrow().contains(&"c".to_string())
+            && key_change_handled.borrow().contains(&"c".to_string())
+        {
+            settings.only_show_clicks = !settings.only_show_clicks;
+            key_change_handled.borrow_mut().remove(&"c".to_string());
+            log!("only show clicks: {:?}", settings.only_show_clicks);
+            scene.redraw_from_oct_tree(&oct_tree, settings.only_show_clicks);
         }
 
         cam_mut.update_translation_from_keys(&keys_pressed);
-        log!("camera pos: {:?}", cam_mut.pos);
-        log!("camera rot: {:?}", cam_mut.rot);
+        // log!("camera pos: {:?}", cam_mut.pos);
+        // log!("camera rot: {:?}", cam_mut.rot);
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
 
         let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);

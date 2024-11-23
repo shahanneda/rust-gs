@@ -1,3 +1,4 @@
+use crate::OctTree::OctTree;
 use bytes::buf;
 use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
 // use serde::{Deserialize, Serialize};
@@ -51,5 +52,17 @@ impl Scene {
         self.line_mesh.mesh_data.colors.push(color.x);
         self.line_mesh.mesh_data.colors.push(color.y);
         self.line_mesh.mesh_data.colors.push(color.z);
+    }
+    pub fn clear_lines(&mut self) {
+        self.line_mesh.mesh_data.vertices.clear();
+        self.line_mesh.mesh_data.colors.clear();
+    }
+
+    pub fn redraw_from_oct_tree(&mut self, oct_tree: &OctTree, only_clicks: bool) {
+        self.clear_lines();
+        let lines = oct_tree.get_lines(only_clicks);
+        for line in lines {
+            self.add_line(line.start, line.end, line.color);
+        }
     }
 }
