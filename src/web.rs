@@ -252,11 +252,11 @@ pub async fn start() -> Result<(), JsValue> {
     click_cb.forget();
 
     let oct_tree = OctTree::new(scene.splat_data.splats.clone());
-    scene.add_line(
-        vec3(0.0, 0.0, 0.0),
-        vec3(10.0, 0.0, 0.0),
-        vec3(1.0, 0.0, 0.0),
-    );
+    // scene.add_line(
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(10.0, 0.0, 0.0),
+    //     vec3(1.0, 0.0, 0.0),
+    // );
 
     // scene.objects.push(SceneObject::new(
     //     cube_mesh.clone(),
@@ -264,10 +264,10 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(0.0, 0.0, 0.0),
     //     vec3(1.0, 1.0, 1.0),
     // ));
-    // let lines = oct_tree.get_lines();
-    // for line in lines {
-    //     scene.add_line(line.start, line.end, line.color);
-    // }
+    let lines = oct_tree.get_lines();
+    for line in lines {
+        scene.add_line(line.start, line.end, line.color);
+    }
 
     // let cubes = oct_tree.get_cubes();
     // for cube in cubes {
