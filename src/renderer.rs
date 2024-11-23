@@ -14,6 +14,7 @@ extern crate wasm_bindgen;
 use crate::scene_geo;
 use crate::utils::float32_array_from_vec;
 use crate::utils::uint32_array_from_vec;
+use crate::web::Settings;
 use js_sys::Float32Array;
 use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
@@ -332,6 +333,7 @@ impl Renderer {
         vm: glm::Mat4,
         normal_projection_matrix: glm::Mat4,
         normal_view_matrix: glm::Mat4,
+        settings: &Settings,
     ) {
         let gl = &self.gl;
         let width = canvas.width() as i32;
@@ -341,7 +343,9 @@ impl Renderer {
         for object in &scene.objects {
             self.draw_geo(width, height, vpm, vm, object, false);
         }
-        self.draw_geo(width, height, vpm, vm, &scene.line_mesh, true);
+        if settings.show_octtree {
+            self.draw_geo(width, height, vpm, vm, &scene.line_mesh, true);
+        }
 
         // self.draw_lines(
         //     width,
@@ -439,11 +443,16 @@ impl Renderer {
         let gl = &self.gl;
         gl.use_program(Some(&self.geo_shader));
         gl.bind_vertex_array(Some(&self.geo_vao));
-        // gl.enable(WebGl2RenderingContext::DEPTH_TEST);
-        // gl.depth_func(WebGl2RenderingContext::LEQUAL);
-        // gl.disable(WebGl2RenderingContext::DEPTH_TEST);
-        // gl.depth_mask(true);
-        gl.enable(WebGl2RenderingContext::CULL_FACE);
+        if !is_line {
+            gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+            gl.depth_func(WebGl2RenderingContext::LEQUAL);
+            // gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+            gl.depth_mask(true);
+            gl.enable(WebGl2RenderingContext::CULL_FACE);
+        } else {
+            gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+            gl.depth_mask(false);
+        }
         // gl.depth_func(WebGl2RenderingContext::GEQUAL);
 
         gl.disable(WebGl2RenderingContext::BLEND);

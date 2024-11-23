@@ -1,7 +1,8 @@
+pub mod DataObjects;
+pub mod OctTree;
 pub mod gui;
 pub mod loader;
 pub mod ply_splat;
-pub mod DataObjects;
 #[allow(dead_code)]
 pub mod scene;
 pub mod scene_geo;

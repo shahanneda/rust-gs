@@ -8,8 +8,8 @@ use crate::scene_object::SceneObject;
 use crate::timer::Timer;
 use crate::utils::set_panic_hook;
 use crate::DataObjects::MeshData;
-use crate::DataObjects::OctTree;
 use crate::DataObjects::SplatData;
+use crate::OctTree::OctTree;
 use glm::vec2;
 use glm::vec3;
 use std::cell::RefCell;
@@ -29,6 +29,10 @@ struct ClickState {
     x: i32,
     y: i32,
     button: i16,
+}
+
+pub struct Settings {
+    pub show_octtree: bool,
 }
 
 fn handle_click(
@@ -138,8 +142,13 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
+
     let scene_name = "Shahan_03_id01-30000.cleaned";
+    log!("Loading web!");
+    // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
+    // let scene_name = "sci_01";
+    // let scene_name = "icon_01";
     // let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
@@ -157,6 +166,9 @@ pub async fn start() -> Result<(), JsValue> {
         scene_geo::CUBE_INDICES.to_vec(),
         scene_geo::CUBE_COLORS.to_vec(),
     );
+    let mut settings = Settings {
+        show_octtree: false,
+    };
     // scene.objects.push(SceneObject::new(
     //     pyramid_mesh.clone(),
     //     vec3(0.0, 0.0, 0.0),
@@ -211,25 +223,33 @@ pub async fn start() -> Result<(), JsValue> {
     // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
     // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
+        // camera pos: [[-6.679095, 0.14607938, -0.32618168]]
+        // final_project.js:564 camera rot: [[-0.13400005, -1.5560011]]
         // vec3(0.0, 0.0, 0.0),
-        vec3(-5.0, 0.0, -2.0),
+        vec3(-6.679095, 0.14607938, -0.32618168),
+        vec2(-0.13400005, -1.5560011),
         // vec3(-1.020468, 1.4699098, -2.7163901),
-        // vec2(0.11999998, 2.8230002),
-        vec2(0.0, 3.14 / 2.0),
+        // vec2(0.0, 3.14 / 2.0),
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
 
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
+    let key_change_handled = Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
+
     let keys_pressed_clone = keys_pressed.clone();
+    let key_change_handled_clone = key_change_handled.clone();
     let keydown_cb = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
         keys_pressed_clone.borrow_mut().insert(e.key());
+        key_change_handled_clone.borrow_mut().insert(e.key());
     }) as Box<dyn FnMut(_)>);
     document.add_event_listener_with_callback("keydown", keydown_cb.as_ref().unchecked_ref())?;
     keydown_cb.forget();
 
     let keys_pressed_clone = keys_pressed.clone();
+    let key_change_handled_clone = key_change_handled.clone();
     let keyup_cb = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
         keys_pressed_clone.borrow_mut().remove(&e.key());
+        key_change_handled_clone.borrow_mut().insert(e.key());
     }) as Box<dyn FnMut(_)>);
     document.add_event_listener_with_callback("keyup", keyup_cb.as_ref().unchecked_ref())?;
     keyup_cb.forget();
@@ -321,8 +341,16 @@ pub async fn start() -> Result<(), JsValue> {
         //     scene.objects[0].pos.y -= 0.01;
         // }
 
+        if keys_pressed.borrow().contains(&"o".to_string())
+            && key_change_handled.borrow().contains(&"o".to_string())
+        {
+            settings.show_octtree = !settings.show_octtree;
+            key_change_handled.borrow_mut().remove(&"o".to_string());
+        }
+
         cam_mut.update_translation_from_keys(&keys_pressed);
         log!("camera pos: {:?}", cam_mut.pos);
+        log!("camera rot: {:?}", cam_mut.rot);
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
 
         let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
@@ -337,6 +365,7 @@ pub async fn start() -> Result<(), JsValue> {
             vm,
             normal_projection_matrix,
             normal_view_matrix,
+            &settings,
         );
 
         i += 1;
