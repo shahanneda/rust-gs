@@ -63,14 +63,23 @@
 //     16, 17, 18, 16, 18, 19, // Right face
 //     20, 21, 22, 20, 22, 23, // Left face
 // ];
+// pub static CUBE_INDICES: [u32; 30] = [
+//     //Top
+//     2, 6, 7, 7, 3, 2, //Bottom
+//     0, 4, 5, 5, 1, 1, //Left
+//     0, 2, 6, 6, 4, 0, //Right
+//     1, 3, 7, 7, 5, 1, //Front
+//     0, 2, 3, 3, 1, 0, //Back
+//     4, 6, 7, 7, 5, 4, // actual back
+// ];
 pub static CUBE_INDICES: [u32; 36] = [
-    //Top
-    2, 6, 7, 2, 3, 7, //Bottom
-    0, 4, 5, 0, 1, 5, //Left
-    0, 2, 6, 0, 4, 6, //Right
-    1, 3, 7, 1, 5, 7, //Front
-    0, 2, 3, 0, 1, 3, //Back
-    4, 6, 7, 4, 5, 7,
+    // Top face (+Y)
+    2, 3, 7, 7, 6, 2, // Bottom face (-Y)
+    0, 4, 5, 5, 1, 0, // Left face (-X)
+    4, 0, 2, 2, 6, 4, // Right face (+X)
+    1, 5, 7, 7, 3, 1, // Front face (+Z)
+    0, 1, 3, 3, 2, 0, // Back face (-Z)
+    5, 4, 6, 6, 7, 5,
 ];
 
 // pub static CUBE_VERTICES: [f32; 72] = [

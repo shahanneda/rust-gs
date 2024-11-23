@@ -64,8 +64,8 @@ impl Camera {
                 let rotation_factor_x = 0.001;
                 let rotation_factor_y = 0.001;
 
-                cam.rot.y -= -delta.x * rotation_factor_x;
-                cam.rot.x -= -delta.y * rotation_factor_y;
+                cam.rot.y -= delta.x * rotation_factor_x;
+                cam.rot.x -= delta.y * rotation_factor_y;
 
                 // Clamp vertical rotation to avoid flipping
                 cam.rot.x = cam
@@ -106,10 +106,10 @@ impl Camera {
         let keys = keys_pressed.borrow();
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
         if keys.contains("w") {
-            cam_translation_local.z -= MOVE_SPEED;
+            cam_translation_local.z += MOVE_SPEED;
         }
         if keys.contains("s") {
-            cam_translation_local.z += MOVE_SPEED;
+            cam_translation_local.z -= MOVE_SPEED;
         }
         if keys.contains("a") {
             cam_translation_local.x += MOVE_SPEED;
@@ -178,11 +178,11 @@ impl Camera {
 
         let mut vm = self.get_world_to_camera_matrix();
         let mut vpm = proj * vm;
-        invert_row(&mut vm, 1);
-        invert_row(&mut vm, 2);
-        invert_row(&mut vm, 0);
-        invert_row(&mut vpm, 1);
-        invert_row(&mut vpm, 0);
+        // invert_row(&mut vm, 1);
+        // invert_row(&mut vm, 2);
+        // invert_row(&mut vm, 0);
+        // invert_row(&mut vpm, 1);
+        // invert_row(&mut vpm, 0);
         return (vm, vpm);
     }
     // TODO: clean this up

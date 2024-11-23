@@ -6,7 +6,7 @@ use crate::log;
 use crate::scene_object::SceneObject;
 use crate::splat::Splat;
 use crate::timer::Timer;
-use crate::DataObjects::SplatData;
+use crate::DataObjects::{MeshData, SplatData};
 use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
 use nalgebra_glm as glm;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
@@ -16,8 +16,7 @@ use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 pub struct Scene {
     pub splat_data: SplatData,
     pub objects: Vec<SceneObject>,
-    pub line_verts: Vec<f32>,
-    pub line_colors: Vec<f32>,
+    pub line_mesh: SceneObject,
 }
 
 impl Scene {
@@ -25,8 +24,32 @@ impl Scene {
         Self {
             splat_data,
             objects: Vec::new(),
-            line_verts: Vec::new(),
-            line_colors: Vec::new(),
+            line_mesh: SceneObject::new(
+                MeshData::new(vec![], vec![], vec![]),
+                vec3(0.0, 0.0, 0.0),
+                vec3(0.0, 0.0, 0.0),
+                vec3(1.0, 1.0, 1.0),
+            ),
+            // line_verts: Vec::new(),
+            // line_colors: Vec::new(),
         }
+    }
+
+    pub fn add_line(&mut self, start: Vec3, end: Vec3, color: Vec3) {
+        self.line_mesh.mesh_data.vertices.push(start.x);
+        self.line_mesh.mesh_data.vertices.push(start.y);
+        self.line_mesh.mesh_data.vertices.push(start.z);
+
+        self.line_mesh.mesh_data.vertices.push(end.x);
+        self.line_mesh.mesh_data.vertices.push(end.y);
+        self.line_mesh.mesh_data.vertices.push(end.z);
+
+        self.line_mesh.mesh_data.colors.push(color.x);
+        self.line_mesh.mesh_data.colors.push(color.y);
+        self.line_mesh.mesh_data.colors.push(color.z);
+
+        self.line_mesh.mesh_data.colors.push(color.x);
+        self.line_mesh.mesh_data.colors.push(color.y);
+        self.line_mesh.mesh_data.colors.push(color.z);
     }
 }

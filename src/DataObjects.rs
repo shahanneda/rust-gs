@@ -4,7 +4,7 @@ use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec
 // use serde::{Deserialize, Serialize};
 use crate::log;
 
-use crate::scene_object::SceneObject;
+use crate::scene_object::{Line, SceneObject};
 use crate::timer::Timer;
 use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
 use nalgebra_glm as glm;
@@ -143,7 +143,7 @@ impl SplatData {
 
         for splat in &self.splats {
             let depth =
-                ((splat.x * view_matrix_2 + splat.y * view_matrix_6 + splat.z * view_matrix_10)
+                -((splat.x * view_matrix_2 + splat.y * view_matrix_6 + splat.z * view_matrix_10)
                     * 1000.0) as i32;
 
             depth_list.push(depth);
@@ -197,7 +197,9 @@ pub struct OctTree {
     pub root: OctTreeNode,
 }
 // mapping from i to top right back, top right front, bottom right back, bottom right front, top left back, top left front, bottom left back, bottom left front
-const SPLIT_LIMIT: usize = 7000;
+// const SPLIT_LIMIT: usize = 10;
+const SPLIT_LIMIT: usize = 1000;
+const MAX_DEPTH: usize = 1;
 
 impl OctTreeNode {
     pub fn new(splats: Vec<Splat>, center: Vec3, half_width: f32) -> Self {
@@ -224,7 +226,7 @@ impl OctTreeNode {
 
         // log!("center is {:?}", center);
         // log!("half width is {}", half_width);
-        out.propogate_splats_to_children();
+        out.propogate_splats_to_children(0);
 
         return out;
     }
@@ -280,9 +282,90 @@ impl OctTreeNode {
         return out;
     }
 
-    fn propogate_splats_to_children(&mut self) {
+    fn get_lines_of_children(&self) -> Vec<Line> {
+        let mut out = vec![];
+        for (i, child) in self.children.iter().enumerate() {
+            let color = OctTreeNode::index_to_color(i);
+            if child.children.len() != 0 {
+                let lines = child.get_lines_of_children();
+                for line in lines {
+                    out.push(line);
+                }
+            } else {
+                out.push(Line {
+                    start: child.center + vec3(-1.0, 1.0, 1.0) * child.half_width,
+                    end: child.center + vec3(1.0, 1.0, 1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(-1.0, 1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(1.0, 1.0, -1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(1.0, 1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(1.0, 1.0, 1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(-1.0, 1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(-1.0, 1.0, 1.0) * child.half_width,
+                    color,
+                });
+
+                out.push(Line {
+                    start: child.center + vec3(-1.0, -1.0, 1.0) * child.half_width,
+                    end: child.center + vec3(1.0, -1.0, 1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(-1.0, -1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(1.0, -1.0, -1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(1.0, -1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(1.0, -1.0, 1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(-1.0, -1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(-1.0, -1.0, 1.0) * child.half_width,
+                    color,
+                });
+
+                out.push(Line {
+                    start: child.center + vec3(-1.0, -1.0, 1.0) * child.half_width,
+                    end: child.center + vec3(-1.0, 1.0, 1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(1.0, -1.0, 1.0) * child.half_width,
+                    end: child.center + vec3(1.0, 1.0, 1.0) * child.half_width,
+                    color,
+                });
+
+                out.push(Line {
+                    start: child.center + vec3(1.0, -1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(1.0, 1.0, -1.0) * child.half_width,
+                    color,
+                });
+                out.push(Line {
+                    start: child.center + vec3(-1.0, -1.0, -1.0) * child.half_width,
+                    end: child.center + vec3(-1.0, 1.0, -1.0) * child.half_width,
+                    color,
+                });
+            }
+        }
+        return out;
+    }
+
+    fn propogate_splats_to_children(&mut self, depth: usize) {
         let len = self.splats.len();
         if len < SPLIT_LIMIT {
+            return;
+        }
+        if depth >= MAX_DEPTH {
             return;
         }
 
@@ -338,7 +421,7 @@ impl OctTreeNode {
 
         for child in &mut self.children {
             log!("child has {} splats", child.splats.len());
-            child.propogate_splats_to_children();
+            child.propogate_splats_to_children(depth + 1);
         }
     }
 }
@@ -346,12 +429,16 @@ impl OctTreeNode {
 impl OctTree {
     pub fn new(splats: Vec<Splat>) -> Self {
         // let root = OctTreeNode::new(splats);
-        let root = OctTreeNode::new(splats, vec3(0.0, 0.0, 0.0), 1.0);
+        let root = OctTreeNode::new(splats, vec3(0.0, 0.0, 0.0), 10.0);
         return OctTree { root: root };
     }
 
     pub fn get_cubes(&self) -> Vec<SceneObject> {
         return self.root.get_cubes_of_children();
+    }
+
+    pub fn get_lines(&self) -> Vec<Line> {
+        return self.root.get_lines_of_children();
     }
 }
 

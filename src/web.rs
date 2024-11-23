@@ -171,23 +171,13 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(1.05, 1.05, 1.05),
     // ));
 
-    for i in 0..10 {
-        scene.line_verts.push(i as f32 - 10.0);
-        scene.line_verts.push(0.0);
-        scene.line_verts.push(1.0);
-
-        scene.line_verts.push(i as f32 - 10.0);
-        scene.line_verts.push(10.0);
-        scene.line_verts.push(1.0);
-
-        scene.line_colors.push(i as f32 / 100.0);
-        scene.line_colors.push(1.0 - i as f32 / 100.0);
-        scene.line_colors.push(0.0);
-
-        scene.line_colors.push(i as f32 / 100.0);
-        scene.line_colors.push(1.0 - i as f32 / 100.0);
-        scene.line_colors.push(0.0);
-    }
+    // for i in 0..100 {
+    //     scene.add_line(
+    //         vec3(i as f32 - 50.0, 0.0, 1.0),
+    //         vec3(i as f32 - 50.0, i as f32, 1.0),
+    //         vec3(i as f32 / 100.0, 10.0, 0.0),
+    //     );
+    // }
 
     // scene.objects.push(SceneObject::new(
     //     MeshData::new(
@@ -221,7 +211,8 @@ pub async fn start() -> Result<(), JsValue> {
     // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
     // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
-        vec3(0.0, 0.0, 0.0),
+        // vec3(0.0, 0.0, 0.0),
+        vec3(-5.0, 0.0, -2.0),
         // vec3(-1.020468, 1.4699098, -2.7163901),
         // vec2(0.11999998, 2.8230002),
         vec2(0.0, 3.14 / 2.0),
@@ -260,7 +251,24 @@ pub async fn start() -> Result<(), JsValue> {
     canvas.add_event_listener_with_callback("mousedown", click_cb.as_ref().unchecked_ref())?;
     click_cb.forget();
 
-    // let oct_tree = OctTree::new(scene.splat_data.splats.clone());
+    let oct_tree = OctTree::new(scene.splat_data.splats.clone());
+    scene.add_line(
+        vec3(0.0, 0.0, 0.0),
+        vec3(10.0, 0.0, 0.0),
+        vec3(1.0, 0.0, 0.0),
+    );
+
+    // scene.objects.push(SceneObject::new(
+    //     cube_mesh.clone(),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(1.0, 1.0, 1.0),
+    // ));
+    // let lines = oct_tree.get_lines();
+    // for line in lines {
+    //     scene.add_line(line.start, line.end, line.color);
+    // }
+
     // let cubes = oct_tree.get_cubes();
     // for cube in cubes {
     //     scene.objects.push(cube);
