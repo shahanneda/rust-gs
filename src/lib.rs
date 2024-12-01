@@ -10,6 +10,7 @@ pub mod scene_object;
 pub mod shared_utils;
 pub mod splat;
 pub mod timer;
+pub mod ToggleBinding;
 
 #[cfg(target_arch = "wasm32")]
 pub mod camera;

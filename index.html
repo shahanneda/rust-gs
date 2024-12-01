@@ -16,6 +16,7 @@
 	body {
 		width: 100%;
 		height: 100%;
+		background-color: white;
 	}
 
 	/* just to be sure these are full screen*/
@@ -24,6 +25,58 @@
 		display: block;
 		height: 100vh;
 		width: 100vw;
+	}
+
+	#gui {
+		position: absolute;
+		top: 0;
+		left: 0;
+		background-color: rgba(0, 0, 0, 0.5);
+		/* border: 1px solid black; */
+		/* border-radius: 1px; */
+		/* padding: 100px; */
+		display: flex;
+		text-align: center;
+		flex-direction: column;
+		justify-content: start;
+		align-items: center;
+		font-family: sans-serif;
+		color: white;
+		min-width: 250px;
+		min-height: 500px;
+	}
+
+	/* button {
+		background-color: white;
+		color: black;
+		border: 1px solid black;
+		border-radius: 5px;
+		padding: 5px;
+		font-size: 16px;
+	} */
+
+	button:hover {
+		background-color: lightgray;
+		color: white;
+	}
+
+	button:active {
+		background-color: black;
+		color: white;
+	}
+
+	.checkbox-container {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.checkbox-label {
+		margin-right: 10px;
+	}
+
+	.checkbox {
+		margin-right: 10px;
 	}
 
 	/* To remove the scrollbars */
@@ -40,6 +93,22 @@
 		}
 	</script>
 	<canvas id="canvas"></canvas>
+	<div id="gui">
+		<h1>GSplat Viewer</h1>
+		<!-- <button onclick="">Testing</button> -->
+		<div class="checkbox-container">
+			<label for="checkbox" class="checkbox-label">Show Octtree</label>
+			<input type="checkbox" class="checkbox" id="show-octtree-checkbox">
+		</div>
+		<div class="checkbox-container">
+			<label for="checkbox" class="checkbox-label">Only Show Octree at Click </label>
+			<input type="checkbox" class="checkbox" id="only-show-clicks-checkbox">
+		</div>
+		<div class="checkbox-container">
+			<label for="checkbox" class="checkbox-label">Use OctTree for Editing </label>
+			<input type="checkbox" class="checkbox" id="use-octtree-for-editing-checkbox">
+		</div>
+	</div>
 	<script>
 		function getWebGLContext() {
 			ctx = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"));
@@ -90,6 +159,7 @@
 
 		run();
 	</script>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 </body>
 
 </html>
