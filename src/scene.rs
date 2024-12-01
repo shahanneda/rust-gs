@@ -1,4 +1,7 @@
+use std::collections::HashSet;
+
 use crate::data_objects::MeshData;
+use crate::oct_tree::{OctTreeNode, OctTreeSplat};
 use crate::scene_object::SceneObject;
 use crate::{data_objects::SplatData, oct_tree::OctTree};
 use nalgebra_glm as glm;
@@ -120,22 +123,52 @@ impl Scene {
         false
     }
 
-    pub fn calculate_shadows(&mut self) {
-        let shadow_points: Vec<_> = self
-            .splat_data
-            .splats
-            .iter()
-            .map(|splat| self.is_point_in_shadow(vec3(splat.x, splat.y, splat.z), self.light_pos))
-            .collect();
+    pub fn find_shadow_splats(&mut self, node: &OctTreeNode, out_set: &mut HashSet<usize>) {
+        let pos = node.center;
+        let min_splats = 10;
 
-        for (splat, is_shadowed) in self.splat_data.splats.iter_mut().zip(shadow_points) {
-            if is_shadowed {
-                // splat.opacity = 0.0;
-                splat.r -= 0.4;
-                splat.g -= 0.4;
-                splat.b -= 0.4;
+        // if this node is not fine grain enough, try to go deeper first
+        if node.splats.len() > min_splats && node.children.len() > 0 {
+            for child in &node.children {
+                self.find_shadow_splats(&child, out_set);
             }
+            return;
         }
+
+        // if this node is fine grain enough, just check if the center is in shadow
+        if self.is_point_in_shadow(pos, self.light_pos) {
+            for splat in &node.splats {
+                // if self.is_point_in_shadow(vec3(splat.x, splat.y, splat.z), self.light_pos) {
+                out_set.insert(splat.index);
+                // }
+            }
+            // TODO: now actually check each individual splat
+        }
+    }
+    pub fn calculate_shadows(&mut self, oct_tree: &OctTree) {
+        let mut shadow_splats = HashSet::new();
+        self.find_shadow_splats(&oct_tree.root, &mut shadow_splats);
+        for index in shadow_splats {
+            self.splat_data.splats[index].r -= 0.4;
+            self.splat_data.splats[index].g -= 0.4;
+            self.splat_data.splats[index].b -= 0.4;
+        }
+
+        // let shadow_points: Vec<_> = self
+        //     .splat_data
+        //     .splats
+        //     .iter()
+        //     .map(|splat| self.is_point_in_shadow(vec3(splat.x, splat.y, splat.z), self.light_pos))
+        //     .collect();
+
+        // for (splat, is_shadowed) in self.splat_data.splats.iter_mut().zip(shadow_points) {
+        //     if is_shadowed {
+        //         // splat.opacity = 0.0;
+        //         splat.r -= 0.4;
+        //         splat.g -= 0.4;
+        //         splat.b -= 0.4;
+        //     }
+        // }
     }
 }
 // bool sphere_intersection(glm::vec3 ray_origin, glm::vec3 ray_direction,

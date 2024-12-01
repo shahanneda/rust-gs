@@ -351,7 +351,7 @@ pub async fn start() -> Result<(), JsValue> {
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
 
-    setup_button_callbacks(scene.clone(), &renderer)?;
+    setup_button_callbacks(scene.clone(), &renderer, &oct_tree)?;
 
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
     let key_change_handled = Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
@@ -617,6 +617,7 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
 fn setup_button_callbacks(
     scene: Rc<RefCell<Scene>>,
     renderer: &Rc<RefCell<Renderer>>,
+    oct_tree: &Rc<RefCell<OctTree>>,
 ) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -645,10 +646,12 @@ fn setup_button_callbacks(
 
     let scene_clone = scene.clone();
     let renderer_clone = renderer.clone();
+    let oct_tree_clone = oct_tree.clone();
     let shadows_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
         let renderer = renderer_clone.borrow();
         let mut scene = scene_clone.borrow_mut();
-        scene.calculate_shadows();
+        let oct_tree = oct_tree_clone.borrow();
+        scene.calculate_shadows(&oct_tree);
         renderer
             .update_webgl_textures(&scene)
             .expect("failed to update webgl textures when editing");
