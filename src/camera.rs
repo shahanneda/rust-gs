@@ -57,6 +57,9 @@ impl Camera {
         let mousemove_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
             let mut cam = cam_mousemove.as_ref().borrow_mut();
             if cam.is_dragging {
+                if e.alt_key() {
+                    return;
+                }
                 let current_pos = Vec2::new(e.client_x() as f32, e.client_y() as f32);
                 let delta = current_pos - cam.last_mouse_pos;
 
@@ -99,28 +102,30 @@ impl Camera {
     //         }
     //     }
 
-    pub fn update_translation_from_keys(
-        self: &mut Camera,
-        keys_pressed: &RefCell<HashSet<String>>,
-    ) {
-        let keys = keys_pressed.borrow();
+    pub fn update_translation_from_keys(self: &mut Camera, keys_pressed: &HashSet<String>) {
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
-        if keys.contains("w") {
+        log!("keys pressed: {:?}", keys_pressed);
+        if keys_pressed.contains("Alt") {
+            log!("returning early because alt is pressed");
+            return;
+        }
+
+        if keys_pressed.contains("w") {
             cam_translation_local.z += MOVE_SPEED;
         }
-        if keys.contains("s") {
+        if keys_pressed.contains("s") {
             cam_translation_local.z -= MOVE_SPEED;
         }
-        if keys.contains("a") {
+        if keys_pressed.contains("a") {
             cam_translation_local.x += MOVE_SPEED;
         }
-        if keys.contains("d") {
+        if keys_pressed.contains("d") {
             cam_translation_local.x -= MOVE_SPEED;
         }
-        if keys.contains(" ") {
+        if keys_pressed.contains(" ") {
             cam_translation_local.y -= MOVE_SPEED;
         }
-        if keys.contains("Shift") {
+        if keys_pressed.contains("Shift") {
             cam_translation_local.y += MOVE_SPEED;
         }
 
@@ -140,16 +145,16 @@ impl Camera {
             );
         }
 
-        if keys.contains("ArrowUp") {
+        if keys_pressed.contains("ArrowUp") {
             self.rot.x -= 0.1;
         }
-        if keys.contains("ArrowDown") {
+        if keys_pressed.contains("ArrowDown") {
             self.rot.x += 0.1;
         }
-        if keys.contains("ArrowLeft") {
+        if keys_pressed.contains("ArrowLeft") {
             self.rot.y -= 0.1;
         }
-        if keys.contains("ArrowRight") {
+        if keys_pressed.contains("ArrowRight") {
             self.rot.y += 0.1;
         }
     }
