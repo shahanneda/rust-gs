@@ -79,7 +79,7 @@ pub mod loader {
         // }
 
         let mut splats: Vec<PlySplat> = vec![];
-        for i in (0..header.num_splats) {
+        for _i in 0..header.num_splats {
             // map of prop name to value
 
             let mut vals: HashMap<String, f32> = HashMap::new();

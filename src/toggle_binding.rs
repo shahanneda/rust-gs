@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 
-use crate::{scene::Scene, web::Settings, OctTree::OctTree};
+use crate::{scene::Scene, web::Settings, oct_tree::OctTree};
 
 pub struct ToggleBinding {
     element_id: &'static str,

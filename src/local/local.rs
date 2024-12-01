@@ -4,7 +4,7 @@ use std::{fs::File, io::Read};
 use final_project::loader::loader;
 use final_project::log;
 use final_project::scene::Scene;
-use final_project::DataObjects::SplatData;
+use final_project::data_objects::SplatData;
 use tokio;
 // use serde_json;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};

@@ -16,3 +16,6 @@
 Credits:
 For the shaders, took some inspiration from this WebGL viewer:
 https://github.com/kishimisu/Gaussian-Splatting-WebGL
+
+Teapot
+https://github.com/kevinroast/phoria.js/blob/master/teapot.obj

@@ -1,15 +1,7 @@
-use crate::DataObjects::MeshData;
-use bytes::buf;
+use crate::data_objects::MeshData;
+use crate::scene_geo;
+use nalgebra_glm::vec3;
 use nalgebra_glm::Vec3;
-use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec4};
-// use serde::{Deserialize, Serialize};
-use crate::{log, scene_geo};
-
-use crate::splat::Splat;
-use crate::timer::Timer;
-use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
-use nalgebra_glm as glm;
-use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct SceneObject {
@@ -50,6 +42,7 @@ impl SceneObject {
             colors,
             indices: scene_geo::CUBE_INDICES.to_vec(),
             vertices: scene_geo::CUBE_VERTICES.to_vec(),
+            normals: scene_geo::CUBE_NORMALS.to_vec(),
         };
 
         Self::new(

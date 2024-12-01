@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::log;
 use crate::timer::Timer;
-use crate::utils::invert_row;
 use glm::vec2;
 use glm::vec3;
 use glm::Mat4;

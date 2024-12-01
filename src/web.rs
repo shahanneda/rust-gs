@@ -1,16 +1,17 @@
 use crate::camera::Camera;
 use crate::log;
+use crate::obj_reader;
 use crate::renderer;
 use crate::scene::Scene;
 use crate::scene_geo;
 use crate::scene_object::SceneObject;
 // Use crate:: to import from your lib.rs
+use crate::data_objects::MeshData;
+use crate::data_objects::SplatData;
+use crate::oct_tree::OctTree;
 use crate::timer::Timer;
+use crate::toggle_binding::ToggleBinding;
 use crate::utils::set_panic_hook;
-use crate::DataObjects::MeshData;
-use crate::DataObjects::SplatData;
-use crate::OctTree::OctTree;
-use crate::ToggleBinding::ToggleBinding;
 use glm::vec2;
 use glm::vec3;
 use std::cell::RefCell;
@@ -20,7 +21,6 @@ extern crate js_sys;
 extern crate nalgebra_glm as glm;
 extern crate ply_rs;
 extern crate wasm_bindgen;
-use eframe::egui;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::WebGl2RenderingContext;
@@ -203,11 +203,11 @@ pub async fn start() -> Result<(), JsValue> {
     // }
     // log!("Starting Web!");
 
-    let scene_name = "Shahan_03_id01-30000";
+    // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "socratica_01_edited";
     log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
@@ -231,6 +231,7 @@ pub async fn start() -> Result<(), JsValue> {
         scene_geo::CUBE_VERTICES.to_vec(),
         scene_geo::CUBE_INDICES.to_vec(),
         scene_geo::CUBE_COLORS.to_vec(),
+        vec![],
     );
 
     let mut settings = Settings {
@@ -451,12 +452,16 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(1.0, 0.0, 0.0),
     // );
 
-    // scene.objects.push(SceneObject::new(
-    //     cube_mesh.clone(),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(1.0, 1.0, 1.0),
-    // ));
+    let obj_name = "teapot.obj";
+    let teapot = obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+
+    scene.borrow_mut().objects.push(SceneObject::new(
+        // cube_mesh.clone(),
+        teapot,
+        vec3(1.0, 0.0, 0.0),
+        vec3(3.14, 0.0, 0.0),
+        vec3(0.05, 0.05, 0.05),
+    ));
     scene.borrow_mut().redraw_from_oct_tree(
         &oct_tree.borrow(),
         settings_ref.clone().borrow().only_show_clicks,

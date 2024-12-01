@@ -4,7 +4,9 @@
 
 in vec3 v_pos;
 in vec3 v_col;
+in vec3 v_norm;
 out vec3 v_color;
+out vec3 v_normal;
 out float depth;
 
 uniform mat4 model;
@@ -20,6 +22,7 @@ void main() {
   vec4 pos = projection * model * vec4(v_pos, 1.0) +
              W * H * 0.0 * camera * model * vec4(0., 0., 0., 0.);
   v_color = v_col;
+  v_normal = v_norm;
   depth = pos.z;
   gl_Position = vec4(pos.x, pos.y, pos.z, pos.w);
   // //   mat4 scaling_mat = mat4(100.0, 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0,

@@ -1,14 +1,12 @@
 use crate::splat::Splat;
-use bytes::buf;
-use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
 // use serde::{Deserialize, Serialize};
 use crate::log;
 
-use crate::scene_object::{Line, SceneObject};
+use crate::ply_splat::PlySplat;
 use crate::timer::Timer;
-use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
 use nalgebra_glm as glm;
-use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
+use rkyv::rancor::Error;
+use rkyv::{Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};
 
 #[derive(Debug, Clone)]
@@ -16,14 +14,16 @@ pub struct MeshData {
     pub vertices: Vec<f32>,
     pub indices: Vec<u32>,
     pub colors: Vec<f32>,
+    pub normals: Vec<f32>,
 }
 
 impl MeshData {
-    pub fn new(vertices: Vec<f32>, indices: Vec<u32>, colors: Vec<f32>) -> Self {
+    pub fn new(vertices: Vec<f32>, indices: Vec<u32>, colors: Vec<f32>, normals: Vec<f32>) -> Self {
         Self {
             vertices,
             indices,
             colors,
+            normals,
         }
     }
 }
@@ -185,7 +185,6 @@ impl SplatData {
         return output_indices;
     }
 }
-
 
 pub fn u32_to_4_bytes(x: u32) -> [u8; 4] {
     let bytes = x.to_be_bytes();

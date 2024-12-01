@@ -1,12 +1,8 @@
-use bytes::buf;
-use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
-// use serde::{Deserialize, Serialize};
-use crate::log;
+use nalgebra_glm::{exp, mat3, mat3_to_quat, quat_to_mat3, vec3, vec4, Quat, Vec3, Vec4};
+use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::timer::Timer;
 use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
 use nalgebra_glm as glm;
-use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 
 // #[derive(Clone, Serialize, Deserialize, Debug)]
 #[derive(Clone, Archive, Deserialize, Serialize, Debug, PartialEq)]
@@ -79,7 +75,7 @@ impl Splat {
 
     fn compute_cov3_d(scale: Vec3, md: f32, rot: Vec4) -> [f32; 6] {
         // mat3.set(S, mod * scale[0], 0, 0, 0, mod * scale[1], 0, 0, 0, mod * scale[2]);
-        let scaling_mat = glm::mat3(
+        let scaling_mat = mat3(
             md * scale[0],
             0.0,
             0.0,
@@ -95,7 +91,7 @@ impl Splat {
         let y = rot[2];
         let z = rot[3];
 
-        let quat = glm::Quat::new(w, x, y, z);
+        let quat = Quat::new(w, x, y, z);
         let rot_mat = quat_to_mat3(&quat);
 
         let matrix = scaling_mat * rot_mat.transpose();

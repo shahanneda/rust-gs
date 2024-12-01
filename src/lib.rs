@@ -1,7 +1,8 @@
-pub mod DataObjects;
-pub mod OctTree;
+pub mod data_objects;
 pub mod gui;
 pub mod loader;
+pub mod obj_reader;
+pub mod oct_tree;
 pub mod ply_splat;
 #[allow(dead_code)]
 pub mod scene;
@@ -10,7 +11,7 @@ pub mod scene_object;
 pub mod shared_utils;
 pub mod splat;
 pub mod timer;
-pub mod ToggleBinding;
+pub mod toggle_binding;
 
 #[cfg(target_arch = "wasm32")]
 pub mod camera;

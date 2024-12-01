@@ -1,7 +1,6 @@
 use js_sys::Uint32Array;
 
 use crate::log;
-use crate::scene;
 use crate::scene::Scene;
 use crate::scene_object::SceneObject;
 use crate::shader;
@@ -33,6 +32,7 @@ pub struct Renderer {
     geo_vertex_buffer: WebGlBuffer,
     geo_color_buffer: WebGlBuffer,
     geo_index_buffer: WebGlBuffer,
+    geo_normal_buffer: WebGlBuffer,
     splat_index_buffer: WebGlBuffer,
     geo_count: i32,
     geo_vao: WebGlVertexArrayObject,
@@ -85,6 +85,13 @@ impl Renderer {
             &geo_index_buffer,
             uint32_array_from_vec(&scene_geo::CUBE_INDICES),
             WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
+        );
+
+        let geo_normal_buffer = create_buffer(&gl).unwrap();
+        update_buffer_data(
+            &gl,
+            &geo_normal_buffer,
+            float32_array_from_vec(&scene_geo::CUBE_NORMALS),
         );
 
         // END GEO VAO
@@ -170,6 +177,7 @@ impl Renderer {
             geo_vertex_buffer,
             geo_color_buffer,
             geo_index_buffer,
+            geo_normal_buffer,
             splat_index_buffer,
             geo_count: vertices.len() as i32 / 3,
             geo_vao,
@@ -296,6 +304,15 @@ impl Renderer {
             &result.geo_color_buffer,
             &result.geo_shader,
             "v_col",
+            false,
+            3,
+            WebGl2RenderingContext::FLOAT,
+        );
+        create_attribute_and_get_location(
+            &result.gl,
+            &result.geo_normal_buffer,
+            &result.geo_shader,
+            "v_norm",
             false,
             3,
             WebGl2RenderingContext::FLOAT,
@@ -490,6 +507,12 @@ impl Renderer {
             uint32_array_from_vec(&object.mesh_data.indices),
             WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
         );
+        update_buffer_data(
+            &gl,
+            &self.geo_normal_buffer,
+            float32_array_from_vec(&object.mesh_data.normals),
+        );
+
         // log!("indicies are {:?}", object.mesh_data.indices);
         // log!("colors length: {:?}", scene_geo::COLORS.len());
         // gl.blend_func(

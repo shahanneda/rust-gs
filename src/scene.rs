@@ -1,17 +1,7 @@
-use crate::OctTree::OctTree;
-use bytes::buf;
-use nalgebra_glm::{exp, mat3_to_quat, pi, quat_to_mat3, radians, vec3, vec4, Vec3, Vec4};
-// use serde::{Deserialize, Serialize};
-use crate::log;
-
+use crate::data_objects::MeshData;
 use crate::scene_object::SceneObject;
-use crate::splat::Splat;
-use crate::timer::Timer;
-use crate::DataObjects::{MeshData, SplatData};
-use crate::{ply_splat::PlySplat, shared_utils::sigmoid};
-use nalgebra_glm as glm;
-use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
-// use speedy::{Readable, Writable, Endianness};
+use crate::{data_objects::SplatData, oct_tree::OctTree};
+use nalgebra_glm::{vec3, Vec3};
 
 // #[derive(Serialize, Deserialize, Debug)]
 pub struct Scene {
@@ -26,7 +16,7 @@ impl Scene {
             splat_data,
             objects: Vec::new(),
             line_mesh: SceneObject::new(
-                MeshData::new(vec![], vec![], vec![]),
+                MeshData::new(vec![], vec![], vec![], vec![]),
                 vec3(0.0, 0.0, 0.0),
                 vec3(0.0, 0.0, 0.0),
                 vec3(1.0, 1.0, 1.0),
@@ -52,6 +42,14 @@ impl Scene {
         self.line_mesh.mesh_data.colors.push(color.x);
         self.line_mesh.mesh_data.colors.push(color.y);
         self.line_mesh.mesh_data.colors.push(color.z);
+
+        self.line_mesh.mesh_data.normals.push(0.0);
+        self.line_mesh.mesh_data.normals.push(0.0);
+        self.line_mesh.mesh_data.normals.push(1.0);
+
+        self.line_mesh.mesh_data.normals.push(0.0);
+        self.line_mesh.mesh_data.normals.push(0.0);
+        self.line_mesh.mesh_data.normals.push(1.0);
     }
     pub fn clear_lines(&mut self) {
         self.line_mesh.mesh_data.vertices.clear();
