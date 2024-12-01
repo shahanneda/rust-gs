@@ -550,12 +550,7 @@ impl Renderer {
             .unwrap();
         gl.uniform3fv_with_f32_array(Some(&light_pos_uniform_location), light_pos.as_slice());
 
-        let mut model = glm::identity::<f32, 4>();
-        model = glm::translate(&model, &object.pos);
-        model = glm::rotate(&model, object.rot.x, &glm::vec3(1.0, 0.0, 0.0));
-        model = glm::rotate(&model, object.rot.y, &glm::vec3(0.0, 1.0, 0.0));
-        model = glm::rotate(&model, object.rot.z, &glm::vec3(0.0, 0.0, 1.0));
-        model = glm::scale(&model, &object.scale);
+        let model = object.get_transform();
 
         let model_uniform_location = gl.get_uniform_location(&self.geo_shader, "model").unwrap();
         if !is_line {

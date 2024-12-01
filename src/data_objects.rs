@@ -4,7 +4,7 @@ use crate::log;
 
 use crate::ply_splat::PlySplat;
 use crate::timer::Timer;
-use nalgebra_glm as glm;
+use nalgebra_glm::{self as glm, Vec3};
 use rkyv::rancor::Error;
 use rkyv::{Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};

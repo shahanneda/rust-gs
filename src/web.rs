@@ -240,7 +240,7 @@ pub async fn start() -> Result<(), JsValue> {
         cube_mesh.clone(),
         vec3(-0.5, -1.0, 0.0),
         vec3(0.0, 0.0, 0.0),
-        vec3(0.5, 0.5, 0.5),
+        vec3(1.0, 0.1, 0.1),
     ));
 
     // let obj_name = "teapot.obj";

@@ -94,15 +94,20 @@ impl Scene {
                 t: 0.0,
             };
 
-            if sphere_intersection(
-                ray_origin,
-                ray_direction,
-                object.pos,
-                1.0,
-                &mut intersection,
-            ) {
+            if object.intersection(ray_origin, ray_direction).is_some() {
                 return true;
             }
+
+            // if sphere_intersection(
+            //     ray_origin,
+            //     ray_direction,
+            //     object.pos,
+            //     1.0,
+            //     &mut intersection,
+            // ) {
+
+            //     // return true;
+            // }
         }
 
         // for t in 0..number_of_iterations {
@@ -156,11 +161,9 @@ impl Scene {
 // 		} else {
 // 			return false;
 // 		}
-
 // 		intersection.intersection_point = ray_origin + root * ray_direction;
 // 		intersection.normal = glm::normalize(intersection.intersection_point - sphere_pos);
 // 		intersection.t = root;
-
 // 		if (intersection.t > 1000*EPSILON) {
 // 			return true;
 // 		}
