@@ -370,10 +370,18 @@ impl Renderer {
             settings.do_blending,
         );
         for object in &scene.objects {
-            self.draw_geo(width, height, vpm, vm, object, false);
+            self.draw_geo(width, height, vpm, vm, object, false, scene.light_pos);
         }
         if settings.show_octtree {
-            self.draw_geo(width, height, vpm, vm, &scene.line_mesh, true);
+            self.draw_geo(
+                width,
+                height,
+                vpm,
+                vm,
+                &scene.line_mesh,
+                true,
+                scene.light_pos,
+            );
         }
 
         // self.draw_lines(
@@ -472,6 +480,7 @@ impl Renderer {
         vm: glm::Mat4,
         object: &SceneObject,
         is_line: bool,
+        light_pos: glm::Vec3,
     ) {
         let gl = &self.gl;
         gl.use_program(Some(&self.geo_shader));
@@ -535,6 +544,11 @@ impl Renderer {
 
         let camera_uniform_location = gl.get_uniform_location(&self.geo_shader, "camera").unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
+
+        let light_pos_uniform_location = gl
+            .get_uniform_location(&self.geo_shader, "light_pos")
+            .unwrap();
+        gl.uniform3fv_with_f32_array(Some(&light_pos_uniform_location), light_pos.as_slice());
 
         let mut model = glm::identity::<f32, 4>();
         model = glm::translate(&model, &object.pos);

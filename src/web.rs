@@ -109,7 +109,7 @@ fn handle_click(
             }
         } else {
             for splat in scene.splat_data.splats.iter_mut() {
-                if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.05
+                if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.01
                     && splat.opacity >= 0.8
                 {
                     splat_pos = vec3(splat.x, splat.y, splat.z);
@@ -128,7 +128,10 @@ fn handle_click(
         let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
         for splat in splats_near {
             log!("splat near {:?}", splat.opacity);
-            scene.splat_data.splats[splat.index].opacity = 0.0;
+            // scene.splat_data.splats[splat.index].opacity = 0.0;
+            scene.splat_data.splats[splat.index].r -= 0.1;
+            scene.splat_data.splats[splat.index].g -= 0.1;
+            scene.splat_data.splats[splat.index].b -= 0.1;
         }
     } else {
         for splat in scene.splat_data.splats.iter_mut() {
@@ -207,7 +210,7 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
     let scene_name = "socratica_01_edited";
     // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
@@ -231,8 +234,26 @@ pub async fn start() -> Result<(), JsValue> {
         scene_geo::CUBE_VERTICES.to_vec(),
         scene_geo::CUBE_INDICES.to_vec(),
         scene_geo::CUBE_COLORS.to_vec(),
-        vec![],
+        scene_geo::CUBE_NORMALS.to_vec(),
     );
+    scene.borrow_mut().objects.push(SceneObject::new(
+        cube_mesh.clone(),
+        vec3(-0.5, -1.0, 0.0),
+        vec3(0.0, 0.0, 0.0),
+        vec3(0.5, 0.5, 0.5),
+    ));
+
+    // let obj_name = "teapot.obj";
+    // let teapot = obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+    // scene.borrow_mut().objects.push(SceneObject::new(
+    //     // cube_mesh.clone(),
+    //     teapot,
+    //     vec3(0.2, -0.2, 0.0),
+    //     vec3(3.14, 0.0, 0.0),
+    //     vec3(0.01, 0.01, 0.01),
+    // ));
+
+    scene.borrow_mut().calculate_shadows();
 
     let mut settings = Settings {
         show_octtree: false,
@@ -245,12 +266,14 @@ pub async fn start() -> Result<(), JsValue> {
     let settings_ref = Rc::new(RefCell::new(settings));
     let settings_clone = settings_ref.clone();
 
-    let document = web_sys::window().unwrap().document().unwrap();
-    let checkbox = document
-        .get_element_by_id("show-octtree-checkbox")
-        .unwrap()
-        .dyn_into::<web_sys::HtmlInputElement>()
-        .unwrap();
+    let mut oct_tree = Rc::new(RefCell::new(OctTree::new(
+        scene.borrow().splat_data.splats.clone(),
+    )));
+
+    scene.borrow_mut().redraw_from_oct_tree(
+        &oct_tree.borrow(),
+        settings_ref.clone().borrow().only_show_clicks,
+    );
 
     // let checkbox_clone = checkbox.clone();
     // let checkbox_callback = Closure::wrap(Box::new(move |_event: web_sys::Event| {
@@ -387,10 +410,6 @@ pub async fn start() -> Result<(), JsValue> {
     canvas.add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;
     mouseup_cb.forget();
 
-    let mut oct_tree = Rc::new(RefCell::new(OctTree::new(
-        scene.borrow().splat_data.splats.clone(),
-    )));
-
     let bindings: Vec<ToggleBinding> = vec![
         ToggleBinding::new(
             "show-octtree-checkbox",
@@ -451,21 +470,6 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(10.0, 0.0, 0.0),
     //     vec3(1.0, 0.0, 0.0),
     // );
-
-    let obj_name = "teapot.obj";
-    let teapot = obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
-
-    scene.borrow_mut().objects.push(SceneObject::new(
-        // cube_mesh.clone(),
-        teapot,
-        vec3(0.2, -0.2, 0.0),
-        vec3(3.14, 0.0, 0.0),
-        vec3(0.01, 0.01, 0.01),
-    ));
-    scene.borrow_mut().redraw_from_oct_tree(
-        &oct_tree.borrow(),
-        settings_ref.clone().borrow().only_show_clicks,
-    );
 
     // let cubes = oct_tree.get_cubes();
     // for cube in cubes {

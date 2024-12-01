@@ -5,8 +5,11 @@ precision mediump float;
 
 out vec4 fragColor;
 in float depth;
+in vec3 v_pos_out;
 in vec3 v_color;
 in vec3 v_normal;
+
+uniform vec3 light_pos;
 
 void main() {
   //     vec2 position = gl_FragCoord.xy;
@@ -23,7 +26,7 @@ void main() {
   float currentDepth = gl_FragCoord.z;
 
   vec3 normal = normalize(v_normal);
-  vec3 lightDir = vec3(0.0, 0.0, 1.0);
+  vec3 lightDir = normalize(light_pos - v_pos_out);
   float diff = max(dot(normal, lightDir), 0.4);
   fragColor = vec4(diff * v_color, 1.0);
   // fragColor = vec4(v_color.x, v_color.y, v_color.z, 1.0);
