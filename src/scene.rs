@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::data_objects::MeshData;
 use crate::oct_tree::{OctTreeNode, OctTreeSplat};
@@ -13,6 +13,7 @@ pub struct Scene {
     pub objects: Vec<SceneObject>,
     pub line_mesh: SceneObject,
     pub light_pos: Vec3,
+    pub original_shadow_splat_colors: HashMap<usize, Vec3>,
 }
 
 impl Scene {
@@ -29,6 +30,7 @@ impl Scene {
             // line_verts: Vec::new(),
             // line_colors: Vec::new(),
             light_pos: vec3(1.0, -3.0, 0.0),
+            original_shadow_splat_colors: HashMap::new(),
         }
     }
 
@@ -146,12 +148,33 @@ impl Scene {
         }
     }
     pub fn calculate_shadows(&mut self, oct_tree: &OctTree) {
+        for (index, color) in self.original_shadow_splat_colors.iter() {
+            self.splat_data.splats[*index].r = color.x;
+            self.splat_data.splats[*index].g = color.y;
+            self.splat_data.splats[*index].b = color.z;
+        }
+        self.original_shadow_splat_colors.clear();
+
         let mut shadow_splats = HashSet::new();
         self.find_shadow_splats(&oct_tree.root, &mut shadow_splats);
+
         for index in shadow_splats {
+            self.original_shadow_splat_colors.insert(
+                index,
+                vec3(
+                    self.splat_data.splats[index].r,
+                    self.splat_data.splats[index].g,
+                    self.splat_data.splats[index].b,
+                ),
+            );
+
             self.splat_data.splats[index].r -= 0.4;
             self.splat_data.splats[index].g -= 0.4;
             self.splat_data.splats[index].b -= 0.4;
+
+            self.splat_data.splats[index].r = self.splat_data.splats[index].r.max(0.0);
+            self.splat_data.splats[index].g = self.splat_data.splats[index].g.max(0.0);
+            self.splat_data.splats[index].b = self.splat_data.splats[index].b.max(0.0);
         }
 
         // let shadow_points: Vec<_> = self

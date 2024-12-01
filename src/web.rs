@@ -238,22 +238,22 @@ pub async fn start() -> Result<(), JsValue> {
         scene_geo::CUBE_COLORS.to_vec(),
         scene_geo::CUBE_NORMALS.to_vec(),
     );
-    scene.borrow_mut().objects.push(SceneObject::new(
-        cube_mesh.clone(),
-        vec3(-0.5, -1.0, 0.0),
-        vec3(0.0, 0.0, 0.0),
-        vec3(1.0, 0.1, 0.1),
-    ));
-
-    // let obj_name = "teapot.obj";
-    // let teapot = obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
     // scene.borrow_mut().objects.push(SceneObject::new(
-    //     // cube_mesh.clone(),
-    //     teapot,
-    //     vec3(0.2, -0.2, 0.0),
-    //     vec3(3.14, 0.0, 0.0),
-    //     vec3(0.01, 0.01, 0.01),
+    //     cube_mesh.clone(),
+    //     vec3(-0.5, -1.0, 0.0),
+    //     vec3(0.0, 0.0, 0.0),
+    //     vec3(1.0, 0.1, 0.1),
     // ));
+
+    let obj_name = "teapot.obj";
+    let teapot = obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+    scene.borrow_mut().objects.push(SceneObject::new(
+        // cube_mesh.clone(),
+        teapot,
+        vec3(0.2, -0.2, 0.0),
+        vec3(3.14, 0.0, 0.0),
+        vec3(0.01, 0.01, 0.01),
+    ));
 
     // scene.borrow_mut().calculate_shadows();
 
