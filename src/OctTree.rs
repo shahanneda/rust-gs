@@ -11,9 +11,18 @@ use nalgebra_glm as glm;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};
 
+#[derive(Clone, Debug)]
+pub struct OctTreeSplat {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub opacity: f32,
+    pub index: usize,
+}
+
 pub struct OctTreeNode {
     pub children: Vec<OctTreeNode>,
-    pub splats: Vec<Splat>,
+    pub splats: Vec<OctTreeSplat>,
     pub center: Vec3,
     pub half_width: f32,
     pub touched: bool,
@@ -35,9 +44,20 @@ impl OctTreeNode {
         //     .sum::<Vec3>()
         //     / splats.len() as f32;
         let len = splats.len();
+        let mut oct_tree_splats = vec![];
+        for (i, splat) in splats.iter().enumerate() {
+            oct_tree_splats.push(OctTreeSplat {
+                x: splat.x,
+                y: splat.y,
+                z: splat.z,
+                opacity: splat.opacity,
+                index: i,
+            });
+        }
+
         let mut out = OctTreeNode {
             children: vec![],
-            splats,
+            splats: oct_tree_splats,
             center,
             half_width,
             touched: false,
@@ -261,7 +281,7 @@ impl OctTreeNode {
         }
     }
 
-    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<Splat> {
+    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<OctTreeSplat> {
         let mut out = vec![];
         log!("finding splats in radius {:?}", center);
         // if center.x > self.center.x + self.half_width || center.x < self.center.x - self.half_width
@@ -342,7 +362,7 @@ impl OctTree {
         return self.root.get_lines_of_children(only_clicks);
     }
 
-    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<Splat> {
+    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<OctTreeSplat> {
         log!("finding splats in radius {:?}", center);
         return self.root.find_splats_in_radius(center, radius);
     }

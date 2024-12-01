@@ -119,6 +119,13 @@ fn handle_click(
             break;
         }
     }
+
+    let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
+    for splat in splats_near {
+        log!("splat near {:?}", splat.opacity);
+        scene.splat_data.splats[splat.index].opacity = 0.0;
+    }
+
     // let octree_found_splats = oct_tree.find_splats_in_radius(vec3(-0.8, 0.0, 0.0), 0.1);
     // log!("octree found splats: {:?}", octree_found_splats.len());
 
