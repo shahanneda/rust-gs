@@ -208,8 +208,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "corn";
 
     let scene_name = "Shahan_03_id01-30000.cleaned";
-    // let scene_name = "socratica_01_edited";
-    log!("Loading web!");
+    let scene_name = "socratica_01_edited";
+    // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
     // let scene_name = "sci_01";
@@ -458,9 +458,9 @@ pub async fn start() -> Result<(), JsValue> {
     scene.borrow_mut().objects.push(SceneObject::new(
         // cube_mesh.clone(),
         teapot,
-        vec3(1.0, 0.0, 0.0),
+        vec3(0.2, -0.2, 0.0),
         vec3(3.14, 0.0, 0.0),
-        vec3(0.05, 0.05, 0.05),
+        vec3(0.01, 0.01, 0.01),
     ));
     scene.borrow_mut().redraw_from_oct_tree(
         &oct_tree.borrow(),
