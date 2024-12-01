@@ -187,8 +187,8 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
-    let scene_name = "socratica_01_edited";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "socratica_01_edited";
     log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
@@ -356,9 +356,22 @@ pub async fn start() -> Result<(), JsValue> {
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
     let mut i = 0;
+    // let mut orbit_angle = 0.0f32;
+    // let orbit_radius = 0.9f32;
+    // let orbit_height = 0.2f32;
+    // let orbit_speed = 0.005f32;
     *g.borrow_mut() = Some(Closure::new(move || {
         let _timer = Timer::new("main loop");
         let mut cam_mut = camera.borrow_mut();
+        // // Update orbit angle and camera position
+        // orbit_angle += orbit_speed;
+        // cam_mut.pos.x = orbit_radius * orbit_angle.cos();
+        // cam_mut.pos.z = orbit_radius * orbit_angle.sin();
+        // cam_mut.pos.y = orbit_height;
+
+        // // Make the camera look at the center
+        // cam_mut.rot.x = -0.13400005; // Keep original x rotation
+        // cam_mut.rot.y = orbit_angle + std::f32::consts::PI / 2.0; // Make camera face center
 
         if click_state.borrow().clicked {
             let state = click_state.borrow();
