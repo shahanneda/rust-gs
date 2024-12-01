@@ -10,6 +10,8 @@ in vec4 con_o;
 in vec2 xy;
 in vec2 pixf;
 
+uniform bool do_blending;
+
 out vec4 fragColor;
 
 // https://github.com/graphdeco-inria/diff-gaussian-rasterization/blob/main/cuda_rasterizer/forward.cu#L263
@@ -28,7 +30,7 @@ void main() {
     discard;
   }
 
-  // power *= scale_modif;
+  power *= scale_modif;
   // the con_o.w is the oirigal opacity of the splat
   float alpha = min(.99f, con_o.w * exp(power));
   vec3 color = col;
@@ -42,8 +44,11 @@ void main() {
   // fragColor = vec4(1,0,0,1);
   // fragColor = vec4(vec3(-depth), 1.0);
   // fragColor = vec4(vec3(-(depth / 10.0)), 1.0);
-
-  fragColor = vec4(color * alpha, alpha);
+  if (do_blending) {
+    fragColor = vec4(color * alpha, alpha);
+  } else {
+    fragColor = vec4(color, 1);
+  }
   // fragColor = vec4(color, 1);
   // fragColor = vec4(color,  1);
   // fragColor = vec4(con_o.x,  0, 0, 1);

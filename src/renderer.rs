@@ -338,8 +338,20 @@ impl Renderer {
         let gl = &self.gl;
         let width = canvas.width() as i32;
         let height = canvas.height() as i32;
+        let mut scale = 1.0;
+        if settings.view_individual_splats {
+            scale = 0.1;
+        }
 
-        self.draw_splat(width, height, scene.splat_data.splats.len() as i32, vpm, vm);
+        self.draw_splat(
+            width,
+            height,
+            scene.splat_data.splats.len() as i32,
+            vpm,
+            vm,
+            scale,
+            settings.do_blending,
+        );
         for object in &scene.objects {
             self.draw_geo(width, height, vpm, vm, object, false);
         }
@@ -380,6 +392,8 @@ impl Renderer {
         num_vertices: i32,
         vpm: glm::Mat4,
         vm: glm::Mat4,
+        scale: f32,
+        do_blending: bool,
     ) {
         let gl = &self.gl;
         gl.use_program(Some(&self.splat_shader));
@@ -407,6 +421,8 @@ impl Renderer {
         set_float_uniform_value(&self.splat_shader, &gl, "focal_y", focal_y);
         set_float_uniform_value(&self.splat_shader, &gl, "tan_fovx", tan_fovx);
         set_float_uniform_value(&self.splat_shader, &gl, "tan_fovy", tan_fovy);
+        set_float_uniform_value(&self.splat_shader, &gl, "scale", scale);
+        set_bool_uniform_value(&self.splat_shader, &gl, "do_blending", do_blending);
 
         gl.clear_color(0.0, 0.0, 0.0, 0.0);
         gl.viewport(0, 0, width as i32, height as i32);
@@ -859,6 +875,16 @@ fn set_float_uniform_value(
     // log!("name: {}", name);
     let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
     gl.uniform1f(Some(&uniform_location), value);
+}
+
+fn set_bool_uniform_value(
+    shader_program: &WebGlProgram,
+    gl: &WebGl2RenderingContext,
+    name: &str,
+    value: bool,
+) {
+    let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
+    gl.uniform1i(Some(&uniform_location), value as i32);
 }
 
 fn set_vec3_uniform_value(

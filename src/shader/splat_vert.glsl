@@ -13,6 +13,7 @@ uniform float focal_x;
 uniform float focal_y;
 uniform float tan_fovx;
 uniform float tan_fovy;
+uniform float scale;
 uniform vec3 boxmin;
 uniform vec3 boxmax;
 
@@ -148,9 +149,8 @@ void main() {
   // the center of the spalt in pixel coordiantes
   vec2 point_image = vec2(ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H));
 
-  // float scale_modifier = 1.0;
-  // my_radius *= .15 + scale_modifier * .85;
-  // scale_modif = 1. / scale_modifier;
+  my_radius *= .15 + scale * .85;
+  scale_modif = 1. / scale;
 
   // get a corner id either (-1, -1), (-1, 1), (1, -1), (1, 1)
   vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2) - 1.;

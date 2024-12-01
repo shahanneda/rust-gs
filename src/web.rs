@@ -38,6 +38,9 @@ pub struct Settings {
     pub show_octtree: bool,
     pub only_show_clicks: bool,
     pub use_octtree_for_splat_removal: bool,
+    pub view_individual_splats: bool,
+    pub do_sorting: bool,
+    pub do_blending: bool,
 }
 
 fn handle_click(
@@ -234,6 +237,9 @@ pub async fn start() -> Result<(), JsValue> {
         show_octtree: false,
         only_show_clicks: false,
         use_octtree_for_splat_removal: true,
+        view_individual_splats: false,
+        do_sorting: true,
+        do_blending: true,
     };
     let settings_ref = Rc::new(RefCell::new(settings));
     let settings_clone = settings_ref.clone();
@@ -405,6 +411,34 @@ pub async fn start() -> Result<(), JsValue> {
                 log!("only show clicks: {:?}", settings.only_show_clicks);
             },
         ),
+        ToggleBinding::new(
+            "use-octtree-for-editing-checkbox",
+            "f",
+            |s| s.use_octtree_for_splat_removal,
+            |s, v| s.use_octtree_for_splat_removal = v,
+            |settings, scene, oct_tree| {},
+        ),
+        ToggleBinding::new(
+            "view-individual-splats-checkbox",
+            "v",
+            |s| s.view_individual_splats,
+            |s, v| s.view_individual_splats = v,
+            |settings, scene, oct_tree| {},
+        ),
+        ToggleBinding::new(
+            "do-sorting-checkbox",
+            "m",
+            |s| s.do_sorting,
+            |s, v| s.do_sorting = v,
+            |settings, scene, oct_tree| {},
+        ),
+        ToggleBinding::new(
+            "do-blending-checkbox",
+            "b",
+            |s| s.do_blending,
+            |s, v| s.do_blending = v,
+            |settings, scene, oct_tree| {},
+        ),
     ];
 
     for binding in &bindings {
@@ -488,33 +522,6 @@ pub async fn start() -> Result<(), JsValue> {
             drop(state);
             click_state.borrow_mut().clicked = false;
         }
-        // if i % 1000 < 500 {
-        //     // scene.objects[0].rot.y += 0.01;
-        //     scene.objects[0].pos.y += 0.01;
-        // } else {
-        //     // scene.objects[0].rot.y -= 0.01;
-        //     scene.objects[0].pos.y -= 0.01;
-        // }
-
-        // if keys_pressed.borrow().contains(&"o".to_string())
-        //     && key_change_handled.borrow().contains(&"o".to_string())
-        // {
-        //     // settings.borrow_mut().show_octtree = !settings.borrow().show_octtree;
-        //     let current_value = settings.borrow().show_octtree;
-        //     let mut settings = settings_ref.clone();
-        //     settings.borrow_mut().show_octtree = !current_value;
-        //     key_change_handled.borrow_mut().remove(&"o".to_string());
-        //     log!("show octtree: {:?}", settings.borrow().show_octtree);
-        //     let document = web_sys::window().unwrap().document().unwrap();
-        //     if let Ok(checkbox) = document
-        //         .get_element_by_id("show-octtree-checkbox")
-        //         .unwrap()
-        //         .dyn_into::<web_sys::HtmlInputElement>()
-        //     {
-        //         checkbox.set_checked(!current_value);
-        //     }
-        //     scene.redraw_from_oct_tree(&oct_tree, settings.borrow().only_show_clicks);
-        // }
 
         for binding in &bindings {
             if keys_pressed.borrow().contains(&binding.key)
@@ -534,42 +541,17 @@ pub async fn start() -> Result<(), JsValue> {
             }
         }
 
-        if keys_pressed.borrow().contains(&"t".to_string())
-            && key_change_handled.borrow().contains(&"t".to_string())
-        {
-            let mut settings = settings_ref.clone();
-            settings.borrow_mut().use_octtree_for_splat_removal =
-                !settings.borrow().use_octtree_for_splat_removal;
-            key_change_handled.borrow_mut().remove(&"t".to_string());
-            log!(
-                "use octtree for splat removal: {:?}",
-                settings.borrow().use_octtree_for_splat_removal
-            );
-        }
-
-        // if keys_pressed.borrow().contains(&"c".to_string())
-        //     && key_change_handled.borrow().contains(&"c".to_string())
-        // {
-        //     let mut settings = settings_ref.clone();
-        //     settings.borrow_mut().only_show_clicks = !settings.borrow().only_show_clicks;
-        //     key_change_handled.borrow_mut().remove(&"c".to_string());
-        //     log!("only show clicks: {:?}", settings.borrow().only_show_clicks);
-        //     scene
-        //         .borrow_mut()
-        //         .redraw_from_oct_tree(&oct_tree.borrow(), settings.borrow().only_show_clicks);
-        // }
-
         cam_mut.update_translation_from_keys(&keys_pressed.borrow());
-        // log!("camera pos: {:?}", cam_mut.pos);
-        // log!("camera rot: {:?}", cam_mut.rot);
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
 
-        let splat_indices = scene
-            .borrow_mut()
-            .splat_data
-            .sort_splats_based_on_depth(vpm);
+        if settings.borrow().do_sorting {
+            let splat_indices = scene
+                .borrow_mut()
+                .splat_data
+                .sort_splats_based_on_depth(vpm);
+            renderer.update_splat_indices(&splat_indices);
+        }
 
-        renderer.update_splat_indices(&splat_indices);
         let (normal_projection_matrix, normal_view_matrix) =
             cam_mut.get_normal_projection_and_view_matrices(width, height);
 
