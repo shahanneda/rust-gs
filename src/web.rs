@@ -2,6 +2,7 @@ use crate::camera::Camera;
 use crate::log;
 use crate::obj_reader;
 use crate::renderer;
+use crate::renderer::Renderer;
 use crate::scene::Scene;
 use crate::scene_geo;
 use crate::scene_object::SceneObject;
@@ -24,6 +25,7 @@ extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::WebGl2RenderingContext;
+use web_sys::{Document, HtmlElement};
 
 #[derive(Default)]
 struct ClickState {
@@ -253,7 +255,7 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(0.01, 0.01, 0.01),
     // ));
 
-    scene.borrow_mut().calculate_shadows();
+    // scene.borrow_mut().calculate_shadows();
 
     let mut settings = Settings {
         show_octtree: false,
@@ -335,7 +337,7 @@ pub async fn start() -> Result<(), JsValue> {
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
     let gl = getWebGLContext();
-    let renderer = renderer::Renderer::new(gl, &scene.borrow()).unwrap();
+    let renderer = Rc::new(RefCell::new(Renderer::new(gl, &scene.borrow()).unwrap()));
     // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
     // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
@@ -348,6 +350,8 @@ pub async fn start() -> Result<(), JsValue> {
         // vec2(0.0, 3.14 / 2.0),
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
+
+    setup_button_callbacks(scene.clone(), &renderer)?;
 
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
     let key_change_handled = Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
@@ -521,7 +525,7 @@ pub async fn start() -> Result<(), JsValue> {
                 height,
                 &cam_mut,
                 &mut scene.borrow_mut(),
-                &renderer,
+                &renderer.borrow(),
                 &keys_pressed.borrow(),
                 &mut oct_tree.borrow_mut(),
                 &settings.borrow(),
@@ -558,13 +562,13 @@ pub async fn start() -> Result<(), JsValue> {
                 .borrow_mut()
                 .splat_data
                 .sort_splats_based_on_depth(vpm);
-            renderer.update_splat_indices(&splat_indices);
+            renderer.borrow_mut().update_splat_indices(&splat_indices);
         }
 
         let (normal_projection_matrix, normal_view_matrix) =
             cam_mut.get_normal_projection_and_view_matrices(width, height);
 
-        renderer.draw_scene(
+        renderer.borrow_mut().draw_scene(
             &canvas,
             &scene.borrow(),
             vpm,
@@ -608,4 +612,50 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     window()
         .request_animation_frame(f.as_ref().unchecked_ref())
         .expect("should register `requestAnimationFrame` OK");
+}
+
+fn setup_button_callbacks(
+    scene: Rc<RefCell<Scene>>,
+    renderer: &Rc<RefCell<Renderer>>,
+) -> Result<(), JsValue> {
+    let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+
+    // Move Down button
+    let move_down_btn = document
+        .get_element_by_id("move-down-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let move_down_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let mut scene = scene_clone.borrow_mut();
+        // Add your move down logic here
+        log!("Moving down!");
+    }) as Box<dyn FnMut(_)>);
+
+    move_down_btn.set_onclick(Some(move_down_callback.as_ref().unchecked_ref()));
+    move_down_callback.forget(); // Prevent callback from being dropped
+
+    // Calculate Shadows button
+    let shadows_btn = document
+        .get_element_by_id("calculate-shadows-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let renderer_clone = renderer.clone();
+    let shadows_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let renderer = renderer_clone.borrow();
+        let mut scene = scene_clone.borrow_mut();
+        scene.calculate_shadows();
+        renderer
+            .update_webgl_textures(&scene)
+            .expect("failed to update webgl textures when editing");
+    }) as Box<dyn FnMut(_)>);
+
+    shadows_btn.set_onclick(Some(shadows_callback.as_ref().unchecked_ref()));
+    shadows_callback.forget();
+
+    Ok(())
 }
