@@ -4,7 +4,7 @@ use crate::log;
 
 use crate::ply_splat::PlySplat;
 use crate::timer::Timer;
-use nalgebra_glm::{self as glm, Vec3};
+use nalgebra_glm::{self as glm, vec3, Vec3};
 use rkyv::rancor::Error;
 use rkyv::{Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};
@@ -15,15 +15,33 @@ pub struct MeshData {
     pub indices: Vec<u32>,
     pub colors: Vec<f32>,
     pub normals: Vec<f32>,
+    pub min: Vec3,
+    pub max: Vec3,
 }
 
 impl MeshData {
     pub fn new(vertices: Vec<f32>, indices: Vec<u32>, colors: Vec<f32>, normals: Vec<f32>) -> Self {
+        let mut min = vec3(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+        let mut max = vec3(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY);
+
+        // go in groups of 3
+        for i in (0..vertices.len()).step_by(3) {
+            min.x = min.x.min(vertices[i]);
+            min.y = min.y.min(vertices[i + 1]);
+            min.z = min.z.min(vertices[i + 2]);
+
+            max.x = max.x.max(vertices[i]);
+            max.y = max.y.max(vertices[i + 1]);
+            max.z = max.z.max(vertices[i + 2]);
+        }
+
         Self {
             vertices,
             indices,
             colors,
             normals,
+            min,
+            max,
         }
     }
 }

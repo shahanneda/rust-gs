@@ -49,6 +49,8 @@ pub struct SceneObject {
     pub pos: Vec3,
     pub rot: Vec3,
     pub scale: Vec3,
+    pub min: Vec3,
+    pub max: Vec3,
 }
 #[derive(Debug)]
 pub struct Line {
@@ -59,12 +61,22 @@ pub struct Line {
 
 impl SceneObject {
     pub fn new(mesh_data: MeshData, pos: Vec3, rot: Vec3, scale: Vec3) -> Self {
-        Self {
+        let mut out = Self {
             mesh_data,
             pos,
             rot,
             scale,
-        }
+            min: Vec3::zeros(),
+            max: Vec3::zeros(),
+        };
+
+        out.recalculate_min_max();
+        out
+    }
+    pub fn recalculate_min_max(&mut self) {
+        let transform = self.get_transform();
+        self.min = transform_point(&transform, &self.mesh_data.min);
+        self.max = transform_point(&transform, &self.mesh_data.max);
     }
 
     pub fn new_cube(center: Vec3, width: f32, color: Vec3) -> Self {
@@ -75,12 +87,12 @@ impl SceneObject {
             colors[i * 3 + 2] = color.z;
         }
 
-        let mesh_data = MeshData {
+        let mesh_data = MeshData::new(
+            scene_geo::CUBE_VERTICES.to_vec(),
+            scene_geo::CUBE_INDICES.to_vec(),
             colors,
-            indices: scene_geo::CUBE_INDICES.to_vec(),
-            vertices: scene_geo::CUBE_VERTICES.to_vec(),
-            normals: scene_geo::CUBE_NORMALS.to_vec(),
-        };
+            scene_geo::CUBE_NORMALS.to_vec(),
+        );
 
         Self::new(
             mesh_data,

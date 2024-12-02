@@ -43,6 +43,7 @@ pub struct Settings {
     pub view_individual_splats: bool,
     pub do_sorting: bool,
     pub do_blending: bool,
+    pub move_down: bool,
 }
 
 fn handle_click(
@@ -127,13 +128,13 @@ fn handle_click(
     }
 
     if settings.use_octtree_for_splat_removal {
-        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
+        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.1);
         for splat in splats_near {
             log!("splat near {:?}", splat.opacity);
-            // scene.splat_data.splats[splat.index].opacity = 0.0;
-            scene.splat_data.splats[splat.index].r -= 0.1;
-            scene.splat_data.splats[splat.index].g -= 0.1;
-            scene.splat_data.splats[splat.index].b -= 0.1;
+            scene.splat_data.splats[splat.index].opacity = 0.0;
+            //     scene.splat_data.splats[splat.index].r -= 0.1;
+            //     scene.splat_data.splats[splat.index].g -= 0.1;
+            //     scene.splat_data.splats[splat.index].b -= 0.1;
         }
     } else {
         for splat in scene.splat_data.splats.iter_mut() {
@@ -213,13 +214,13 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "corn";
 
     // let scene_name = "Shahan_03_id01-30000.cleaned";
-    let scene_name = "socratica_01_edited";
+    // let scene_name = "socratica_01_edited";
     // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
     // let scene_name = "sci_01";
     // let scene_name = "icon_01";
-    // let scene_name = "soc_01_polycam";
+    let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut splat: SplatData =
@@ -238,22 +239,37 @@ pub async fn start() -> Result<(), JsValue> {
         scene_geo::CUBE_COLORS.to_vec(),
         scene_geo::CUBE_NORMALS.to_vec(),
     );
-    // scene.borrow_mut().objects.push(SceneObject::new(
-    //     cube_mesh.clone(),
-    //     vec3(-0.5, -1.0, 0.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(1.0, 0.1, 0.1),
-    // ));
+    let cube_object = SceneObject::new(
+        cube_mesh.clone(),
+        vec3(-0.0, -2.0, -0.2),
+        vec3(0.0, 0.0, 0.0),
+        // vec3(1.0, 0.1, 0.1),
+        vec3(0.1, 0.1, 0.1),
+    );
 
-    let obj_name = "teapot.obj";
-    let teapot = obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
-    scene.borrow_mut().objects.push(SceneObject::new(
-        // cube_mesh.clone(),
-        teapot,
-        vec3(0.2, -0.2, 0.0),
-        vec3(3.14, 0.0, 0.0),
-        vec3(0.01, 0.01, 0.01),
-    ));
+    // let obj_name = "teapot.obj";
+    // let teapot_mesh =
+    //     obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+    // let teapot_object = SceneObject::new(
+    //     teapot_mesh,
+    //     vec3(0.2, -0.2, 0.0),
+    //     vec3(3.14, 0.0, 0.0),
+    //     vec3(0.01, 0.01, 0.01),
+    // );
+
+    let min = cube_object.min;
+    let max = cube_object.max;
+    scene.borrow_mut().objects.push(cube_object);
+
+    // scene
+    //     .borrow_mut()
+    //     .objects
+    //     .push(SceneObject::new_cube(min, 0.1, vec3(0.0, 0.1, 0.9)));
+
+    // scene
+    //     .borrow_mut()
+    //     .objects
+    //     .push(SceneObject::new_cube(max, 0.1, vec3(0.0, 0.1, 0.9)));
 
     // scene.borrow_mut().calculate_shadows();
 
@@ -264,6 +280,7 @@ pub async fn start() -> Result<(), JsValue> {
         view_individual_splats: false,
         do_sorting: true,
         do_blending: true,
+        move_down: false,
     };
     let settings_ref = Rc::new(RefCell::new(settings));
     let settings_clone = settings_ref.clone();
@@ -463,6 +480,13 @@ pub async fn start() -> Result<(), JsValue> {
             |s, v| s.do_blending = v,
             |settings, scene, oct_tree| {},
         ),
+        ToggleBinding::new(
+            "move-down-checkbox",
+            "_",
+            |s| s.move_down,
+            |s, v| s.move_down = v,
+            |settings, scene, oct_tree| {},
+        ),
     ];
 
     for binding in &bindings {
@@ -516,6 +540,37 @@ pub async fn start() -> Result<(), JsValue> {
         // // Make the camera look at the center
         // cam_mut.rot.x = -0.13400005; // Keep original x rotation
         // cam_mut.rot.y = orbit_angle + std::f32::consts::PI / 2.0; // Make camera face center
+
+        scene.borrow_mut().objects[0].recalculate_min_max();
+
+        if settings.borrow().move_down {
+            let min = scene.borrow().objects[0].min;
+            let max = scene.borrow().objects[0].max;
+            let points_to_check = vec![min, max];
+            let mut collision = false;
+            for point in points_to_check {
+                let splats = oct_tree.borrow_mut().find_splats_in_radius(point, 0.05);
+                let visibleSplats = splats.iter().filter(|splat| splat.opacity >= 0.9);
+                let visibleSplatsCount = visibleSplats.count();
+
+                if visibleSplatsCount >= 5 {
+                    log!("collision !");
+                    collision = true;
+                    break;
+                }
+            }
+            if collision {
+                log!("collision, so not moving down!");
+            } else {
+                scene.borrow_mut().objects[0].pos.y += 0.01;
+            }
+            // scene.borrow_mut().calculate_shadows(&oct_tree.borrow());
+            // renderer
+            //     .borrow_mut()
+            //     .update_webgl_textures(&scene.borrow())
+            //     .expect("failed to update webgl textures when moving down");
+        }
+        // log!("min: {:?}, max: {:?}", min, max);
 
         if click_state.borrow().clicked {
             let state = click_state.borrow();
@@ -623,20 +678,19 @@ fn setup_button_callbacks(
     let document = window.document().unwrap();
 
     // Move Down button
-    let move_down_btn = document
-        .get_element_by_id("move-down-btn")
-        .unwrap()
-        .dyn_into::<HtmlElement>()?;
+    // let move_down_btn = document
+    //     .get_element_by_id("move-down-btn")
+    //     .unwrap()
+    //     .dyn_into::<HtmlElement>()?;
 
-    let scene_clone = scene.clone();
-    let move_down_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
-        let mut scene = scene_clone.borrow_mut();
-        // Add your move down logic here
-        log!("Moving down!");
-    }) as Box<dyn FnMut(_)>);
-
-    move_down_btn.set_onclick(Some(move_down_callback.as_ref().unchecked_ref()));
-    move_down_callback.forget(); // Prevent callback from being dropped
+    // let scene_clone = scene.clone();
+    // let move_down_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+    //     let mut scene = scene_clone.borrow_mut();
+    //     // Add your move down logic here
+    //     log!("Moving down!");
+    // }) as Box<dyn FnMut(_)>);
+    // move_down_btn.set_onclick(Some(move_down_callback.as_ref().unchecked_ref()));
+    // move_down_callback.forget(); // Prevent callback from being dropped
 
     // Calculate Shadows button
     let shadows_btn = document
