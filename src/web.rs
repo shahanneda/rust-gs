@@ -116,8 +116,8 @@ fn handle_splat_delete_click(
             }
         } else {
             for splat in scene.splat_data.splats.iter_mut() {
-                if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.01
-                    && splat.opacity >= 0.8
+                if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.05
+                    && splat.opacity >= 0.5
                 {
                     splat_pos = vec3(splat.x, splat.y, splat.z);
                     found = true;
