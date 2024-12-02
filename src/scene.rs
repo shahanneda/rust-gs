@@ -1,19 +1,21 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::data_objects::MeshData;
+use crate::gizmo::{Gizmo, GizmoAxis};
+use crate::log;
 use crate::oct_tree::{OctTreeNode, OctTreeSplat};
 use crate::scene_object::SceneObject;
 use crate::{data_objects::SplatData, oct_tree::OctTree};
-use nalgebra_glm as glm;
+use nalgebra_glm::{self as glm, Vec2};
 use nalgebra_glm::{vec3, Vec3};
 
-// #[derive(Serialize, Deserialize, Debug)]
 pub struct Scene {
     pub splat_data: SplatData,
     pub objects: Vec<SceneObject>,
     pub line_mesh: SceneObject,
     pub light_pos: Vec3,
     pub original_shadow_splat_colors: HashMap<usize, Vec3>,
+    pub gizmo: Gizmo,
 }
 
 impl Scene {
@@ -27,10 +29,9 @@ impl Scene {
                 vec3(0.0, 0.0, 0.0),
                 vec3(1.0, 1.0, 1.0),
             ),
-            // line_verts: Vec::new(),
-            // line_colors: Vec::new(),
             light_pos: vec3(1.0, -3.0, 0.0),
             original_shadow_splat_colors: HashMap::new(),
+            gizmo: Gizmo::new(),
         }
     }
 
@@ -72,18 +73,6 @@ impl Scene {
         }
     }
 
-    // pub fn object_at_point(&self, point: Vec3) -> Option<&SceneObject> {
-    //     for object in &self.objects {
-    //         // if glm::distance(&object.pos, &point) < 1.0 {
-    //         //     return Some(object);
-    //         // }
-    //         // if object.is_point_in_object(point) {
-    //         //     return Some(object);
-    //         // }
-
-    //     }
-    //     None
-    // }
     pub fn is_point_in_shadow(&self, point: Vec3, light_pos: Vec3) -> bool {
         let ray_origin = point;
         let dir = light_pos - point;
@@ -93,9 +82,9 @@ impl Scene {
         // let dir_amount = dir / number_of_iterations as f32;
 
         for object in &self.objects {
-            let mut intersection = Intersection {
-                intersection_point: vec3(0.0, 0.0, 0.0),
-                normal: vec3(0.0, 0.0, 0.0),
+            let intersection = Intersection {
+                intersection_point: Vec3::zeros(),
+                normal: Vec3::zeros(),
                 t: 0.0,
             };
 
@@ -193,39 +182,71 @@ impl Scene {
         //     }
         // }
     }
+
+    pub fn update_gizmo_position(&mut self, object_idx: u32) {
+        if let Some(object) = self.objects.get(object_idx as usize) {
+            self.gizmo.update_position(object.pos);
+        }
+    }
+
+    pub fn start_gizmo_drag(&mut self, axis: GizmoAxis, start_pos: Vec2) {
+        let target_idx = if let Some(idx) = self.gizmo.target_object {
+            idx
+        } else {
+            log!("No target object for gizmo");
+            return;
+        };
+
+        let object_pos = if let Some(object) = self.objects.get(target_idx) {
+            object.pos
+        } else {
+            log!("Target object not found");
+            return;
+        };
+
+        self.gizmo
+            .start_drag(axis, target_idx, object_pos, start_pos);
+    }
+
+    pub fn update_gizmo_drag(&mut self, current_pos: Vec2) {
+        // if let Some(target_idx) = self.gizmo.target_object {
+        //     // Project ray onto the active axis plane
+        //     if let Some(axis) = self.gizmo.active_axis {
+        //         let plane_normal = match axis {
+        //             GizmoAxis::X => vec3(1.0, 0.0, 0.0),
+        //             GizmoAxis::Y => vec3(0.0, 1.0, 0.0),
+        //             GizmoAxis::Z => vec3(0.0, 0.0, 1.0),
+        //             _ => return,
+        //         };
+
+        //         let t = glm::dot(
+        //             &(self.gizmo.drag_start_pos.unwrap_or(vec3(0.0, 0.0, 0.0)) - ray_origin),
+        //             &plane_normal,
+        //         ) / glm::dot(&ray_direction, &plane_normal);
+        //         let intersection_point = ray_origin + ray_direction * t;
+
+        //         if let Some(new_pos) = self.gizmo.update_drag(intersection_point) {
+        //             if let Some(object) = self.objects.get_mut(target_idx) {
+        //                 object.pos = new_pos;
+        //                 self.gizmo.update_position(new_pos);
+        //             }
+        //         }
+        // }
+
+        if let Some(new_pos) = self.gizmo.update_drag(current_pos) {
+            let target_idx = self.gizmo.target_object.unwrap();
+            if let Some(object) = self.objects.get_mut(target_idx) {
+                object.pos = new_pos;
+                self.gizmo.update_position(new_pos);
+            }
+        }
+    }
+
+    pub fn end_gizmo_drag(&mut self) {
+        log!("ending gizmo drag!");
+        self.gizmo.end_drag();
+    }
 }
-// bool sphere_intersection(glm::vec3 ray_origin, glm::vec3 ray_direction,
-//                         glm::vec3 sphere_pos, double sphere_radius,
-//                         Intersection& intersection) {
-// 	glm::vec3 tmp = ray_origin - sphere_pos;
-// 	double a = glm::dot(ray_direction, ray_direction);
-// 	double b = 2.0 * glm::dot(ray_direction, tmp);
-// 	double c = glm::dot(tmp, tmp) - sphere_radius * sphere_radius;
-
-// 	double discriminant = b * b - 4 * a * c;
-// 	if (discriminant >= 0) {
-// 		double roots[2];
-// 		quadraticRoots(a, b, c, roots);
-// 		double smaller_root = roots[0] < roots[1] ? roots[0] : roots[1];
-// 		double larger_root = roots[0] > roots[1] ? roots[0] : roots[1];
-
-// 		float root = smaller_root;
-// 		if (smaller_root >= 0) {
-// 			root = smaller_root;
-// 		} else if (larger_root >= 0) {
-// 			root = larger_root;
-// 		} else {
-// 			return false;
-// 		}
-// 		intersection.intersection_point = ray_origin + root * ray_direction;
-// 		intersection.normal = glm::normalize(intersection.intersection_point - sphere_pos);
-// 		intersection.t = root;
-// 		if (intersection.t > 1000*EPSILON) {
-// 			return true;
-// 		}
-// 	}
-// 	return false;
-// }
 
 pub fn sphere_intersection(
     ray_origin: Vec3,

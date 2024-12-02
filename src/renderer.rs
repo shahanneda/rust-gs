@@ -70,7 +70,6 @@ impl Renderer {
         let geo_vertex_buffer = create_buffer(&gl).unwrap();
         let vertices = scene_geo::CUBE_VERTICES.map(|v| v);
 
-        log!("vertex count: {}", vertices.len());
         update_buffer_data(&gl, &geo_vertex_buffer, float32_array_from_vec(&vertices));
         let geo_color_buffer = create_buffer(&gl).unwrap();
         update_buffer_data(
@@ -360,6 +359,10 @@ impl Renderer {
             scale = 0.1;
         }
 
+        // // turn on depth testing for normal objects
+        gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+        gl.depth_func(WebGl2RenderingContext::LEQUAL);
+
         self.draw_splat(
             width,
             height,
@@ -369,9 +372,43 @@ impl Renderer {
             scale,
             settings.do_blending,
         );
+
+        // draw scene objects
         for object in &scene.objects {
-            self.draw_geo(width, height, vpm, vm, object, false, scene.light_pos);
+            self.draw_geo(
+                width,
+                height,
+                vpm,
+                vm,
+                object,
+                false,
+                scene.light_pos,
+                false,
+                [0.0, 0.0, 0.0].into(),
+            );
         }
+
+        if scene.gizmo.target_object.is_some() {
+            gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+            gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+
+            // Draw each axis
+            for axis_object in scene.gizmo.get_axis_objects() {
+                self.draw_geo(
+                    width,
+                    height,
+                    vpm,
+                    vm,
+                    axis_object,
+                    false,
+                    scene.light_pos,
+                    false,
+                    [0.0, 0.0, 0.0].into(),
+                );
+            }
+            gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+        }
+
         if settings.show_octtree {
             self.draw_geo(
                 width,
@@ -381,33 +418,101 @@ impl Renderer {
                 &scene.line_mesh,
                 true,
                 scene.light_pos,
+                false,
+                [0.0, 0.0, 0.0].into(),
+            );
+        }
+    }
+
+    // returns (index, is_gizmo, hit_object)
+    pub fn get_at_mouse_position(
+        self: &Renderer,
+        width: i32,
+        height: i32,
+        mouse_x: i32,
+        mouse_y: i32,
+        vpm: glm::Mat4,
+        vm: glm::Mat4,
+        scene: &Scene,
+    ) -> (u32, bool, bool) {
+        let gl = &self.gl;
+        self.draw_picking(width, height, vpm, vm, scene);
+        // let mouse_x = mouse_x / width as f32;
+        // let mouse_y = mouse_y / height as f32;
+        // glm::vec3(mouse_x, mouse_y, 0.0)
+        let mut buffer: [u8; 4] = [0, 0, 0, 0];
+        gl.read_buffer(WebGl2RenderingContext::BACK);
+
+        let y = height - mouse_y;
+        gl.read_pixels_with_opt_u8_array(
+            mouse_x as i32,
+            y as i32,
+            1,
+            1,
+            WebGl2RenderingContext::RGBA,
+            WebGl2RenderingContext::UNSIGNED_BYTE,
+            Some(&mut buffer),
+        )
+        .unwrap();
+        if buffer[1] != 0 {
+            return (0, false, false);
+        }
+
+        if buffer[2] == 0 {
+            let index = buffer[0] as u32;
+            return (index, false, true);
+        }
+
+        // is gizmo
+        return (buffer[0] as u32, true, true);
+    }
+
+    pub fn draw_picking(
+        self: &Renderer,
+        width: i32,
+        height: i32,
+        vpm: glm::Mat4,
+        vm: glm::Mat4,
+        scene: &Scene,
+    ) {
+        let gl = &self.gl;
+        gl.clear_color(0.0, 1.0, 0.0, 0.0);
+        gl.clear(
+            WebGl2RenderingContext::DEPTH_BUFFER_BIT | WebGl2RenderingContext::COLOR_BUFFER_BIT,
+        );
+
+        for (index, object) in scene.objects.iter().enumerate() {
+            self.draw_geo(
+                width,
+                height,
+                vpm,
+                vm,
+                object,
+                false,
+                scene.light_pos,
+                true,
+                [index as f32 / 256.0, 0.0, 0.0].into(),
             );
         }
 
-        // self.draw_lines(
-        //     width,
-        //     height,
-        //     &scene.line_verts,
-        //     &scene.line_colors,
-        //     normal_view_matrix,
-        //     normal_projection_matrix,
-        // );
-
-        // let mut model: Mat4 = glm::identity();
-        // let model_scale = 3.0f32;
-        // model = glm::translate(&model, &glm::vec3(0.0f32, 0.0f32, 0.0f32));
-        // // model = glm::rotate_y(&model, current_amount*2.0*glm::pi::<f32>());
-        // model = glm::scale(&model, &glm::vec3(model_scale, model_scale, model_scale));
-        // camera = glm::translate(&camera, &glm::vec3(0f32, 0f32, 0f32));
-        // let mut proj = glm::ortho(0f32, 800f32, 0f32, 1000f32, 0.0f32, 10f32);
-        // glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)width/(float)height, 0.1f, 100.0f);
-        // proj.fill_with_identity();
-
-        // let model_uniform_location = gl.get_uniform_location(&shader_program, "model").unwrap();
-        // gl.uniform_matrix4fv_with_f32_array(Some(&model_uniform_location), false, model.as_slice());
-        // END SPLAT DRAWING
-
-        return;
+        if scene.gizmo.target_object.is_some() {
+            gl.disable(WebGl2RenderingContext::DEPTH_TEST);
+            gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+            for (index, axis_object) in scene.gizmo.get_axis_objects().iter().enumerate() {
+                self.draw_geo(
+                    width,
+                    height,
+                    vpm,
+                    vm,
+                    axis_object,
+                    false,
+                    scene.light_pos,
+                    true,
+                    [index as f32 / 256.0, 0.0, 1.0].into(),
+                );
+            }
+            gl.enable(WebGl2RenderingContext::DEPTH_TEST);
+        }
     }
 
     pub fn draw_splat(
@@ -481,6 +586,8 @@ impl Renderer {
         object: &SceneObject,
         is_line: bool,
         light_pos: glm::Vec3,
+        is_picking: bool,
+        picking_color: glm::Vec3,
     ) {
         let gl = &self.gl;
         gl.use_program(Some(&self.geo_shader));
@@ -549,6 +656,14 @@ impl Renderer {
             .get_uniform_location(&self.geo_shader, "light_pos")
             .unwrap();
         gl.uniform3fv_with_f32_array(Some(&light_pos_uniform_location), light_pos.as_slice());
+
+        set_bool_uniform_value(&self.geo_shader, &gl, "is_picking", is_picking);
+        set_vec3_uniform_value(
+            &self.geo_shader,
+            &gl,
+            "picking_color",
+            [picking_color.x, picking_color.y, picking_color.z],
+        );
 
         let model = object.get_transform();
 
@@ -627,9 +742,6 @@ impl Renderer {
             &self.geo_color_buffer,
             float32_array_from_vec(line_colors),
         );
-        log!("line_verts length: {:?}", line_verts.len());
-
-        log!("projection_mat: {:?}", projection_mat);
         // multipling the line as a sample
         // for i in 0..line_verts.len() / 3 {
         //     let vertex = glm::vec3(

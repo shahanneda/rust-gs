@@ -1,4 +1,5 @@
 use crate::camera::Camera;
+use crate::gizmo::GizmoAxis;
 use crate::log;
 use crate::obj_reader;
 use crate::renderer;
@@ -15,6 +16,7 @@ use crate::toggle_binding::ToggleBinding;
 use crate::utils::set_panic_hook;
 use glm::vec2;
 use glm::vec3;
+use nalgebra_glm::Vec2;
 use std::cell::RefCell;
 use std::rc::Rc;
 extern crate eframe;
@@ -44,9 +46,10 @@ pub struct Settings {
     pub do_sorting: bool,
     pub do_blending: bool,
     pub move_down: bool,
+    pub selected_object: Option<usize>,
 }
 
-fn handle_click(
+fn handle_splat_delete_click(
     state: &ClickState,
     width: i32,
     height: i32,
@@ -102,7 +105,7 @@ fn handle_click(
             let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.05);
             for splat in octree_found_splats {
                 // log!("octree found splat {:?}", splat.opacity);
-                if splat.opacity >= 0.8 {
+                if splat.opacity >= 0.5 {
                     splat_pos = vec3(splat.x, splat.y, splat.z);
                     log!("found splat {:?}!! ### EXiting", splat_pos);
                     found = true;
@@ -128,7 +131,7 @@ fn handle_click(
     }
 
     if settings.use_octtree_for_splat_removal {
-        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.1);
+        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
         for splat in splats_near {
             log!("splat near {:?}", splat.opacity);
             scene.splat_data.splats[splat.index].opacity = 0.0;
@@ -213,14 +216,14 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "socratica_01_edited";
     // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
     // let scene_name = "sci_01";
     // let scene_name = "icon_01";
-    let scene_name = "soc_01_polycam";
+    // let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut splat: SplatData =
@@ -246,6 +249,11 @@ pub async fn start() -> Result<(), JsValue> {
         // vec3(1.0, 0.1, 0.1),
         vec3(0.1, 0.1, 0.1),
     );
+    // let min = cube_object.min;
+    // let max = cube_object.max;
+    scene.borrow_mut().objects.push(cube_object);
+    let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.2), 0.1, vec3(0.0, 1.0, 0.1));
+    scene.borrow_mut().objects.push(cube_object_2);
 
     // let obj_name = "teapot.obj";
     // let teapot_mesh =
@@ -257,21 +265,14 @@ pub async fn start() -> Result<(), JsValue> {
     //     vec3(0.01, 0.01, 0.01),
     // );
 
-    let min = cube_object.min;
-    let max = cube_object.max;
-    scene.borrow_mut().objects.push(cube_object);
-
-    // scene
-    //     .borrow_mut()
-    //     .objects
-    //     .push(SceneObject::new_cube(min, 0.1, vec3(0.0, 0.1, 0.9)));
-
-    // scene
-    //     .borrow_mut()
-    //     .objects
-    //     .push(SceneObject::new_cube(max, 0.1, vec3(0.0, 0.1, 0.9)));
-
-    // scene.borrow_mut().calculate_shadows();
+    {
+        let mut scene_mut = scene.borrow_mut();
+        if let Some(first_object) = scene_mut.objects.first() {
+            let pos = first_object.pos;
+            scene_mut.gizmo.update_position(pos);
+            scene_mut.gizmo.target_object = Some(0);
+        }
+    }
 
     let mut settings = Settings {
         show_octtree: false,
@@ -281,6 +282,7 @@ pub async fn start() -> Result<(), JsValue> {
         do_sorting: true,
         do_blending: true,
         move_down: false,
+        selected_object: None,
     };
     let settings_ref = Rc::new(RefCell::new(settings));
     let settings_clone = settings_ref.clone();
@@ -366,7 +368,7 @@ pub async fn start() -> Result<(), JsValue> {
         // vec3(-1.020468, 1.4699098, -2.7163901),
         // vec2(0.0, 3.14 / 2.0),
     )));
-    Camera::setup_mouse_events(&camera.clone(), &canvas, &document).unwrap();
+    Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
     setup_button_callbacks(scene.clone(), &renderer, &oct_tree)?;
 
@@ -394,13 +396,50 @@ pub async fn start() -> Result<(), JsValue> {
     let click_state = Rc::new(RefCell::new(ClickState::default()));
     let click_state_clone = click_state.clone();
 
+    let scene_clone = scene.clone();
+    let camera_clone = camera.clone();
+    let renderer_clone = renderer.clone();
+    let settings_ref_clone = settings_ref.clone();
     let click_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
+        let mut scene = scene_clone.borrow_mut();
         let mut state = click_state_clone.borrow_mut();
+        let renderer = renderer_clone.borrow();
         state.clicked = true;
         state.dragging = true;
         state.x = e.client_x();
         state.y = e.client_y();
         state.button = e.button();
+        // handle_mouse_down(
+        //     e,
+        //     scene_clone.clone(),
+        //     camera_clone.clone(),
+        //     settings_ref_clone.clone(),
+        // );
+
+        let (vm, vpm) = camera_clone.borrow().get_vm_and_vpm(width, height);
+        let (index, is_gizmo, hit_object) =
+            renderer.get_at_mouse_position(width, height, state.x, state.y, vpm, vm, &scene);
+        if hit_object {
+            // log!(
+            //     "index: {:?}, is_gizmo: {:?}, hit_object: {:?}",
+            //     index,
+            //     is_gizmo,
+            //     hit_object
+            // );
+            if !is_gizmo {
+                scene.update_gizmo_position(index);
+                scene.end_gizmo_drag();
+            } else {
+                let axis = match index {
+                    0 => GizmoAxis::X,
+                    1 => GizmoAxis::Y,
+                    2 => GizmoAxis::Z,
+                    _ => return,
+                };
+                log!("starting gizmo drag!");
+                scene.start_gizmo_drag(axis, Vec2::new(state.x as f32, state.y as f32));
+            }
+        }
     }) as Box<dyn FnMut(_)>);
     // scene
     //     .objects
@@ -410,12 +449,15 @@ pub async fn start() -> Result<(), JsValue> {
     click_cb.forget();
 
     let click_state_move = click_state.clone();
+    let scene_clone = scene.clone();
+    let camera_clone = camera.clone();
     let mousemove_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
         let mut state = click_state_move.borrow_mut();
         if state.dragging {
             state.x = e.client_x();
             state.y = e.client_y();
             state.clicked = true;
+            // handle_mouse_move(e, scene_clone.clone(), camera_clone.clone());
         }
     }) as Box<dyn FnMut(_)>);
 
@@ -423,9 +465,12 @@ pub async fn start() -> Result<(), JsValue> {
     mousemove_cb.forget();
 
     let click_state_up = click_state.clone();
+    let scene_clone = scene.clone();
     let mouseup_cb = Closure::wrap(Box::new(move |_: web_sys::MouseEvent| {
         let mut state = click_state_up.borrow_mut();
         state.dragging = false;
+        scene_clone.borrow_mut().end_gizmo_drag();
+        // handle_mouse_up(scene_clone.clone());
     }) as Box<dyn FnMut(_)>);
 
     canvas.add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;
@@ -572,9 +617,12 @@ pub async fn start() -> Result<(), JsValue> {
         }
         // log!("min: {:?}, max: {:?}", min, max);
 
+        cam_mut.update_translation_from_keys(&keys_pressed.borrow());
+        let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
+
         if click_state.borrow().clicked {
             let state = click_state.borrow();
-            handle_click(
+            handle_splat_delete_click(
                 &state,
                 width,
                 height,
@@ -586,9 +634,18 @@ pub async fn start() -> Result<(), JsValue> {
                 &settings.borrow(),
             );
 
-            // Reset the click state
-            drop(state);
-            click_state.borrow_mut().clicked = false;
+            if !click_state.borrow().dragging {
+                drop(state);
+                click_state.borrow_mut().clicked = false;
+                click_state.borrow_mut().dragging = false;
+            } else {
+                if scene.borrow().gizmo.is_dragging {
+                    log!("updating gizmo drag!");
+                    scene
+                        .borrow_mut()
+                        .update_gizmo_drag(Vec2::new(state.x as f32, state.y as f32));
+                }
+            }
         }
 
         for binding in &bindings {
@@ -608,9 +665,6 @@ pub async fn start() -> Result<(), JsValue> {
                 key_change_handled.borrow_mut().remove(&binding.key);
             }
         }
-
-        cam_mut.update_translation_from_keys(&keys_pressed.borrow());
-        let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
 
         if settings.borrow().do_sorting {
             let splat_indices = scene

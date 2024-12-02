@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::log;
+use crate::scene::Scene;
 use crate::timer::Timer;
 use glm::vec2;
 use glm::vec3;
@@ -40,6 +41,7 @@ impl Camera {
         camera: &Rc<RefCell<Camera>>,
         canvas: &web_sys::HtmlCanvasElement,
         document: &web_sys::Document,
+        scene: &Rc<RefCell<Scene>>,
     ) -> Result<(), JsValue> {
         // Mouse down handler
         let cam_mousedown = camera.clone();
@@ -52,9 +54,14 @@ impl Camera {
             .add_event_listener_with_callback("mousedown", mousedown_cb.as_ref().unchecked_ref())?;
         mousedown_cb.forget();
 
+        let scene_clone = scene.clone();
         let cam_mousemove = camera.clone();
         let mousemove_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
             let mut cam = cam_mousemove.as_ref().borrow_mut();
+            if scene_clone.borrow().gizmo.is_dragging {
+                return;
+            }
+
             if cam.is_dragging {
                 if e.alt_key() {
                     return;
@@ -160,6 +167,7 @@ impl Camera {
 
     pub fn get_world_to_camera_matrix(self: &Camera) -> Mat4 {
         let mut camera: Mat4 = glm::identity();
+
         camera = glm::rotate_z(&camera, 1.0 * glm::pi::<f32>());
         camera = glm::rotate_x(&camera, self.rot.x);
         camera = glm::rotate_y(&camera, self.rot.y);
@@ -179,14 +187,8 @@ impl Camera {
             0.1f32,
             100f32,
         );
-
-        let mut vm = self.get_world_to_camera_matrix();
-        let mut vpm = proj * vm;
-        // invert_row(&mut vm, 1);
-        // invert_row(&mut vm, 2);
-        // invert_row(&mut vm, 0);
-        // invert_row(&mut vpm, 1);
-        // invert_row(&mut vpm, 0);
+        let vm = self.get_world_to_camera_matrix();
+        let vpm = proj * vm;
         return (vm, vpm);
     }
     // TODO: clean this up
