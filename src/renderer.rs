@@ -385,14 +385,14 @@ impl Renderer {
                 scene.light_pos,
                 false,
                 [0.0, 0.0, 0.0].into(),
+                true,
             );
         }
 
         if scene.gizmo.target_object.is_some() {
             gl.disable(WebGl2RenderingContext::DEPTH_TEST);
-            gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
 
-            // Draw each axis
+            gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
             for axis_object in scene.gizmo.get_axis_objects() {
                 self.draw_geo(
                     width,
@@ -404,6 +404,7 @@ impl Renderer {
                     scene.light_pos,
                     false,
                     [0.0, 0.0, 0.0].into(),
+                    false,
                 );
             }
             gl.enable(WebGl2RenderingContext::DEPTH_TEST);
@@ -420,6 +421,7 @@ impl Renderer {
                 scene.light_pos,
                 false,
                 [0.0, 0.0, 0.0].into(),
+                false,
             );
         }
     }
@@ -492,6 +494,7 @@ impl Renderer {
                 scene.light_pos,
                 true,
                 [index as f32 / 256.0, 0.0, 0.0].into(),
+                false,
             );
         }
 
@@ -509,6 +512,7 @@ impl Renderer {
                     scene.light_pos,
                     true,
                     [index as f32 / 256.0, 0.0, 1.0].into(),
+                    false,
                 );
             }
             gl.enable(WebGl2RenderingContext::DEPTH_TEST);
@@ -588,6 +592,7 @@ impl Renderer {
         light_pos: glm::Vec3,
         is_picking: bool,
         picking_color: glm::Vec3,
+        shadows: bool,
     ) {
         let gl = &self.gl;
         gl.use_program(Some(&self.geo_shader));
@@ -658,6 +663,7 @@ impl Renderer {
         gl.uniform3fv_with_f32_array(Some(&light_pos_uniform_location), light_pos.as_slice());
 
         set_bool_uniform_value(&self.geo_shader, &gl, "is_picking", is_picking);
+        set_bool_uniform_value(&self.geo_shader, &gl, "shadows", shadows);
         set_vec3_uniform_value(
             &self.geo_shader,
             &gl,

@@ -2,14 +2,14 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 
-use crate::{scene::Scene, web::Settings, oct_tree::OctTree};
+use crate::{oct_tree::OctTree, scene::Scene, web::Settings};
 
 pub struct ToggleBinding {
     element_id: &'static str,
     pub key: String,
     get_value: Rc<dyn Fn(&Settings) -> bool>,
     set_value: Rc<dyn Fn(&mut Settings, bool)>,
-    pub on_toggle: Rc<dyn Fn(&Settings, &mut Scene, &OctTree)>,
+    pub on_toggle: Rc<dyn Fn(&Settings, &mut Scene)>,
 }
 
 impl ToggleBinding {
@@ -18,7 +18,7 @@ impl ToggleBinding {
         key: &str,
         get_value: impl Fn(&Settings) -> bool + 'static,
         set_value: impl Fn(&mut Settings, bool) + 'static,
-        on_toggle: impl Fn(&Settings, &mut Scene, &OctTree) + 'static,
+        on_toggle: impl Fn(&Settings, &mut Scene) + 'static,
     ) -> Self {
         Self {
             element_id,
@@ -33,7 +33,6 @@ impl ToggleBinding {
         &self,
         settings: Rc<RefCell<Settings>>,
         scene: Rc<RefCell<Scene>>,
-        oct_tree: Rc<RefCell<OctTree>>,
     ) -> Result<(), JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
         let checkbox = document
@@ -53,8 +52,7 @@ impl ToggleBinding {
             (set_value)(&mut settings, new_value);
 
             let mut scene = scene.borrow_mut();
-            let oct_tree = oct_tree.borrow();
-            (on_toggle)(&settings, &mut scene, &oct_tree);
+            (on_toggle)(&settings, &mut scene);
         }) as Box<dyn FnMut(_)>);
 
         checkbox.add_event_listener_with_callback(

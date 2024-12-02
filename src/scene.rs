@@ -16,10 +16,12 @@ pub struct Scene {
     pub light_pos: Vec3,
     pub original_shadow_splat_colors: HashMap<usize, Vec3>,
     pub gizmo: Gizmo,
+    pub oct_tree: OctTree,
 }
 
 impl Scene {
     pub fn new(splat_data: SplatData) -> Self {
+        let oct_tree = OctTree::new(splat_data.splats.clone());
         Self {
             splat_data,
             objects: Vec::new(),
@@ -32,6 +34,7 @@ impl Scene {
             light_pos: vec3(1.0, -3.0, 0.0),
             original_shadow_splat_colors: HashMap::new(),
             gizmo: Gizmo::new(),
+            oct_tree,
         }
     }
 
@@ -65,9 +68,9 @@ impl Scene {
         self.line_mesh.mesh_data.colors.clear();
     }
 
-    pub fn redraw_from_oct_tree(&mut self, oct_tree: &OctTree, only_clicks: bool) {
+    pub fn redraw_from_oct_tree(&mut self, only_clicks: bool) {
         self.clear_lines();
-        let lines = oct_tree.get_lines(only_clicks);
+        let lines = self.oct_tree.get_lines(only_clicks);
         for line in lines {
             self.add_line(line.start, line.end, line.color);
         }
@@ -136,7 +139,30 @@ impl Scene {
             // TODO: now actually check each individual splat
         }
     }
-    pub fn calculate_shadows(&mut self, oct_tree: &OctTree) {
+
+    fn get_shadow_splat_indices(&self, node: &OctTreeNode) -> HashSet<usize> {
+        let mut out_set = HashSet::new();
+        let pos = node.center;
+        let min_splats = 10;
+
+        // if this node is not fine grain enough, try to go deeper first
+        if node.splats.len() > min_splats && node.children.len() > 0 {
+            for child in &node.children {
+                out_set.extend(self.get_shadow_splat_indices(child));
+            }
+            return out_set;
+        }
+
+        // if this node is fine grain enough, check if the center is in shadow
+        if self.is_point_in_shadow(pos, self.light_pos) {
+            for splat in &node.splats {
+                out_set.insert(splat.index);
+            }
+        }
+        out_set
+    }
+
+    pub fn calculate_shadows(&mut self) {
         for (index, color) in self.original_shadow_splat_colors.iter() {
             self.splat_data.splats[*index].r = color.x;
             self.splat_data.splats[*index].g = color.y;
@@ -144,10 +170,9 @@ impl Scene {
         }
         self.original_shadow_splat_colors.clear();
 
-        let mut shadow_splats = HashSet::new();
-        self.find_shadow_splats(&oct_tree.root, &mut shadow_splats);
+        let shadow_indices = self.get_shadow_splat_indices(&self.oct_tree.root);
 
-        for index in shadow_splats {
+        for index in shadow_indices {
             self.original_shadow_splat_colors.insert(
                 index,
                 vec3(
@@ -188,6 +213,9 @@ impl Scene {
             self.gizmo.update_position(object.pos);
             self.gizmo.target_object = Some(object_idx as usize);
         }
+    }
+    pub fn hide_gizmo(&mut self) {
+        self.gizmo.target_object = None;
     }
 
     pub fn start_gizmo_drag(&mut self, axis: GizmoAxis, start_pos: Vec2) {
@@ -248,6 +276,36 @@ impl Scene {
     pub fn end_gizmo_drag(&mut self) {
         log!("ending gizmo drag!");
         self.gizmo.end_drag();
+    }
+    pub fn move_down(&mut self) {
+        for object in &mut self.objects {
+            object.recalculate_min_max();
+            let min = object.min;
+            let max = object.max;
+            let points_to_check = vec![min, max];
+            let mut collision = false;
+            for point in points_to_check {
+                let splats = self.oct_tree.find_splats_in_radius(point, 0.05);
+                let visibleSplats = splats.iter().filter(|splat| splat.opacity >= 0.5);
+                let visibleSplatsCount = visibleSplats.count();
+
+                if visibleSplatsCount >= 1 {
+                    log!("collision !");
+                    collision = true;
+                    break;
+                }
+                if collision {
+                    log!("collision, so not moving down!");
+                } else {
+                    object.pos.y += 0.01;
+                }
+                // scene.borrow_mut().calculate_shadows(&oct_tree.borrow());
+                // renderer
+                //     .borrow_mut()
+                //     .update_webgl_textures(&scene.borrow())
+                //     .expect("failed to update webgl textures when moving down");
+            }
+        }
     }
 }
 

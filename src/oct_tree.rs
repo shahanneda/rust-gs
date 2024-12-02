@@ -14,6 +14,7 @@ pub struct OctTreeSplat {
     pub index: usize,
 }
 
+#[derive(Debug)]
 pub struct OctTreeNode {
     pub children: Vec<OctTreeNode>,
     pub splats: Vec<OctTreeSplat>,
@@ -22,6 +23,7 @@ pub struct OctTreeNode {
     pub touched: bool,
 }
 
+#[derive(Debug)]
 pub struct OctTree {
     pub root: OctTreeNode,
 }

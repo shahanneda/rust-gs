@@ -57,7 +57,6 @@ fn handle_splat_delete_click(
     scene: &mut Scene,
     renderer: &renderer::Renderer,
     keys_pressed: &std::collections::HashSet<String>,
-    oct_tree: &mut OctTree,
     settings: &Settings,
 ) {
     let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
@@ -101,6 +100,7 @@ fn handle_splat_delete_click(
         // log!("octree found splats: {:?}", octree_found_splats.len());
 
         if settings.use_octtree_for_splat_removal {
+            let oct_tree = &mut scene.oct_tree;
             log!("finding splats in radius {:?}", pos);
             let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.05);
             for splat in octree_found_splats {
@@ -109,7 +109,7 @@ fn handle_splat_delete_click(
                     splat_pos = vec3(splat.x, splat.y, splat.z);
                     log!("found splat {:?}!! ### EXiting", splat_pos);
                     found = true;
-                    scene.redraw_from_oct_tree(oct_tree, settings.only_show_clicks);
+                    scene.redraw_from_oct_tree(settings.only_show_clicks);
                     break;
                 }
             }
@@ -131,6 +131,7 @@ fn handle_splat_delete_click(
     }
 
     if settings.use_octtree_for_splat_removal {
+        let oct_tree = &mut scene.oct_tree;
         let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
         for splat in splats_near {
             log!("splat near {:?}", splat.opacity);
@@ -216,14 +217,14 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "socratica_01_edited";
     // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
     // let scene_name = "sci_01";
     // let scene_name = "icon_01";
-    // let scene_name = "soc_01_polycam";
+    let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
     let mut splat: SplatData =
@@ -255,24 +256,25 @@ pub async fn start() -> Result<(), JsValue> {
     let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.2), 0.1, vec3(0.0, 1.0, 0.1));
     scene.borrow_mut().objects.push(cube_object_2);
 
-    // let obj_name = "teapot.obj";
-    // let teapot_mesh =
-    //     obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
-    // let teapot_object = SceneObject::new(
-    //     teapot_mesh,
-    //     vec3(0.2, -0.2, 0.0),
-    //     vec3(3.14, 0.0, 0.0),
-    //     vec3(0.01, 0.01, 0.01),
-    // );
+    let obj_name = "teapot.obj";
+    let teapot_mesh =
+        obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+    let teapot_object = SceneObject::new(
+        teapot_mesh,
+        vec3(0.2, -0.2, 0.0),
+        vec3(3.14, 0.0, 0.0),
+        vec3(0.01, 0.01, 0.01),
+    );
+    scene.borrow_mut().objects.push(teapot_object);
 
-    {
-        let mut scene_mut = scene.borrow_mut();
-        if let Some(first_object) = scene_mut.objects.first() {
-            let pos = first_object.pos;
-            scene_mut.gizmo.update_position(pos);
-            scene_mut.gizmo.target_object = Some(0);
-        }
-    }
+    // {
+    //     let mut scene_mut = scene.borrow_mut();
+    //     if let Some(first_object) = scene_mut.objects.first() {
+    //         let pos = first_object.pos;
+    //         scene_mut.gizmo.update_position(pos);
+    //         scene_mut.gizmo.target_object = Some(0);
+    //     }
+    // }
 
     let mut settings = Settings {
         show_octtree: false,
@@ -287,14 +289,9 @@ pub async fn start() -> Result<(), JsValue> {
     let settings_ref = Rc::new(RefCell::new(settings));
     let settings_clone = settings_ref.clone();
 
-    let mut oct_tree = Rc::new(RefCell::new(OctTree::new(
-        scene.borrow().splat_data.splats.clone(),
-    )));
-
-    scene.borrow_mut().redraw_from_oct_tree(
-        &oct_tree.borrow(),
-        settings_ref.clone().borrow().only_show_clicks,
-    );
+    scene
+        .borrow_mut()
+        .redraw_from_oct_tree(settings_ref.clone().borrow_mut().only_show_clicks);
 
     // let checkbox_clone = checkbox.clone();
     // let checkbox_callback = Closure::wrap(Box::new(move |_event: web_sys::Event| {
@@ -356,7 +353,9 @@ pub async fn start() -> Result<(), JsValue> {
     let width = canvas.width() as i32;
     let height = canvas.height() as i32;
     let gl = getWebGLContext();
-    let renderer = Rc::new(RefCell::new(Renderer::new(gl, &scene.borrow()).unwrap()));
+    let renderer = Rc::new(RefCell::new(
+        Renderer::new(gl, &scene.borrow_mut()).unwrap(),
+    ));
     // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
     // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
@@ -370,7 +369,7 @@ pub async fn start() -> Result<(), JsValue> {
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
-    setup_button_callbacks(scene.clone(), &renderer, &oct_tree)?;
+    setup_button_callbacks(scene.clone(), &renderer)?;
 
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
     let key_change_handled = Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
@@ -439,6 +438,8 @@ pub async fn start() -> Result<(), JsValue> {
                 log!("starting gizmo drag!");
                 scene.start_gizmo_drag(axis, Vec2::new(state.x as f32, state.y as f32));
             }
+        } else {
+            scene.hide_gizmo();
         }
     }) as Box<dyn FnMut(_)>);
     // scene
@@ -482,8 +483,8 @@ pub async fn start() -> Result<(), JsValue> {
             "o",
             |s| s.show_octtree,
             |s, v| s.show_octtree = v,
-            |settings, scene, oct_tree| {
-                scene.redraw_from_oct_tree(oct_tree, settings.only_show_clicks);
+            |settings, scene| {
+                scene.redraw_from_oct_tree(settings.only_show_clicks);
                 log!("show octtree: {:?}", settings.show_octtree);
             },
         ),
@@ -492,8 +493,8 @@ pub async fn start() -> Result<(), JsValue> {
             "c",
             |s| s.only_show_clicks,
             |s, v| s.only_show_clicks = v,
-            |settings, scene, oct_tree| {
-                scene.redraw_from_oct_tree(oct_tree, settings.only_show_clicks);
+            |settings, scene| {
+                scene.redraw_from_oct_tree(settings.only_show_clicks);
                 log!("only show clicks: {:?}", settings.only_show_clicks);
             },
         ),
@@ -502,40 +503,40 @@ pub async fn start() -> Result<(), JsValue> {
             "f",
             |s| s.use_octtree_for_splat_removal,
             |s, v| s.use_octtree_for_splat_removal = v,
-            |settings, scene, oct_tree| {},
+            |settings, scene| {},
         ),
         ToggleBinding::new(
             "view-individual-splats-checkbox",
             "v",
             |s| s.view_individual_splats,
             |s, v| s.view_individual_splats = v,
-            |settings, scene, oct_tree| {},
+            |settings, scene| {},
         ),
         ToggleBinding::new(
             "do-sorting-checkbox",
             "m",
             |s| s.do_sorting,
             |s, v| s.do_sorting = v,
-            |settings, scene, oct_tree| {},
+            |settings, scene| {},
         ),
         ToggleBinding::new(
             "do-blending-checkbox",
             "b",
             |s| s.do_blending,
             |s, v| s.do_blending = v,
-            |settings, scene, oct_tree| {},
+            |settings, scene| {},
         ),
         ToggleBinding::new(
             "move-down-checkbox",
             "_",
             |s| s.move_down,
             |s, v| s.move_down = v,
-            |settings, scene, oct_tree| {},
+            |settings, scene| {},
         ),
     ];
 
     for binding in &bindings {
-        binding.setup_ui_listener(settings_ref.clone(), scene.clone(), oct_tree.clone())?;
+        binding.setup_ui_listener(settings_ref.clone(), scene.clone())?;
     }
 
     // scene.add_line(
@@ -589,31 +590,7 @@ pub async fn start() -> Result<(), JsValue> {
         scene.borrow_mut().objects[0].recalculate_min_max();
 
         if settings.borrow().move_down {
-            let min = scene.borrow().objects[0].min;
-            let max = scene.borrow().objects[0].max;
-            let points_to_check = vec![min, max];
-            let mut collision = false;
-            for point in points_to_check {
-                let splats = oct_tree.borrow_mut().find_splats_in_radius(point, 0.05);
-                let visibleSplats = splats.iter().filter(|splat| splat.opacity >= 0.9);
-                let visibleSplatsCount = visibleSplats.count();
-
-                if visibleSplatsCount >= 5 {
-                    log!("collision !");
-                    collision = true;
-                    break;
-                }
-            }
-            if collision {
-                log!("collision, so not moving down!");
-            } else {
-                scene.borrow_mut().objects[0].pos.y += 0.01;
-            }
-            // scene.borrow_mut().calculate_shadows(&oct_tree.borrow());
-            // renderer
-            //     .borrow_mut()
-            //     .update_webgl_textures(&scene.borrow())
-            //     .expect("failed to update webgl textures when moving down");
+            scene.borrow_mut().move_down();
         }
         // log!("min: {:?}, max: {:?}", min, max);
 
@@ -630,7 +607,6 @@ pub async fn start() -> Result<(), JsValue> {
                 &mut scene.borrow_mut(),
                 &renderer.borrow(),
                 &keys_pressed.borrow(),
-                &mut oct_tree.borrow_mut(),
                 &settings.borrow(),
             );
 
@@ -656,11 +632,7 @@ pub async fn start() -> Result<(), JsValue> {
                 binding.handle_key_press(&mut settings.borrow_mut());
                 binding.update_ui(&settings.borrow());
 
-                (binding.on_toggle)(
-                    &settings.borrow(),
-                    &mut scene.borrow_mut(),
-                    &oct_tree.borrow(),
-                );
+                (binding.on_toggle)(&settings.borrow(), &mut scene.borrow_mut());
 
                 key_change_handled.borrow_mut().remove(&binding.key);
             }
@@ -726,7 +698,6 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
 fn setup_button_callbacks(
     scene: Rc<RefCell<Scene>>,
     renderer: &Rc<RefCell<Renderer>>,
-    oct_tree: &Rc<RefCell<OctTree>>,
 ) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -754,12 +725,10 @@ fn setup_button_callbacks(
 
     let scene_clone = scene.clone();
     let renderer_clone = renderer.clone();
-    let oct_tree_clone = oct_tree.clone();
     let shadows_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
         let renderer = renderer_clone.borrow();
         let mut scene = scene_clone.borrow_mut();
-        let oct_tree = oct_tree_clone.borrow();
-        scene.calculate_shadows(&oct_tree);
+        scene.calculate_shadows();
         renderer
             .update_webgl_textures(&scene)
             .expect("failed to update webgl textures when editing");
