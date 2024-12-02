@@ -88,6 +88,7 @@ impl Gizmo {
         object_pos: Vec3,
         start_pos: Vec2,
     ) {
+        log!("active object idx: {:?}", object_idx);
         log!("starting drag axis: {:?}", axis);
         self.active_axis = Some(axis);
         self.target_object = Some(object_idx);

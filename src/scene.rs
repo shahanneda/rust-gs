@@ -186,6 +186,7 @@ impl Scene {
     pub fn update_gizmo_position(&mut self, object_idx: u32) {
         if let Some(object) = self.objects.get(object_idx as usize) {
             self.gizmo.update_position(object.pos);
+            self.gizmo.target_object = Some(object_idx as usize);
         }
     }
 
@@ -196,6 +197,7 @@ impl Scene {
             log!("No target object for gizmo");
             return;
         };
+        log!("start drag target idx: {:?}", target_idx);
 
         let object_pos = if let Some(object) = self.objects.get(target_idx) {
             object.pos
@@ -235,6 +237,7 @@ impl Scene {
 
         if let Some(new_pos) = self.gizmo.update_drag(current_pos) {
             let target_idx = self.gizmo.target_object.unwrap();
+            log!("target idx: {:?}", target_idx);
             if let Some(object) = self.objects.get_mut(target_idx) {
                 object.pos = new_pos;
                 self.gizmo.update_position(new_pos);
