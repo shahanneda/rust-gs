@@ -286,16 +286,17 @@ impl Scene {
             let mut collision = false;
             for point in points_to_check {
                 let splats = self.oct_tree.find_splats_in_radius(point, 0.05);
-                let visibleSplats = splats.iter().filter(|splat| splat.opacity >= 0.5);
-                let visibleSplatsCount = visibleSplats.count();
+                let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
+                let visible_splats_count = visible_splats.count();
 
-                if visibleSplatsCount >= 1 {
+                if visible_splats_count >= 1 {
                     log!("collision !");
                     collision = true;
-                    break;
                 }
+
                 if collision {
                     log!("collision, so not moving down!");
+                    break;
                 } else {
                     object.pos.y += 0.01;
                 }
