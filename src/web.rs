@@ -47,6 +47,7 @@ pub struct Settings {
     pub do_blending: bool,
     pub move_down: bool,
     pub selected_object: Option<usize>,
+    pub restrict_gizmo_movement: bool,
 }
 
 fn handle_splat_delete_click(
@@ -284,6 +285,7 @@ pub async fn start() -> Result<(), JsValue> {
         do_sorting: true,
         do_blending: true,
         move_down: false,
+        restrict_gizmo_movement: false,
         selected_object: None,
     };
     let settings_ref = Rc::new(RefCell::new(settings));
@@ -533,6 +535,13 @@ pub async fn start() -> Result<(), JsValue> {
             |s, v| s.move_down = v,
             |settings, scene| {},
         ),
+        ToggleBinding::new(
+            "restrict-gizmo-movement-checkbox",
+            "r",
+            |s| s.restrict_gizmo_movement,
+            |s, v| s.restrict_gizmo_movement = v,
+            |settings, scene| {},
+        ),
     ];
 
     for binding in &bindings {
@@ -617,9 +626,10 @@ pub async fn start() -> Result<(), JsValue> {
             } else {
                 if scene.borrow().gizmo.is_dragging {
                     log!("updating gizmo drag!");
-                    scene
-                        .borrow_mut()
-                        .update_gizmo_drag(Vec2::new(state.x as f32, state.y as f32));
+                    scene.borrow_mut().update_gizmo_drag(
+                        Vec2::new(state.x as f32, state.y as f32),
+                        settings.borrow().restrict_gizmo_movement,
+                    );
                 }
             }
         }

@@ -238,7 +238,7 @@ impl Scene {
             .start_drag(axis, target_idx, object_pos, start_pos);
     }
 
-    pub fn update_gizmo_drag(&mut self, current_pos: Vec2) {
+    pub fn update_gizmo_drag(&mut self, current_pos: Vec2, restrict_gizmo_movement: bool) {
         // if let Some(target_idx) = self.gizmo.target_object {
         //     // Project ray onto the active axis plane
         //     if let Some(axis) = self.gizmo.active_axis {
@@ -263,14 +263,69 @@ impl Scene {
         //         }
         // }
 
-        if let Some(new_pos) = self.gizmo.update_drag(current_pos) {
-            let target_idx = self.gizmo.target_object.unwrap();
-            log!("target idx: {:?}", target_idx);
-            if let Some(object) = self.objects.get_mut(target_idx) {
-                object.pos = new_pos;
-                self.gizmo.update_position(new_pos);
+        if let Some(new_pos) = self.gizmo.update_drag(current_pos, restrict_gizmo_movement) {
+            if let Some(target_idx) = self.gizmo.target_object {
+                log!("target idx: {:?}", target_idx);
+                log!("restrict gizmo movement: {:?}", restrict_gizmo_movement);
+                if let Some(object) = self.objects.get_mut(target_idx) {
+                    if !restrict_gizmo_movement {
+                        object.pos = new_pos;
+                        self.gizmo.update_position(new_pos);
+                        return;
+                    }
+
+                    let old_pos = object.pos;
+                    object.pos = new_pos;
+                    self.gizmo.update_position(new_pos);
+
+                    object.recalculate_min_max();
+                    let min = object.min;
+                    let max = object.max;
+                    let points_to_check = vec![min, max];
+                    for point in points_to_check {
+                        let splats = self.oct_tree.find_splats_in_radius(point, 0.1);
+                        let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
+                        let visible_splats_count = visible_splats.count();
+                        if visible_splats_count >= 1 {
+                            object.pos = old_pos;
+                            self.gizmo.update_position(old_pos);
+                            log!("collision !");
+                            break;
+                        }
+                    }
+                    // if self.new_object_position_is_safe(object, new_pos) {
+                    //     // object.pos = old_pos;
+                    //     self.gizmo.update_position(new_pos);
+                    // }
+                }
             }
         }
+    }
+
+    pub fn new_object_position_is_safe(&mut self, object: &mut SceneObject, pos: Vec3) -> bool {
+        let old_pos = object.pos;
+        object.pos = pos;
+
+        let min = object.min;
+        let max = object.max;
+        let points_to_check = vec![min, max];
+        let mut collision = false;
+        for point in points_to_check {
+            let splats = self.oct_tree.find_splats_in_radius(point, 0.05);
+            let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
+            let visible_splats_count = visible_splats.count();
+
+            if visible_splats_count >= 1 {
+                log!("collision !");
+                collision = true;
+            }
+
+            if collision {
+                object.pos = old_pos;
+                return false;
+            }
+        }
+        return true;
     }
 
     pub fn end_gizmo_drag(&mut self) {
@@ -278,7 +333,8 @@ impl Scene {
         self.gizmo.end_drag();
     }
     pub fn move_down(&mut self) {
-        for object in &mut self.objects {
+        for index in 0..self.objects.len() {
+            let object = &mut self.objects[index];
             object.recalculate_min_max();
             let min = object.min;
             let max = object.max;
@@ -296,9 +352,20 @@ impl Scene {
 
                 if collision {
                     log!("collision, so not moving down!");
+                    if let Some(target_idx) = self.gizmo.target_object {
+                        if target_idx == index {
+                            self.gizmo.update_position(object.pos);
+                        }
+                    }
                     break;
                 } else {
                     object.pos.y += 0.01;
+
+                    if let Some(target_idx) = self.gizmo.target_object {
+                        if target_idx == index {
+                            self.gizmo.update_position(object.pos);
+                        }
+                    }
                 }
                 // scene.borrow_mut().calculate_shadows(&oct_tree.borrow());
                 // renderer

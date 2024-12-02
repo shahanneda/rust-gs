@@ -80,6 +80,18 @@ impl Gizmo {
         self.axis_y.pos = pos;
         self.axis_z.pos = pos;
     }
+    pub fn clamp_delta(&self, delta: &mut Vec2) {
+        if delta.x > 1.0 {
+            delta.x = 1.0;
+        } else if delta.x < -1.0 {
+            delta.x = -1.0;
+        }
+        if delta.y > 1.0 {
+            delta.y = 1.0;
+        } else if delta.y < -1.0 {
+            delta.y = -1.0;
+        }
+    }
 
     pub fn start_drag(
         &mut self,
@@ -97,7 +109,7 @@ impl Gizmo {
         self.is_dragging = true;
     }
 
-    pub fn update_drag(&self, current_pos: Vec2) -> Option<Vec3> {
+    pub fn update_drag(&self, current_pos: Vec2, restrict_gizmo_movement: bool) -> Option<Vec3> {
         if !self.is_dragging {
             return None;
         }
@@ -109,7 +121,12 @@ impl Gizmo {
         ) {
             let delta = current_pos - start_pos;
             let movement_scale = 0.01;
-            let scaled_delta = delta * movement_scale;
+            let mut scaled_delta = delta * movement_scale;
+            if restrict_gizmo_movement {    
+                self.clamp_delta(&mut scaled_delta);
+            }
+
+            log!("scaled delta: {:?}", scaled_delta);
 
             let mut new_pos = orig_pos;
             match axis {
