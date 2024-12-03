@@ -68,9 +68,9 @@ User ID: snedadah
 
      \subsection{Passing a lot data to the shaders}
 
-     Originally, I had a buffer for every splat parameter. So one buffer for all the means of the splats, one for all the 3D covariance matrices, one for all the colors, etc. However, because the splats need to be rendered in back to front order, and this order changes every frame, all of these buffers needed to be updated every frame, which I found was incrediblly slow.
+     Originally, I had a buffer for every splat parameter. So one buffer for all the means of the splats, one for all the 3D covariance matrices, one for all the colors, etc. However, because the splats need to be rendered in back to front order, and this order changes every frame, all of these buffers needed to be updated every frame, which I found was incredibly slow, since there are tens of thousands of splats.
      
-     To fix this, instead I now only pass a single buffer to the shaders, which contains a list of "indexes" of splats which need to be rendered. For example, the buffer could have [4, 1, 3], which would mean that the splat at index 4 has to be rendered first, then the splat at index 1, then the splat at index 3. 
+     To fix this, instead I now only pass a single buffer to the shaders, which contains a list of "indexes" of splats which need to be rendered. For example, the buffer could have [4, 1, 3], which would mean that the splat at index 4 has to be rendered first, then the splat at index 1, then the splat at index 3. Now when I sort, I only need to update this index buffer every frame.
 
      However, the new problem is the OpenGL buffers don't allow random access, so if at the first iteration the index was 4, I couldn't reach into the 4th index of the mean buffer to get the mean of the splat at index 4. Therefore, I instead stored the actual data of all the splats, in data textures, which are just normal textures, where every pixel represents a value of a splat. For example, I have a texture for all the means, and another texture for all the 3D covariance matrices, etc. See the function \lstinline[style=inlinecode]{update_webgl_textures} in the \lstinline[style=inlinecode]{renderer.rs} file to see how I send data to these textures. Then, since textures do allow random access, I can use the index (for example 4) to get the value of the mean of the splat at index 4, by looking at pixel 4 in the mean texture. 
 
@@ -135,30 +135,30 @@ User ID: snedadah
 
 I have separate vertex and fragment shader for rendering normal objects, and I have implemented phong shading to shade these objects.
 
-One key detail is how to seamlessly combine the guassians with the mesh objects. The way I do this, is to first render the splats and populate the depth buffer. Note that depth testing is disabled when rendering splats, since we do blending when rendering the splats. Furthermore, because of the weird way the splats are rendered, I can't just rely on OpenGL's depth, and instead have to manually set the depth buffer by setting the \lstinline[style=inlinecode]{gl_FragDepth} in the splat fragment shader. Then, mesh based objects are drawn second, this time with depth testing enabled, and thus when a splat has a depth closer to the camera, the mesh object will be occluded. This approach seems to be working well for some scenes, however, in some other scenes, it seems to be that the values that the Splat depth fills in the depth buffer doesn't perfectly line up with the depth when rendering the mesh objects, and this causes some artifacts. I ran out of time to fully debug this issue. 
+One key detail is how to seamlessly combine the guassians with the mesh objects. The way I do this, is to first render the splats and populate the depth buffer. Note that depth testing is disabled when rendering splats, since we do blending when rendering the splats, but we still want to populate the depth buffer. Furthermore, because of the weird way the splats are rendered, I can't just rely on OpenGL to auto populate the depth buffer, and instead have to manually set the depth buffer by setting the \lstinline[style=inlinecode]{gl_FragDepth} in the splat fragment shader. Then, mesh based objects are drawn second, this time with depth testing enabled, and thus when a splat has a depth closer to the camera, the mesh object will be occluded. This approach seems to be working well for some scenes, however, in some other scenes, it seems to be that the values that the Splat depth fills in the depth buffer doesn't perfectly line up with the depth when rendering the mesh objects, and this causes some artifacts. Such as the mesh object being partially visible through the splat. I ran out of time to fully debug this issue.
 
 
 
 
-\subsection{Storing gaussians in an Octtree}
-All my next 3 operations, deleting splats, doing collisions, and casting shadows, its incredibly helpful to be able to check at a specific world position, what are the splats near by. However, normally since the splats are just stored in a list, this operation is $O(n)$ in the number of splats. Which is costly since scenes can have thousands to hundreds of thousands of splats. Therefore, I explored storing all the splats inside of an octtree, which brings this operation down to $O(\log n)$ in the number of splats, and greatly speeds up those other operations.
+\subsection{Storing gaussians in an OctTree}
+For my next 3 objectives, deleting splats, doing collisions, and casting shadows, its incredibly helpful to be able to check at a specific world position, what are the splats near by. However, normally since the splats are just stored in a list, this operation is $O(n)$ in the number of splats. Which is costly since scenes can have thousands to hundreds of thousands of splats. Therefore, I explored storing all the splats inside of an OctTree, which brings this operation down to $O(\log n)$ in the number of splats, and greatly speeds up those other operations.
 
 
 
-The actual octtree is implemented in the \lstinline[style=inlinecode]{oct_tree.rs} file. My octtree essentialy treats the splats as points (using only the means), which works since each splat is very small, so we can ignore the 3D shape of them.
+The actual OctTree is implemented in the \lstinline[style=inlinecode]{oct_tree.rs} file. My OctTree essentially treats the splats as points (using only the means), which works since each splat is very small, so we can ignore the 3D shape of them.
 
-In the start, after we load the scene, we insert all of the splats into the octtree. The octree is defined recurssvily. Every node in the octtree either is a child, meaning it stores a list of splats, or it is a parent, meaning it stores a list of children. The splats are stored in a simpliied manner, with only the mean, opacity, and index in the original scene, to save memory. The function \lstinline[style=inlinecode]{propogate_splats_to_children} is called on every node. If the node has more than a certain number of splats inside, and it will split the node into 8 children, and recusrively propogate the splats to the children. The mean of the spalt is the only parameter that decies which node the splat will be in.
+In the start, after we load the scene, we insert all of the splats into the OctTree. The OctTree is defined recursively. Every node in the OctTree either is a child, meaning it stores a list of splats, or it is a parent, meaning it stores a list of children. The splats are stored in a simplified manner, with only the mean, opacity, and index in the original scene, to save memory. The function \lstinline[style=inlinecode]{propogate_splats_to_children} is called on every node. If the node has more than a certain number of splats inside, and it will split the node into 8 children, and recursively propagate the splats to the children. The mean of the Splat is the only parameter that decides which node the splat will be in.
 
-The octtree has two parameters, \lstinline[style=inlinecode]{SPLIT_LIMIT}, which is the number of splats a node can have before it splits. So if a node has less than \lstinline[style=inlinecode]{SPLIT_LIMIT} splats, it will not split into children. The other parameter is \lstinline[style=inlinecode]{MAX_DEPTH}, which is the maximum depth of the octtree, and this takes precedence over the \lstinline[style=inlinecode]{SPLIT_LIMIT}, because I found sometimes, even with many splits, the tree was still too deep, and I ran into recursion stack limits.
+The OctTree has two parameters, \lstinline[style=inlinecode]{SPLIT_LIMIT}, which is the number of splats a node can have before it splits. So if a node has less than \lstinline[style=inlinecode]{SPLIT_LIMIT} splats, it will not split into children. The other parameter is \lstinline[style=inlinecode]{MAX_DEPTH}, which is the maximum depth of the OctTree, and this takes precedence over the \lstinline[style=inlinecode]{SPLIT_LIMIT}, because I found sometimes, even with many splits, the tree was still too deep, and I ran into recursion stack limits.
 
 
 
 \subsubsection{Visuzlizing the OctTree}
 
-The OctTree is visualized by recursively. If a node has children, then only the children are drawn. Else, the boundary of the node is drawn by drawing lines around the node. These lines are drawn using the noraml geometry shader, which I used to draw the normal objects, with depth testing turend off.
+The OctTree is visualized by recursively. If a node has children, then only the children are drawn. Else, the boundary of the node is drawn by drawing lines around the node. These lines are drawn using the normal geometry shader, which I used to draw the normal objects, with depth testing turned off.
 
 
-\subsubsection{Quering the octtree for collisions}
+\subsubsection{Quering the OctTree for collisions}
 The OctTree is queries with the \lstinline[style=inlinecode]{find_splats_in_radius} function. This function takes in a center point, and a radius, and returns all the splats that are within that radius from the center point. It does so by checking if the node is outside the radius, and if so, it will not search in that direction, and if the node is inside the radius, it will recursively search its children. If the node is a leaf node, it will check all the splats in that node to see which ones are within the radius. I have a special mode Only Show OctTree at Click, which when enabled, will only draw the OctTree nodes that were touched in the last query (ALT + Click on a splat to query), which shows the power of the OctTree.
 
 
@@ -171,11 +171,11 @@ When the user holds down ALT and clicks on the screen, we send a ray from throug
 When the user clicks the "Cast Shadows" button the function \lstinline[style=inlinecode]{calculate_shadows} in \lstinline[style=inlinecode]{scene.rs} is called. The basic ideas is to loop through every single splat, and check if we can shoot a ray from the this splat to the light source, without it being intersected by any of the polygon based objects. To check if the ray intersects with a polygon based object, I reused my ray tracing intersection code from A4. If the ray does interesect with an object before hitting the light, then we make the color of this spalt darker, to signify that it is in the shadow of the polygon based object.
 
 
-While this first approach worked, it was incredibly slow, since looping through every splat was expensive. However, I realized that since my OctTree nodes were pretty finegrained, if the center of the OctTree was not in a shadow, it was unlikely that any of the splats in that node would be in a shadow. Thus, now, I first query the OctTree for all the nodes that are sufficiently fine grained (have less than 10 splats inside of them). And for these nodes, I check if the center of this OctTree node is under shadow. I found that this approach significantly speeds up the shadows, while compromising the quality of the shadows slightly. However, the shadows are still pretty slow, thus there is room for improvement.
+While this first approach worked, it was incredibly slow, since looping through every splat was expensive. However, I realized that since my OctTree nodes were pretty finegrained, if the center of the OctTree was not in a shadow, it was unlikely that any of the splats in that node would be in a shadow. Thus, now, I first query the OctTree for all the nodes that are sufficiently fine grained (have less than 10 splats inside of them). And for these nodes, I only check if the center of this OctTree node is under shadow, and if it is, I darken all the splats in this node. Essentially, we are using the fact that if one splat is under shadow, the splats near it are also likely under shadow. I found that this approach significantly speeds up the shadows (around a 5x speedup), while compromising the quality of the shadows only slightly. However, the shadows are still pretty slow, thus there is room for improvement.
 
 \subsection{Polygon based objects not intersecting with the gaussians}
 
-To check for collisions between the polygon based objects, whenever a polygon based object moves (which happens if the "Move Down" checkbox is checked or if the Detect Collisions With Gizmo option is checked), we calcualte two bounding points on the object (based on the min vertex of teh object and max vertex of the object), and we query the OctTree for all the splats that are within a certain radius of these two points. If there are more than a certain threshold number of splats, which have high opacity, we will consider that the polygon based object is colliding with the splats.
+To check for collisions between the polygon based objects, whenever a polygon based object moves (which happens if the "Move Down" checkbox is checked or if the Detect Collisions With Gizmo option is checked), we calcualte two bounding points on the object (based on the min vertex of the object and max vertex of the object), and we query the OctTree for all the splats that are within a certain radius of these two points. If there are more than a certain threshold number of splats, which have high opacity, we will consider that the polygon based object is colliding with the splats.
 
 
 \subsection{Combining two scenes}
@@ -187,6 +187,9 @@ Originally, I read the point cloud file (.ply) file that the splat comes in, ins
 
 \subsection{Uploading to web}
 The code is all written in Rust, however, I wanted the project to be very portable, so I used WebGL to render the project, and webassembly to compile the rust so that it runs in the browser. The actual user interface is written in HTML and CSS, which can be seen in the \lstinline[style=inlinecode]{index.html} file.
+
+\subsection{Picking normal objects}
+To pick the normal objects and object movement Gizmo, I render a special picking image, similar to A3, see the \lstinline[style=inlinecode]{draw_picking_image} function in the \lstinline[style=inlinecode]{renderer.rs} file.
 
 
 \subsection{Code Walkthrough}
@@ -223,7 +226,7 @@ The code is all written in Rust, however, I wanted the project to be very portab
 
      Idea of using an OctTree (Though their approach is very diferent, they actually need to adjust the Splat ML training process to work with the OctTree, while I don't):
 
-     Zhang, Hao, et al. “Octree-GS: Towards Consistent Real-time Rendering with LOD-Structured 3D Gaussians.” arXiv preprint arXiv:2403.17898 (2024).
+     Zhang, Hao, et al. “OctTree-GS: Towards Consistent Real-time Rendering with LOD-Structured 3D Gaussians.” arXiv preprint arXiv:2403.17898 (2024).
 
 
      While my project doesn't have robotics, I've found this survey paper is very useful for understanding gaussian splatting in general:
@@ -231,7 +234,7 @@ The code is all written in Rust, however, I wanted the project to be very portab
      Zhu, Siting, et al. “3D Gaussian Splatting in Robotics: A Survey.” arXiv preprint arXiv:2410.12262 (2023).
 
 
-     I took inspiration from many different online viewers to come up with my rendering approach, especially for \textbf{the splat rendering shaders}. Note that none of these viewer have near the amount of features, for example, multiple splats, shadows, collisions, OctTree's, removal of splats, polygon meshes, etc. All of these are unique to my project, I only referenced these for the inspiration on how to do the gaussian splatting rendering.
+     I took inspiration from many different online viewers to come up with my rendering approach, especially for \textbf{the splat rendering shaders}. Note that none of these viewer have near the amount of features, for example, multiple splats, shadows, collisions, OctTree's, removal of splats, polygon meshes, etc. All of these are unique to my project, I only referenced these for the inspiration on how to do the actual gaussian splatting rendering.
      \begin{itemize}
           \item \href{https://github.com/playcanvas/supersplat}{https://github.com/playcanvas/supersplat}
           \item \href{https://github.com/mkkellogg/GaussianSplats3D}{https://github.com/mkkellogg/GaussianSplats3D}
@@ -254,7 +257,7 @@ The code is all written in Rust, however, I wanted the project to be very portab
 
      \item[\_\_\_ 3:] The scene is sorted in back to front order in realtime every time the camera view changes, and there is a toggle which turns this off for the purpose of demonstration.
 
-     \item[\_\_\_ 4:] The splats are stored in an octtree, which can be turned on and off. You can see the performance difference of editing splats when having the octtree and not having it, and there is a toggle to visualize the octtree.
+     \item[\_\_\_ 4:] The splats are stored in an OctTree, which can be turned on and off. You can see the performance difference of editing splats when having the OctTree and not having it, and there is a toggle to visualize the OctTree.
 
      \item[\_\_\_ 5:]  There is a delete button, which allows the user to click on a certain point on the screen, and delete gaussians close to that point.
 

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.8.18)  3 DEC 2024 14:09
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.8.18)  3 DEC 2024 14:21
 entering extended mode
  \write18 enabled.
  file:line:error style messages enabled.
@@ -308,7 +308,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 56--60
 [5]
 
 [6]
-Overfull \hbox (2.43588pt too wide) in paragraph at lines 215--216
+Overfull \hbox (2.43588pt too wide) in paragraph at lines 218--219
 []\OT1/cmr/m/n/10 See [][][][][] for how I merge two splat
  []
 
@@ -316,27 +316,29 @@ Overfull \hbox (2.43588pt too wide) in paragraph at lines 215--216
 
 [7]
 
-[8] (./report.aux)
+[8]
+
+[9] (./report.aux)
  ***********
 LaTeX2e <2024-06-01> patch level 2
 L3 programming layer <2024-07-20>
  ***********
 Package rerunfilecheck Info: File `report.out' has not changed.
-(rerunfilecheck)             Checksum: E13A4A1CE0A623854E3FB7B7AC8E5450;4566.
+(rerunfilecheck)             Checksum: 8F97134773E7EA4CC0D4FD8EDDAAFAB6;4741.
  ) 
 Here is how much of TeX's memory you used:
- 10944 strings out of 475030
- 164897 string characters out of 5762435
+ 10947 strings out of 475030
+ 164935 string characters out of 5762435
  1939957 words of memory out of 5000000
- 33509 multiletter control sequences out of 15000+600000
+ 33510 multiletter control sequences out of 15000+600000
  562993 words of font info for 53 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 75i,14n,79p,1103b,1168s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,14n,79p,1244b,1168s stack positions out of 10000i,1000n,20000p,200000b,200000s
  </Users/shahanneda/Library/texlive/2024basic/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2024basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb>
-Output written on report.pdf (8 pages, 188866 bytes).
+Output written on report.pdf (9 pages, 189681 bytes).
 PDF statistics:
- 209 PDF objects out of 1000 (max. 8388607)
- 170 compressed objects within 2 object streams
- 30 named destinations out of 1000 (max. 500000)
- 169 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 218 PDF objects out of 1000 (max. 8388607)
+ 178 compressed objects within 2 object streams
+ 32 named destinations out of 1000 (max. 500000)
+ 177 words of extra memory for PDF output out of 10000 (max. 10000000)
 
