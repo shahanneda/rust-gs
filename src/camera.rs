@@ -204,11 +204,6 @@ impl Camera {
             100f32,
         );
         let mut vm = self.get_world_to_camera_matrix();
-        // invert_row(&mut vm, 1);
-        // invert_row(&mut vm, 2);
-        // invert_row(&mut vm, 0);
-        // invert_row(&mut proj, 1);
-        // invert_row(&mut proj, 0);
         return (proj, vm);
     }
 
@@ -221,27 +216,27 @@ impl Camera {
     ) -> (Vec3, Vec3) {
         let ray_origin = self.pos;
 
-        // Create projection and view matrices
+        // create projection and view matrices
         let aspect_ratio = (width as f32) / (height as f32);
         let fov = 0.820176f32; // Field of view
         let proj = glm::perspective(aspect_ratio, fov, 0.1f32, 100f32);
         let vm = self.get_world_to_camera_matrix();
 
-        // Invert projection and view matrices
+        // invert projection and view matrices
         let inv_proj = proj.try_inverse().unwrap();
         let inv_view = vm.try_inverse().unwrap();
 
-        // Convert NDC to homogeneous clip space
+        // convert NDC to homogeneous clip space
         let clip = vec4(ndc_x, ndc_y, -1.0, 1.0);
 
-        // Transform to eye space (view space)
+        // transform to eye space (view space)
         let eye_coords = inv_proj * clip;
         let eye_coords = vec4(eye_coords.x, eye_coords.y, -1.0, 0.0);
 
-        // Transform to world space
+        // transform to world space
         let world_coords = inv_view * eye_coords;
 
-        // Normalize the direction
+        // normalize the direction
         let ray_direction = glm::normalize(&vec3(world_coords.x, world_coords.y, world_coords.z));
 
         (-ray_origin, ray_direction)

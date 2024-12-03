@@ -207,22 +207,6 @@ impl Scene {
             self.splat_data.splats[index].g = self.splat_data.splats[index].g.max(0.0);
             self.splat_data.splats[index].b = self.splat_data.splats[index].b.max(0.0);
         }
-
-        // let shadow_points: Vec<_> = self
-        //     .splat_data
-        //     .splats
-        //     .iter()
-        //     .map(|splat| self.is_point_in_shadow(vec3(splat.x, splat.y, splat.z), self.light_pos))
-        //     .collect();
-
-        // for (splat, is_shadowed) in self.splat_data.splats.iter_mut().zip(shadow_points) {
-        //     if is_shadowed {
-        //         // splat.opacity = 0.0;
-        //         splat.r -= 0.4;
-        //         splat.g -= 0.4;
-        //         splat.b -= 0.4;
-        //     }
-        // }
     }
 
     pub fn update_gizmo_position(&mut self, object_idx: u32) {
@@ -257,30 +241,6 @@ impl Scene {
     }
 
     pub fn update_gizmo_drag(&mut self, current_pos: Vec2, restrict_gizmo_movement: bool) {
-        // if let Some(target_idx) = self.gizmo.target_object {
-        //     // Project ray onto the active axis plane
-        //     if let Some(axis) = self.gizmo.active_axis {
-        //         let plane_normal = match axis {
-        //             GizmoAxis::X => vec3(1.0, 0.0, 0.0),
-        //             GizmoAxis::Y => vec3(0.0, 1.0, 0.0),
-        //             GizmoAxis::Z => vec3(0.0, 0.0, 1.0),
-        //             _ => return,
-        //         };
-
-        //         let t = glm::dot(
-        //             &(self.gizmo.drag_start_pos.unwrap_or(vec3(0.0, 0.0, 0.0)) - ray_origin),
-        //             &plane_normal,
-        //         ) / glm::dot(&ray_direction, &plane_normal);
-        //         let intersection_point = ray_origin + ray_direction * t;
-
-        //         if let Some(new_pos) = self.gizmo.update_drag(intersection_point) {
-        //             if let Some(object) = self.objects.get_mut(target_idx) {
-        //                 object.pos = new_pos;
-        //                 self.gizmo.update_position(new_pos);
-        //             }
-        //         }
-        // }
-
         if let Some(new_pos) = self.gizmo.update_drag(current_pos, restrict_gizmo_movement) {
             if let Some(target_idx) = self.gizmo.target_object {
                 log!("target idx: {:?}", target_idx);
@@ -313,10 +273,6 @@ impl Scene {
                             break;
                         }
                     }
-                    // if self.new_object_position_is_safe(object, new_pos) {
-                    //     // object.pos = old_pos;
-                    //     self.gizmo.update_position(new_pos);
-                    // }
                 }
             }
         }
@@ -387,11 +343,6 @@ impl Scene {
                         }
                     }
                 }
-                // scene.borrow_mut().calculate_shadows(&oct_tree.borrow());
-                // renderer
-                //     .borrow_mut()
-                //     .update_webgl_textures(&scene.borrow())
-                //     .expect("failed to update webgl textures when moving down");
             }
         }
     }

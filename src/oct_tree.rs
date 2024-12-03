@@ -73,19 +73,7 @@ impl OctTreeNode {
 
         return out;
     }
-    //  fn index_to_direction(index: usize) -> Vec3 {
-    //     match index {
-    //         0 => Vec3 { x: 1.0,  y: 1.0,  z: 1.0 },
-    //         1 => Vec3 { x: 1.0,  y: 1.0,  z: -1.0 },
-    //         2 => Vec3 { x: 1.0,  y: -1.0, z: 1.0 },
-    //         3 => Vec3 { x: 1.0,  y: -1.0, z: -1.0 },
-    //         4 => Vec3 { x: -1.0, y: 1.0,  z: 1.0 },
-    //         5 => Vec3 { x: -1.0, y: 1.0,  z: -1.0 },
-    //         6 => Vec3 { x: -1.0, y: -1.0, z: 1.0 },
-    //         7 => Vec3 { x: -1.0, y: -1.0, z: -1.0 },
-    //         _ => panic!("Invalid index"),
-    //     }
-    // }
+
     fn index_to_color(index: usize) -> Vec3 {
         match index {
             0 => vec3(1.0, 0.0, 0.0),
@@ -284,27 +272,6 @@ impl OctTreeNode {
     pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<OctTreeSplat> {
         let mut out = vec![];
         log!("finding splats in radius {:?}", center);
-        // if center.x > self.center.x + self.half_width || center.x < self.center.x - self.half_width
-        // {
-        //     log!(
-        //         "returning early x: {}, max x: {}, min x: {}",
-        //         center.x,
-        //         self.center.x + self.half_width,
-        //         self.center.x - self.half_width
-        //     );
-        //     self.touched = false;
-        //     return out;
-        // }
-        // if center.y > self.center.y + self.half_width || center.y < self.center.y - self.half_width
-        // {
-        //     self.touched = false;
-        //     return out;
-        // }
-        // if center.z > self.center.z + self.half_width || center.z < self.center.z - self.half_width
-        // {
-        //     self.touched = false;
-        //     return out;
-        // }
         if center.x - radius > self.center.x + self.half_width
             || center.x + radius < self.center.x - self.half_width
             || center.y - radius > self.center.y + self.half_width

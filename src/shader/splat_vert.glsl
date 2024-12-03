@@ -7,23 +7,21 @@ in uint s_index;
 uniform mat4 camera;
 uniform mat4 projection;
 
-uniform float W;
-uniform float H;
-uniform float focal_x;
-uniform float focal_y;
-uniform float tan_fovx;
-uniform float tan_fovy;
+uniform float width;
+uniform float height;
+uniform float x_focal_length;
+uniform float y_focal_length;
 uniform float scale;
-uniform vec3 boxmin;
-uniform vec3 boxmax;
 uniform mat4 model;
+uniform float x_fov;
+uniform float y_fov;
 
-out vec3 col;
+out vec3 color;
 out float depth;
-out float scale_modif;
-out vec4 con_o;
-out vec2 xy;
-out vec2 pixf;
+out float scale_out;
+out vec4 conic_opacity;
+out vec2 center_of_splat;
+out vec2 current_vert_screen_pos;
 
 uniform sampler2D u_color_texture;
 uniform sampler2D u_position_texture;
@@ -33,19 +31,23 @@ uniform sampler2D u_opacity_texture;
 
 const uint texture_width = 2000u;
 
-vec3 computeCov2D(vec3 mean, float focal_x, float focal_y, float tan_fovx,
-                  float tan_fovy, float[6] cov3D, mat4 viewmatrix) {
-  vec4 t = viewmatrix * vec4(mean, 1.0);
+// I took a lot of inspiration from
+// https://github.com/graphdeco-inria/diff-gaussian-rasterization/blob/main/cuda_rasterizer/forward.cu
+// for these shaders
 
-  float limx = 1.3 * tan_fovx;
-  float limy = 1.3 * tan_fovy;
+vec3 computeCov2D(vec3 mean, float x_focal_length, float y_focal_length,
+                  float x_fov, float y_fov, float[6] cov3D, mat4 viewmatrix) {
+  vec4 t = viewmatrix * vec4(mean, 1.0);
+  float limx = 1.3 * x_fov;
+  float limy = 1.3 * y_fov;
   float txtz = t.x / t.z;
   float tytz = t.y / t.z;
   t.x = min(limx, max(-limx, txtz)) * t.z;
   t.y = min(limy, max(-limy, tytz)) * t.z;
 
-  mat3 J = mat3(focal_x / t.z, 0, -(focal_x * t.x) / (t.z * t.z), 0,
-                focal_y / t.z, -(focal_y * t.y) / (t.z * t.z), 0, 0, 0);
+  mat3 J = mat3(x_focal_length / t.z, 0, -(x_focal_length * t.x) / (t.z * t.z),
+                0, y_focal_length / t.z, -(y_focal_length * t.y) / (t.z * t.z),
+                0, 0, 0);
 
   mat3 W = mat3(viewmatrix[0][0], viewmatrix[1][0], viewmatrix[2][0],
                 viewmatrix[0][1], viewmatrix[1][1], viewmatrix[2][1],
@@ -62,7 +64,6 @@ vec3 computeCov2D(vec3 mean, float focal_x, float focal_y, float tan_fovx,
   // im not sure why we need to do this but it helps a lot
   cov[0][0] += .3;
   cov[1][1] += .3;
-
   // 2d covariance is also symmetric
   return vec3(cov[0][0], cov[0][1], cov[1][1]);
 }
@@ -114,8 +115,8 @@ void main() {
                             s_cov3db.y, s_cov3db.z);
 
   // convert the 3d covaraince to a 2d covariance
-  vec3 cov =
-      computeCov2D(p_orig, focal_x, focal_y, tan_fovx, tan_fovy, cov3D, camera);
+  vec3 cov = computeCov2D(p_orig, x_focal_length, y_focal_length, x_fov, y_fov,
+                          cov3D, camera);
 
   // if the determinant is 0, that means the spalt is just a single point
   float det = (cov.x * cov.z - cov.y * cov.y);
@@ -148,23 +149,21 @@ void main() {
   float my_radius = ceil(3. * sqrt(max(lambda1, lambda2)));
 
   // the center of the spalt in pixel coordiantes
-  vec2 point_image = vec2(ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H));
+  center_of_splat = vec2(ndc2Pix(p_proj.x, width), ndc2Pix(p_proj.y, height));
 
   my_radius *= .15 + scale * .85;
-  scale_modif = 1. / scale;
+  scale_out = 1. / scale;
 
   // get a corner id either (-1, -1), (-1, 1), (1, -1), (1, 1)
   vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2) - 1.;
 
   // move the screen position of this verrtex to one of the corners of the splat
-  vec2 screen_pos = point_image + my_radius * corner;
+  current_vert_screen_pos = center_of_splat + my_radius * corner;
 
-  col = get_value_from_texture(texture_coord, u_color_texture);
-  con_o = vec4(conic, s_opacity);
-  xy = point_image;
-  pixf = screen_pos;
+  color = get_value_from_texture(texture_coord, u_color_texture);
+  conic_opacity = vec4(conic, s_opacity);
   depth = p_view.z;
 
-  vec2 clip_pos = screen_pos / vec2(W, H) * 2. - 1.;
+  vec2 clip_pos = current_vert_screen_pos / vec2(width, height) * 2. - 1.;
   gl_Position = vec4(clip_pos, 0, 1);
 }

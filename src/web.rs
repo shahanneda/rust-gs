@@ -81,25 +81,6 @@ fn handle_splat_delete_click(
     for t in 0..100 {
         let t = t as f32 / 10.0;
         let pos = ray_origin + ray_direction * t;
-        // scene.add_line(
-        //     pos,
-        //     pos + 0.2 * ray_direction,
-        //     vec3(pos.x / 100.0, pos.y / 100.0, pos.z / 100.0),
-        // );
-
-        // scene.objects.push(SceneObject::new(
-        //     MeshData::new(
-        //         scene_geo::CUBE_VERTICES.to_vec(),
-        //         scene_geo::CUBE_INDICES.to_vec(),
-        //         scene_geo::CUBE_COLORS.to_vec(),
-        //     ),
-        //     pos,
-        //     vec3(0.0, 0.0, 0.0),
-        //     vec3(0.01, 0.01, 0.01),
-        // ));
-
-        // let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.1);
-        // log!("octree found splats: {:?}", octree_found_splats.len());
 
         if settings.use_octtree_for_splat_removal {
             let oct_tree = &mut scene.oct_tree;
@@ -138,9 +119,6 @@ fn handle_splat_delete_click(
         for splat in splats_near {
             log!("splat near {:?}", splat.opacity);
             scene.splat_data.splats[splat.index].opacity = 0.0;
-            //     scene.splat_data.splats[splat.index].r -= 0.1;
-            //     scene.splat_data.splats[splat.index].g -= 0.1;
-            //     scene.splat_data.splats[splat.index].b -= 0.1;
         }
     } else {
         for splat in scene.splat_data.splats.iter_mut() {
@@ -149,27 +127,6 @@ fn handle_splat_delete_click(
             }
         }
     }
-
-    // let octree_found_splats = oct_tree.find_splats_in_radius(vec3(-0.8, 0.0, 0.0), 0.1);
-    // log!("octree found splats: {:?}", octree_found_splats.len());
-
-    // scene.clear_lines();
-    // let lines = oct_tree.get_lines();
-    // for line in lines {
-    //     scene.add_line(line.start, line.end, line.color);
-    // }
-
-    // log!("octree found splats: {:?}", octree_found_splats.len());
-
-    // log!("splat pos is {:?}", splat_pos);
-    // if found {
-    //     for mut splat in scene.splat_data.splats.iter_mut() {
-    //         if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
-    //             splat.opacity = 0.0;
-    //         }
-    //     }
-    // }
-
     renderer
         .update_webgl_textures(&scene, 0)
         .expect("failed to update webgl textures when editing");
@@ -186,47 +143,14 @@ fn handle_splat_delete_click(
 #[wasm_bindgen(start)]
 pub async fn start() -> Result<(), JsValue> {
     set_panic_hook();
-
-    // log!("web!");
-    // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
-    // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
-    // let mut scene = Scene::new(ply_splat);
-    // let serealized = serde_json::to_string(&scene).unwrap();
-    // log!("serialized = {}", serealized);
-    // log!("Done loading!");
-    // Load the JSON file dynamically
-    // let window = web_sys::window().unwrap();
-    // let mut scene: Scene = Scene::new_from_url("http://127.0.0.1:5501/splats/one-corn.json").await;
-    // let scene_name = "shahan_head";
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
-    // unsafe {
-    //     if !worker_initialized {
-    //         // let worker_options = WorkerOptions::new();
-    //         // worker_options.set_type(WorkerType::Module);
-
-    //         //     let worker_handle = Rc::new(RefCell::new(Worker::new_with_options("./worker.js", &worker_options).unwrap()));
-    //         // console::log_1(&"Created a new worker from within Wasm".into());
-    //         // worker_handle.borrow_mut().post_message(&JsValue::from_str("hello from wasm")).unwrap();
-    //         worker_initialized = true;
-    //     }
-    //     else {
-    //         return Ok(());
-    //     }
-    // }
-    // log!("Starting Web!");
-
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
-    // check URL, if there is a
-
     // let scene_name = "socratica_01_edited";
-    // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
     // let scene_name = "sci_01";
     // let scene_name = "icon_01";
-    //
     // let scene_name = "Shahan_03_id01-30000-2024";
     // let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "soc_01_polycam";
@@ -247,33 +171,8 @@ pub async fn start() -> Result<(), JsValue> {
     };
     // let scene_name = "soc_02_edited";
     let mut splat: SplatData = SplatData::new_from_url(&scene_url).await;
-
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
-    // let splat2: SplatData =
-    //     SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
-    // splat.merge_with_other_splatdata(splat2);
-    // splat.apply_transformation_to_object(
-    //     1,
-    //     glm::translate(&glm::Mat4::identity(), &vec3(1.0, -2.0, 1.0)),
-    //     glm::rotate(
-    //         &glm::Mat4::identity(),
-    //         glm::radians(&vec1(90.0))[0],
-    //         &vec3(0.0, 1.0, 0.0),
-    //     ),
-    // );
     let scene = Rc::new(RefCell::new(Scene::new(splat)));
 
-    // let scene_2 = Rc::new(RefCell::new(Scene::new(splat)));
-
-    // scene_2.borrow_mut().model_transform =
-    //     glm::translate(&glm::Mat4::identity(), &vec3(0.0, -1.5, 0.0));
-
-    // let pyramid_mesh = MeshData::new(
-    //     scene_geo::PYRAMID_VERTICES.to_vec(),
-    //     // scene_geo::PYRAMID_INDICES,
-    //     vec![],
-    //     scene_geo::PYRAMID_COLORS.to_vec(),
-    // );
     let cube_mesh = MeshData::new(
         scene_geo::CUBE_VERTICES.to_vec(),
         scene_geo::CUBE_INDICES.to_vec(),
@@ -287,19 +186,12 @@ pub async fn start() -> Result<(), JsValue> {
         // vec3(1.0, 0.1, 0.1),
         vec3(0.1, 0.1, 0.1),
     );
-    // let min = cube_object.min;
-    // let max = cube_object.max;
     scene.borrow_mut().objects.push(cube_object);
     let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.2), 0.1, vec3(0.0, 1.0, 0.1));
     scene.borrow_mut().objects.push(cube_object_2);
-
-    let obj_name = "teapot.obj";
-    // let teapot_mesh =
-    //     obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
     let teapot_mesh =
         obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
             .await;
-
     let teapot_object = SceneObject::new(
         teapot_mesh,
         vec3(0.2, -0.2, 0.0),
@@ -307,15 +199,6 @@ pub async fn start() -> Result<(), JsValue> {
         vec3(0.01, 0.01, 0.01),
     );
     scene.borrow_mut().objects.push(teapot_object);
-
-    // {
-    //     let mut scene_mut = scene.borrow_mut();
-    //     if let Some(first_object) = scene_mut.objects.first() {
-    //         let pos = first_object.pos;
-    //         scene_mut.gizmo.update_position(pos);
-    //         scene_mut.gizmo.target_object = Some(0);
-    //     }
-    // }
 
     let mut settings = Settings {
         show_octtree: false,
@@ -329,64 +212,9 @@ pub async fn start() -> Result<(), JsValue> {
         selected_object: None,
     };
     let settings_ref = Rc::new(RefCell::new(settings));
-    let settings_clone = settings_ref.clone();
-
     scene
         .borrow_mut()
         .redraw_from_oct_tree(settings_ref.clone().borrow_mut().only_show_clicks);
-
-    // let checkbox_clone = checkbox.clone();
-    // let checkbox_callback = Closure::wrap(Box::new(move |_event: web_sys::Event| {
-    //     let mut settings = settings_clone.borrow_mut();
-    //     settings.show_octtree = checkbox_clone.checked();
-    //     // You'll need to pass scene and oct_tree here if you want to redraw immediately
-    // }) as Box<dyn FnMut(_)>);
-
-    // checkbox
-    //     .add_event_listener_with_callback("change", checkbox_callback.as_ref().unchecked_ref())?;
-    // checkbox_callback.forget();
-    // scene.objects.push(SceneObject::new(
-    //     pyramid_mesh.clone(),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(1.0, 1.0, 1.0),
-    // ));
-
-    // scene.objects.push(SceneObject::new(
-    //     cube_mesh.clone(),
-    //     vec3(3.0, 0.0, 0.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(1.05, 1.05, 1.05),
-    // ));
-
-    // for i in 0..100 {
-    //     scene.add_line(
-    //         vec3(i as f32 - 50.0, 0.0, 1.0),
-    //         vec3(i as f32 - 50.0, i as f32, 1.0),
-    //         vec3(i as f32 / 100.0, 10.0, 0.0),
-    //     );
-    // }
-
-    // scene.objects.push(SceneObject::new(
-    //     MeshData::new(
-    //         scene_geo::CUBE_VERTICES.to_vec(),
-    //         vec![],
-    //         scene_geo::CUBE_COLORS.to_vec(),
-    //     ),
-    //     vec3(-5.0, 0.0, 0.0),
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(1.0, 1.0, 1.0),
-    // ));
-    // let mut scene: Scene =
-    //     Scene::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
-    // let mut scene: Scene = Scene::new_from_url(
-    //     "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/e7eb4bda-1d7c-4ca8-ac6b-a4c2c722f014.rkyv",
-    // )
-    // .await;
-    // let mut scene: Scene = Scene::new_from_json(&loaded_file);
-    // log!("deserialized = {:?}", scene);
-    // let ply_splat = loader::loader::load_ply().await.expect("something went wrong in loading");
-    // log!("Done loading!");
 
     let _timer = Timer::new("start function");
     let document = web_sys::window().unwrap().document().unwrap();
@@ -399,15 +227,6 @@ pub async fn start() -> Result<(), JsValue> {
         Renderer::new(gl, &scene.borrow_mut()).unwrap(),
     ));
 
-    // // setup scene 2
-    // renderer.borrow_mut().bind_splat_textures(1);
-    // renderer
-    //     .borrow_mut()
-    //     .update_webgl_textures(&scene_2.borrow(), 1)
-    //     .unwrap();
-
-    // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
-    // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
         // camera pos: [[-6.679095, 0.14607938, -0.32618168]]
         // final_project.js:564 camera rot: [[-0.13400005, -1.5560011]]
@@ -466,7 +285,6 @@ pub async fn start() -> Result<(), JsValue> {
     let scene_clone = scene.clone();
     let camera_clone = camera.clone();
     let renderer_clone = renderer.clone();
-    let settings_ref_clone = settings_ref.clone();
     let click_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
         let mut scene = scene_clone.borrow_mut();
         let mut state = click_state_clone.borrow_mut();
@@ -476,13 +294,6 @@ pub async fn start() -> Result<(), JsValue> {
         state.x = e.client_x();
         state.y = e.client_y();
         state.button = e.button();
-        // handle_mouse_down(
-        //     e,
-        //     scene_clone.clone(),
-        //     camera_clone.clone(),
-        //     settings_ref_clone.clone(),
-        // );
-
         let (vm, vpm) = camera_clone.borrow().get_vm_and_vpm(width, height);
         let (index, is_gizmo, hit_object) =
             renderer.get_at_mouse_position(width, height, state.x, state.y, vpm, vm, &scene);
@@ -512,9 +323,6 @@ pub async fn start() -> Result<(), JsValue> {
             scene.hide_gizmo();
         }
     }) as Box<dyn FnMut(_)>);
-    // scene
-    //     .objects
-    //     .push(SceneObject::new_cube(vec3(0.0, 0.0, 0.0), 1.0));
 
     canvas.add_event_listener_with_callback("mousedown", click_cb.as_ref().unchecked_ref())?;
     click_cb.forget();
@@ -528,7 +336,6 @@ pub async fn start() -> Result<(), JsValue> {
             state.x = e.client_x();
             state.y = e.client_y();
             state.clicked = true;
-            // handle_mouse_move(e, scene_clone.clone(), camera_clone.clone());
         }
     }) as Box<dyn FnMut(_)>);
 
@@ -541,7 +348,6 @@ pub async fn start() -> Result<(), JsValue> {
         let mut state = click_state_up.borrow_mut();
         state.dragging = false;
         scene_clone.borrow_mut().end_gizmo_drag();
-        // handle_mouse_up(scene_clone.clone());
     }) as Box<dyn FnMut(_)>);
 
     canvas.add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;
@@ -616,51 +422,24 @@ pub async fn start() -> Result<(), JsValue> {
         binding.setup_ui_listener(settings_ref.clone(), scene.clone())?;
     }
 
-    // scene.add_line(
-    //     vec3(0.0, 0.0, 0.0),
-    //     vec3(10.0, 0.0, 0.0),
-    //     vec3(1.0, 0.0, 0.0),
-    // );
-
-    // let cubes = oct_tree.get_cubes();
-    // for cube in cubes {
-    //     scene.objects.push(cube);
-    // }
-    // let cube =
-    // scene.objects.push(SceneObject::new_cube(
-    //     vec3(0.0, 0.0, 0.0),
-    //     1.0,
-    //     vec3(0.0, 1.0, 0.0),
-    // ));
-    // scene.objects.push(SceneObject::new_cube(
-    //     vec3(1.0, 0.0, 0.0),
-    //     1.0,
-    //     vec3(0.0, 0.0, 1.0),
-    // ));
-    // scene.objects.push(SceneObject::new_cube(
-    //     vec3(-1.0, 0.0, 0.0),
-    //     0.5,
-    //     vec3(0.0, 1.0, 1.0),
-    // ));
-
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
-    let mut i = 0;
     // let mut orbit_angle = 0.0f32;
     // let orbit_radius = 0.9f32;
     // let orbit_height = 0.2f32;
     // let orbit_speed = 0.005f32;
+    renderer.borrow_mut().bind_splat_textures(0);
     *g.borrow_mut() = Some(Closure::new(move || {
         let _timer = Timer::new("main loop");
         let mut cam_mut = camera.borrow_mut();
         let settings = settings_ref.clone();
-        // // Update orbit angle and camera position
+        // // update orbit angle and camera position
         // orbit_angle += orbit_speed;
         // cam_mut.pos.x = orbit_radius * orbit_angle.cos();
         // cam_mut.pos.z = orbit_radius * orbit_angle.sin();
         // cam_mut.pos.y = orbit_height;
 
-        // // Make the camera look at the center
+        // // make the camera look at the center
         // cam_mut.rot.x = -0.13400005; // Keep original x rotation
         // cam_mut.rot.y = orbit_angle + std::f32::consts::PI / 2.0; // Make camera face center
 
@@ -668,7 +447,6 @@ pub async fn start() -> Result<(), JsValue> {
         if settings.borrow().move_down {
             scene.borrow_mut().move_down();
         }
-        // log!("min: {:?}, max: {:?}", min, max);
 
         cam_mut.update_translation_from_keys(&keys_pressed.borrow());
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
@@ -717,26 +495,16 @@ pub async fn start() -> Result<(), JsValue> {
 
         let (normal_projection_matrix, normal_view_matrix) =
             cam_mut.get_normal_projection_and_view_matrices(width, height);
-        // if settings.borrow().do_sorting {
-        //     let splat_indices = scene
-        //         .borrow_mut()
-        //         .splat_data
-        //         .sort_splats_based_on_depth(vpm);
-        //     renderer.borrow_mut().update_splat_indices(&splat_indices);
-        // }
 
         if settings.borrow().do_sorting {
             let splat_indices = scene
                 .borrow_mut()
                 .splat_data
                 .sort_splats_based_on_depth(vpm);
-            // renderer
-            //     .borrow_mut()
-            //     .update_webgl_textures(&scene.borrow())
-            //     .unwrap();
             renderer.borrow_mut().update_splat_indices(&splat_indices);
         }
-        renderer.borrow_mut().bind_splat_textures(0);
+
+        // renderer.borrow_mut().bind_splat_textures(0);
         renderer.borrow_mut().draw_scene(
             &canvas,
             &scene.borrow(),
@@ -747,30 +515,6 @@ pub async fn start() -> Result<(), JsValue> {
             &settings.borrow(),
             true,
         );
-
-        // renderer.borrow_mut().bind_splat_textures(1);
-        // let splat_indices = scene_2
-        //     .borrow_mut()
-        //     .splat_data
-        //     .sort_splats_based_on_depth(vpm);
-        // renderer.borrow_mut().update_splat_indices(&splat_indices);
-
-        // renderer
-        //     .borrow_mut()
-        //     .update_webgl_textures(&scene_2.borrow())
-        //     .unwrap();
-        // renderer.borrow_mut().draw_scene(
-        //     &canvas,
-        //     &scene_2.borrow(),
-        //     vpm,
-        //     vm,
-        //     normal_projection_matrix,
-        //     normal_view_matrix,
-        //     &settings.borrow(),
-        //     false,
-        // );
-
-        i += 1;
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));
 
@@ -821,21 +565,6 @@ fn setup_button_callbacks(
 ) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
-
-    // Move Down button
-    // let move_down_btn = document
-    //     .get_element_by_id("move-down-btn")
-    //     .unwrap()
-    //     .dyn_into::<HtmlElement>()?;
-
-    // let scene_clone = scene.clone();
-    // let move_down_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
-    //     let mut scene = scene_clone.borrow_mut();
-    //     // Add your move down logic here
-    //     log!("Moving down!");
-    // }) as Box<dyn FnMut(_)>);
-    // move_down_btn.set_onclick(Some(move_down_callback.as_ref().unchecked_ref()));
-    // move_down_callback.forget(); // Prevent callback from being dropped
 
     // Calculate Shadows button
     let shadows_btn = document

@@ -6,21 +6,11 @@ in vec3 v_pos;
 in vec3 v_col;
 out vec3 v_color;
 
-// uniform mat4 model;
 uniform mat4 camera;
 uniform mat4 projection;
 
 uniform float W;
 uniform float H;
-
-// invert_row
-
-// pub fn invert_row(mat: &mut glm::Mat4, row: usize) {
-//     mat[row + 0] = -mat[row + 0];
-//     mat[row + 4] = -mat[row + 4];
-//     mat[row + 8] = -mat[row + 8];
-//     mat[row + 12] = -mat[row + 12];
-// }
 
 mat4 invert_row(mat4 mat, int row) {
   mat[row + 0] = -mat[row + 0];

@@ -113,7 +113,7 @@ impl SceneObject {
     }
 
     pub fn intersection(&self, ray_origin: Vec3, ray_direction: Vec3) -> Option<(Vec3, Vec3, f32)> {
-        // Create transformation matrix for the object
+        // create transformation matrix for the object
         let translation = glm::translate(&glm::Mat4::identity(), &self.pos);
         let rotation_x = glm::rotate_x(&glm::Mat4::identity(), self.rot.x);
         let rotation_y = glm::rotate_y(&glm::Mat4::identity(), self.rot.y);
@@ -123,7 +123,7 @@ impl SceneObject {
         let transform = translation * rotation_z * rotation_y * rotation_x * scale;
         let inv_transform = glm::inverse(&transform);
 
-        // Transform ray to object space
+        // transform ray to object space
         let transformed_origin = transform_point(&inv_transform, &ray_origin);
         let transformed_direction = transform_vector(&inv_transform, &ray_direction);
 
@@ -132,7 +132,7 @@ impl SceneObject {
         let mut result_point = Vec3::zeros();
         let mut result_normal = Vec3::zeros();
 
-        // Iterate through triangles
+        // iterate through triangles
         for face_idx in (0..self.mesh_data.indices.len()).step_by(3) {
             let v1_idx = self.mesh_data.indices[face_idx] as usize * 3;
             let v2_idx = self.mesh_data.indices[face_idx + 1] as usize * 3;
@@ -161,7 +161,7 @@ impl SceneObject {
             if let Some((intersection_point, t)) =
                 intersect_ray_with_plane(transformed_origin, transformed_direction, v1, face_normal)
             {
-                // Check if point is inside triangle using edge normals
+                // check if point is inside triangle using edge normals
                 let edge_1_normal = get_line_normal_from_two_points(v1, v2, face_normal);
                 if lq(intersection_point, v1, edge_1_normal) < 0.0 {
                     continue;
@@ -187,14 +187,11 @@ impl SceneObject {
         }
 
         if found_intersection {
-            // Transform intersection point and normal back to world space
             let world_point = transform_point(&transform, &result_point);
 
-            // For normal transformation, we need to use the transpose of the inverse
             let normal_transform = glm::transpose(&inv_transform);
             let world_normal = glm::normalize(&transform_vector(&normal_transform, &result_normal));
 
-            // Adjust t for the scaling
             let world_t = smallest_t * glm::length(&self.scale);
 
             Some((world_point, world_normal, world_t))

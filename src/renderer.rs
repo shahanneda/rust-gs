@@ -542,12 +542,12 @@ impl Renderer {
         let tan_fovx = (tan_fovy * width) / height;
         let focal_y = height / (2.0 * tan_fovy);
         let focal_x = width / (2.0 * tan_fovx);
-        set_float_uniform_value(&self.splat_shader, &gl, "W", width as f32);
-        set_float_uniform_value(&self.splat_shader, &gl, "H", height as f32);
-        set_float_uniform_value(&self.splat_shader, &gl, "focal_x", focal_x);
-        set_float_uniform_value(&self.splat_shader, &gl, "focal_y", focal_y);
-        set_float_uniform_value(&self.splat_shader, &gl, "tan_fovx", tan_fovx);
-        set_float_uniform_value(&self.splat_shader, &gl, "tan_fovy", tan_fovy);
+        set_float_uniform_value(&self.splat_shader, &gl, "width", width as f32);
+        set_float_uniform_value(&self.splat_shader, &gl, "height", height as f32);
+        set_float_uniform_value(&self.splat_shader, &gl, "x_focal_length", focal_x);
+        set_float_uniform_value(&self.splat_shader, &gl, "y_focal_length", focal_y);
+        set_float_uniform_value(&self.splat_shader, &gl, "x_fov", tan_fovx);
+        set_float_uniform_value(&self.splat_shader, &gl, "y_fov", tan_fovy);
         set_float_uniform_value(&self.splat_shader, &gl, "scale", scale);
         set_bool_uniform_value(&self.splat_shader, &gl, "do_blending", do_blending);
 
@@ -604,11 +604,9 @@ impl Renderer {
             gl.disable(WebGl2RenderingContext::DEPTH_TEST);
             gl.depth_mask(false);
         }
-        // gl.depth_func(WebGl2RenderingContext::GEQUAL);
 
         gl.disable(WebGl2RenderingContext::BLEND);
 
-        // gl.enable(WebGl2RenderingContext::BLEND);
         update_buffer_data(
             &gl,
             &self.geo_vertex_buffer,
@@ -630,26 +628,10 @@ impl Renderer {
             &self.geo_normal_buffer,
             float32_array_from_vec(&object.mesh_data.normals),
         );
-
-        // log!("indicies are {:?}", object.mesh_data.indices);
-        // log!("colors length: {:?}", scene_geo::COLORS.len());
-        // gl.blend_func(
-        //     WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
-        //     WebGl2RenderingContext::ONE,
-        // );
-
         let proj_uniform_location = gl
             .get_uniform_location(&self.geo_shader, "projection")
             .unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
-
-        // try muliplying just for checking
-        // for vertex in scene_geo::PYRAMID_VERTICES.chunks(3) {
-        //     // after vpm
-        //     log!("vertex: {:?}", vertex);
-        //     let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
-        //     log!("vertex_vpm: {:?}", vertex_vpm);
-        // }
 
         let camera_uniform_location = gl.get_uniform_location(&self.geo_shader, "camera").unwrap();
         gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
@@ -742,17 +724,6 @@ impl Renderer {
             &self.geo_color_buffer,
             float32_array_from_vec(line_colors),
         );
-        // multipling the line as a sample
-        // for i in 0..line_verts.len() / 3 {
-        //     let vertex = glm::vec3(
-        //         line_verts[i * 3],
-        //         line_verts[i * 3 + 1],
-        //         line_verts[i * 3 + 2],
-        //     );
-        //     let vertex_proj =
-        //         projection_mat * view_mat * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
-        //     log!("vertex_proj: {:?}", vertex_proj);
-        // }
 
         let proj_uniform_location = gl
             .get_uniform_location(&self.geo_shader, "projection")
@@ -779,14 +750,6 @@ impl Renderer {
 
         set_float_uniform_value(&self.geo_shader, &gl, "W", width as f32);
         set_float_uniform_value(&self.geo_shader, &gl, "H", height as f32);
-
-        // try muliplying just for checking
-        // for vertex in scene_geo::PYRAMID_VERTICES.chunks(3) {
-        //     // after vpm
-        //     log!("vertex: {:?}", vertex);
-        //     let vertex_vpm = vpm * glm::vec4(vertex[0], vertex[1], vertex[2], 1.0);
-        //     log!("vertex_vpm: {:?}", vertex_vpm);
-        // }
 
         gl.draw_arrays(
             WebGl2RenderingContext::LINES,
@@ -1064,32 +1027,3 @@ pub fn set_texture_uniform_value(
     gl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(texture));
     gl.uniform1i(Some(&uniform_location), active_texture as i32);
 }
-
-// fn update_webgl_buffers(scene: &Scene, webgl: &WebGLSetupResult) {
-// let _timer = Timer::new("update_webgl_buffers");
-// let mut splat_centers = Vec::new();
-// let mut splat_colors = Vec::new();
-// let mut splat_cov3da = Vec::new();
-// let mut splat_cov3db = Vec::new();
-// let mut splat_opacities = Vec::new();
-// let mut splat_indices = Vec::new();
-
-// for s in &scene.splats {
-// //     // splat_centers.extend_from_slice(&[s.x, s.y, s.z]);
-// //     // splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
-// //     // splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
-// //     // splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
-// //     // splat_opacities.push(s.opacity);
-//     splat_indices.push(s.index);
-// }
-
-// webgl.gl.use_program(Some(&webgl.splat_shader));
-// webgl.gl.bind_vertex_array(Some(&webgl.splat_vao));
-// update_buffer_data_u32(&webgl.gl, &webgl.splat_index_buffer, int32_array_from_vec(&splat_indices));
-
-// update_buffer_data(&webgl.gl, &webgl.color_buffer, float32_array_from_vec(&splat_colors));
-// update_buffer_data(&webgl.gl, &webgl.position_offset_buffer, float32_array_from_vec(&splat_centers));
-// update_buffer_data(&webgl.gl, &webgl.cov3da_buffer, float32_array_from_vec(&splat_cov3da));
-// update_buffer_data(&webgl.gl, &webgl.cov3db_buffer, float32_array_from_vec(&splat_cov3db));
-// update_buffer_data(&webgl.gl, &webgl.opacity_buffer, float32_array_from_vec(&splat_opacities));
-// }

@@ -39,6 +39,6 @@ macro_rules! uint_16_array {
     }};
 }
 
-pub fn sigmoid(val: f32) -> f32{
+pub fn sigmoid(val: f32) -> f32 {
     1.0 / (1.0 + (-val).exp())
 }

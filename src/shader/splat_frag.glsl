@@ -1,47 +1,44 @@
 #version 300 es
+// Took inspiration from
+// https://github.com/graphdeco-inria/diff-gaussian-rasterization/blob/main/cuda_rasterizer/forward.cu
 precision mediump float;
 // #pragma optimize(off)
 // #pragma debug(on)
 
-in vec3 col;
-in float scale_modif;
+in vec3 color;
+in float scale_out;
 in float depth;
-in vec4 con_o;
-in vec2 xy;
-in vec2 pixf;
+in vec4 conic_opacity;
+in vec2 center_of_splat;
+in vec2 current_vert_screen_pos;
 
 uniform bool do_blending;
 
 out vec4 fragColor;
 
-// https://github.com/graphdeco-inria/diff-gaussian-rasterization/blob/main/cuda_rasterizer/forward.cu#L263
 void main() {
-
-  // distance of this fragment compared to the centerd of the splat
-  vec2 d = xy - pixf;
+  // distance of this fragment compared to the center of the splat
+  vec2 d = center_of_splat - current_vert_screen_pos;
 
   // this just represents the exponent of a 2d gaussian function f(x,y) =
   // exp(-0.5 * [x y] * Σ^-1 * [x]) inside con_o.xyz we stored the inverse sigma
   // matrix
   float power =
-      -0.5 * (con_o.x * d.x * d.x + con_o.z * d.y * d.y) - con_o.y * d.x * d.y;
-
+      -0.5 * (conic_opacity.x * d.x * d.x + conic_opacity.z * d.y * d.y) -
+      conic_opacity.y * d.x * d.y;
   if (power > 0.) {
     discard;
   }
+  power *= scale_out;
 
-  power *= scale_modif;
-  // the con_o.w is the oirigal opacity of the splat
-  float alpha = min(.99f, con_o.w * exp(power));
-  vec3 color = col;
-
+  // the conic_opacity.w is the original opacity of the splat
+  float alpha = min(.99f, conic_opacity.w * exp(power));
   if (alpha < 1. / 25.) {
     gl_FragDepth = -1000000.0;
     discard;
   }
 
   gl_FragDepth = -depth / 10.0;
-  // fragColor = vec4(1,0,0,1);
   if (do_blending) {
     fragColor = vec4(color * alpha, alpha);
     // fragColor = vec4(vec3(-depth / 10.0), 1.0);

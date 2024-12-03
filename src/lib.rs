@@ -1,6 +1,5 @@
 pub mod data_objects;
 pub mod gizmo;
-pub mod gui;
 pub mod loader;
 pub mod obj_reader;
 pub mod oct_tree;
