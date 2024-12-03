@@ -239,10 +239,11 @@ pub async fn start() -> Result<(), JsValue> {
     // If there's a url parameter, use that, otherwise use the default
     let scene_url = match params.get("url") {
         Some(url) => url,
+        None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
-        None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv"),
     };
     // let scene_name = "soc_02_edited";
     let mut splat: SplatData = SplatData::new_from_url(&scene_url).await;
@@ -293,8 +294,12 @@ pub async fn start() -> Result<(), JsValue> {
     scene.borrow_mut().objects.push(cube_object_2);
 
     let obj_name = "teapot.obj";
+    // let teapot_mesh =
+    //     obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+    // https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj
     let teapot_mesh =
-        obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+        obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
+            .await;
     let teapot_object = SceneObject::new(
         teapot_mesh,
         vec3(0.2, -0.2, 0.0),
@@ -416,12 +421,12 @@ pub async fn start() -> Result<(), JsValue> {
 
     let shahan_remote_url =
         "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv";
-    let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
+    // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
     let shahan_splat_data = SplatData::new_from_url(&shahan_remote_url).await;
 
-    let obj_name = "teapot.obj";
     let teapot_mesh =
-        obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+        obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
+            .await;
 
     setup_button_callbacks(
         scene.clone(),
