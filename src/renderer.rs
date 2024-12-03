@@ -685,9 +685,6 @@ impl Renderer {
             );
         }
 
-        set_float_uniform_value(&self.geo_shader, &gl, "W", width as f32);
-        set_float_uniform_value(&self.geo_shader, &gl, "H", height as f32);
-
         gl.bind_buffer(
             WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
             Some(&self.geo_index_buffer),

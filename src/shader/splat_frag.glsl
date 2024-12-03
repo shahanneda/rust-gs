@@ -1,7 +1,7 @@
 #version 300 es
 precision mediump float;
-#pragma optimize(off)
-#pragma debug(on)
+// #pragma optimize(off)
+// #pragma debug(on)
 
 in vec3 col;
 in float scale_modif;

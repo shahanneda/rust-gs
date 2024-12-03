@@ -1,7 +1,7 @@
 #version 300 es
 precision mediump float;
-#pragma optimize(off)
-#pragma debug(on)
+// #pragma optimize(off)
+// #pragma debug(on)
 
 out vec4 fragColor;
 in float depth;

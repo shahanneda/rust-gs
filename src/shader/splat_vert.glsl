@@ -1,6 +1,6 @@
 #version 300 es
-#pragma optimize(off)
-#pragma debug(on)
+// #pragma optimize(off)
+// #pragma debug(on)
 
 in vec3 v_pos;
 in uint s_index;
