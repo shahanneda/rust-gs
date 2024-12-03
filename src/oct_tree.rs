@@ -232,7 +232,7 @@ impl OctTreeNode {
         }
 
         for splat in &self.splats {
-            if splat.opacity < 0.1 {
+            if splat.opacity < 0.02 {
                 continue;
             }
 

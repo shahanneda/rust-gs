@@ -400,7 +400,18 @@ pub async fn start() -> Result<(), JsValue> {
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
-    setup_button_callbacks(scene.clone(), &renderer, settings_ref.clone())?;
+    let scene_name = "Shahan_03_id01-30000.cleaned";
+    let shahan_splat_data =
+        SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    setup_button_callbacks(
+        scene.clone(),
+        &renderer.clone(),
+        settings_ref.clone(),
+        camera.clone(),
+        shahan_splat_data,
+        width,
+        height,
+    )?;
 
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
     let key_change_handled = Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
@@ -773,6 +784,10 @@ fn setup_button_callbacks(
     scene: Rc<RefCell<Scene>>,
     renderer: &Rc<RefCell<Renderer>>,
     settings: Rc<RefCell<Settings>>,
+    camera: Rc<RefCell<Camera>>,
+    shahan_splat_data: SplatData,
+    width: i32,
+    height: i32,
 ) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -837,10 +852,36 @@ fn setup_button_callbacks(
         .dyn_into::<HtmlElement>()?;
 
     let scene_clone = scene.clone();
-    let add_shahan_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+    let renderer_clone = renderer.clone();
+    let shahan_splat_data = Rc::new(shahan_splat_data);
+    let shahan_splat_data_clone = shahan_splat_data.clone();
+    let settings_clone = settings.clone();
+    let camera_clone = camera.clone();
+    let add_shahan_callback = Closure::wrap(Box::new(move || {
+        let renderer: &Renderer = &*renderer_clone.borrow();
+        let settings = settings_clone.borrow();
         let mut scene = scene_clone.borrow_mut();
-        scene.add_shahan();
-    }) as Box<dyn FnMut(_)>);
+        let camera = camera_clone.borrow();
+        scene
+            .splat_data
+            .merge_with_other_splatdata(&shahan_splat_data_clone); // Clone the data here
+        let num_splats = scene.splat_data.objects.len();
+        let (origin, direction) = camera.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+        let pos = origin + direction * 3.0;
+        scene.splat_data.apply_transformation_to_object(
+            num_splats - 1,
+            glm::translate(&glm::Mat4::identity(), &pos),
+            glm::Mat4::identity(),
+            // glm::rotate(
+            //     &glm::Mat4::identity(),
+            //     glm::radians(&vec1(90.0))[0],
+            //     &vec3(0.0, 1.0, 0.0),
+            // ),
+        );
+        scene.recalculate_octtree();
+        scene.redraw_from_oct_tree(settings.only_show_clicks);
+        renderer.update_webgl_textures(&scene, 0).unwrap();
+    }) as Box<dyn FnMut()>);
     add_shahan_btn.set_onclick(Some(add_shahan_callback.as_ref().unchecked_ref()));
     add_shahan_callback.forget();
 

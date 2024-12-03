@@ -107,9 +107,9 @@ impl SplatData {
         };
     }
 
-    pub fn merge_with_other_splatdata(&mut self, other: SplatData) {
+    pub fn merge_with_other_splatdata(&mut self, other: &SplatData) {
         let new_start = self.splats.len() as u32;
-        self.splats.extend(other.splats);
+        self.splats.extend(other.splats.iter());
         let new_end = self.splats.len() as u32 - 1;
         self.objects.push(SplatObject {
             start: new_start,
