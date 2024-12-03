@@ -232,6 +232,10 @@ impl OctTreeNode {
         }
 
         for splat in &self.splats {
+            if splat.opacity < 0.1 {
+                continue;
+            }
+
             if splat.x > self.center.x {
                 if splat.y > self.center.y {
                     if splat.z > self.center.z {

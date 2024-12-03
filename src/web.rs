@@ -16,6 +16,7 @@ use crate::toggle_binding::ToggleBinding;
 use crate::utils::set_panic_hook;
 use glm::vec2;
 use glm::vec3;
+use nalgebra_glm::vec1;
 use nalgebra_glm::Vec2;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -170,7 +171,7 @@ fn handle_splat_delete_click(
     // }
 
     renderer
-        .update_webgl_textures(&scene)
+        .update_webgl_textures(&scene, 0)
         .expect("failed to update webgl textures when editing");
 
     match state.button {
@@ -218,19 +219,39 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
 
-    // let scene_name = "Shahan_03_id01-30000.cleaned";
-    // let scene_name = "socratica_01_edited";
+    let scene_name = "socratica_01_edited";
     // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
     // let scene_name = "sci_01";
     // let scene_name = "icon_01";
-    let scene_name = "soc_01_polycam";
     //
     // let scene_name = "Shahan_03_id01-30000-2024";
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let scene_name = "soc_01_polycam";
+    // let scene_name = "soc_02";
+    // let scene_name = "soc_02_edited";
     let mut splat: SplatData =
         SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    // let scene_name = "Shahan_03_id01-30000.cleaned";
+    // let splat2: SplatData =
+    //     SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    // splat.merge_with_other_splatdata(splat2);
+    // splat.apply_transformation_to_object(
+    //     1,
+    //     glm::translate(&glm::Mat4::identity(), &vec3(1.0, -2.0, 1.0)),
+    //     glm::rotate(
+    //         &glm::Mat4::identity(),
+    //         glm::radians(&vec1(90.0))[0],
+    //         &vec3(0.0, 1.0, 0.0),
+    //     ),
+    // );
     let scene = Rc::new(RefCell::new(Scene::new(splat)));
+
+    // let scene_2 = Rc::new(RefCell::new(Scene::new(splat)));
+
+    // scene_2.borrow_mut().model_transform =
+    //     glm::translate(&glm::Mat4::identity(), &vec3(0.0, -1.5, 0.0));
 
     // let pyramid_mesh = MeshData::new(
     //     scene_geo::PYRAMID_VERTICES.to_vec(),
@@ -358,6 +379,14 @@ pub async fn start() -> Result<(), JsValue> {
     let renderer = Rc::new(RefCell::new(
         Renderer::new(gl, &scene.borrow_mut()).unwrap(),
     ));
+
+    // // setup scene 2
+    // renderer.borrow_mut().bind_splat_textures(1);
+    // renderer
+    //     .borrow_mut()
+    //     .update_webgl_textures(&scene_2.borrow(), 1)
+    //     .unwrap();
+
     // Camera Pos = [[-1.020468, 1.4699098, -2.7163901]]
     // gs_rust.js:547 Camera Rot = [[0.11999998, 2.8230002]]
     let camera = Rc::new(RefCell::new(Camera::new(
@@ -371,7 +400,7 @@ pub async fn start() -> Result<(), JsValue> {
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
-    setup_button_callbacks(scene.clone(), &renderer)?;
+    setup_button_callbacks(scene.clone(), &renderer, settings_ref.clone())?;
 
     let keys_pressed = Rc::new(RefCell::new(std::collections::HashSet::new()));
     let key_change_handled = Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
@@ -420,13 +449,14 @@ pub async fn start() -> Result<(), JsValue> {
         let (vm, vpm) = camera_clone.borrow().get_vm_and_vpm(width, height);
         let (index, is_gizmo, hit_object) =
             renderer.get_at_mouse_position(width, height, state.x, state.y, vpm, vm, &scene);
+        log!("just got mouse down!");
+        log!(
+            "index: {:?}, is_gizmo: {:?}, hit_object: {:?}",
+            index,
+            is_gizmo,
+            hit_object
+        );
         if hit_object {
-            // log!(
-            //     "index: {:?}, is_gizmo: {:?}, hit_object: {:?}",
-            //     index,
-            //     is_gizmo,
-            //     hit_object
-            // );
             if !is_gizmo {
                 scene.update_gizmo_position(index);
                 scene.end_gizmo_drag();
@@ -441,6 +471,7 @@ pub async fn start() -> Result<(), JsValue> {
                 scene.start_gizmo_drag(axis, Vec2::new(state.x as f32, state.y as f32));
             }
         } else {
+            log!("hiding gizmo!");
             scene.hide_gizmo();
         }
     }) as Box<dyn FnMut(_)>);
@@ -597,7 +628,6 @@ pub async fn start() -> Result<(), JsValue> {
         // cam_mut.rot.y = orbit_angle + std::f32::consts::PI / 2.0; // Make camera face center
 
         scene.borrow_mut().objects[0].recalculate_min_max();
-
         if settings.borrow().move_down {
             scene.borrow_mut().move_down();
         }
@@ -648,17 +678,28 @@ pub async fn start() -> Result<(), JsValue> {
             }
         }
 
+        let (normal_projection_matrix, normal_view_matrix) =
+            cam_mut.get_normal_projection_and_view_matrices(width, height);
+        // if settings.borrow().do_sorting {
+        //     let splat_indices = scene
+        //         .borrow_mut()
+        //         .splat_data
+        //         .sort_splats_based_on_depth(vpm);
+        //     renderer.borrow_mut().update_splat_indices(&splat_indices);
+        // }
+
         if settings.borrow().do_sorting {
             let splat_indices = scene
                 .borrow_mut()
                 .splat_data
                 .sort_splats_based_on_depth(vpm);
+            // renderer
+            //     .borrow_mut()
+            //     .update_webgl_textures(&scene.borrow())
+            //     .unwrap();
             renderer.borrow_mut().update_splat_indices(&splat_indices);
         }
-
-        let (normal_projection_matrix, normal_view_matrix) =
-            cam_mut.get_normal_projection_and_view_matrices(width, height);
-
+        renderer.borrow_mut().bind_splat_textures(0);
         renderer.borrow_mut().draw_scene(
             &canvas,
             &scene.borrow(),
@@ -667,7 +708,30 @@ pub async fn start() -> Result<(), JsValue> {
             normal_projection_matrix,
             normal_view_matrix,
             &settings.borrow(),
+            true,
         );
+
+        // renderer.borrow_mut().bind_splat_textures(1);
+        // let splat_indices = scene_2
+        //     .borrow_mut()
+        //     .splat_data
+        //     .sort_splats_based_on_depth(vpm);
+        // renderer.borrow_mut().update_splat_indices(&splat_indices);
+
+        // renderer
+        //     .borrow_mut()
+        //     .update_webgl_textures(&scene_2.borrow())
+        //     .unwrap();
+        // renderer.borrow_mut().draw_scene(
+        //     &canvas,
+        //     &scene_2.borrow(),
+        //     vpm,
+        //     vm,
+        //     normal_projection_matrix,
+        //     normal_view_matrix,
+        //     &settings.borrow(),
+        //     false,
+        // );
 
         i += 1;
         request_animation_frame(f.borrow().as_ref().unwrap());
@@ -708,6 +772,7 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
 fn setup_button_callbacks(
     scene: Rc<RefCell<Scene>>,
     renderer: &Rc<RefCell<Renderer>>,
+    settings: Rc<RefCell<Settings>>,
 ) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
@@ -740,12 +805,44 @@ fn setup_button_callbacks(
         let mut scene = scene_clone.borrow_mut();
         scene.calculate_shadows();
         renderer
-            .update_webgl_textures(&scene)
+            .update_webgl_textures(&scene, 0)
             .expect("failed to update webgl textures when editing");
     }) as Box<dyn FnMut(_)>);
 
     shadows_btn.set_onclick(Some(shadows_callback.as_ref().unchecked_ref()));
     shadows_callback.forget();
+
+    // Recalculate Octtree button
+    let recalculate_octtree_btn = document
+        .get_element_by_id("recalculate-octtree-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let settings_clone = settings.clone();
+    let recalculate_octtree_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let settings = settings_clone.borrow();
+        let mut scene = scene_clone.borrow_mut();
+        scene.recalculate_octtree();
+        scene.redraw_from_oct_tree(settings.only_show_clicks);
+    }) as Box<dyn FnMut(_)>);
+    recalculate_octtree_btn
+        .set_onclick(Some(recalculate_octtree_callback.as_ref().unchecked_ref()));
+    recalculate_octtree_callback.forget();
+
+    // Add Shahan button
+    let add_shahan_btn = document
+        .get_element_by_id("add-shahan-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let add_shahan_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let mut scene = scene_clone.borrow_mut();
+        scene.add_shahan();
+    }) as Box<dyn FnMut(_)>);
+    add_shahan_btn.set_onclick(Some(add_shahan_callback.as_ref().unchecked_ref()));
+    add_shahan_callback.forget();
 
     Ok(())
 }

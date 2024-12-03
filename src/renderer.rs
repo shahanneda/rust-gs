@@ -24,6 +24,15 @@ use web_sys::WebGlTexture;
 use web_sys::WebGlUniformLocation;
 use web_sys::WebGlVertexArrayObject;
 
+struct SplatTexture {
+    color_texture: WebGlTexture,
+    position_texture: WebGlTexture,
+    cov3da_texture: WebGlTexture,
+    cov3db_texture: WebGlTexture,
+    opacity_texture: WebGlTexture,
+    offset: u32,
+}
+
 pub struct Renderer {
     gl: WebGl2RenderingContext,
     splat_shader: WebGlProgram,
@@ -40,11 +49,7 @@ pub struct Renderer {
     line_vertex_buffer: WebGlBuffer,
     line_color_buffer: WebGlBuffer,
     line_shader: WebGlProgram,
-    color_texture: WebGlTexture,
-    position_texture: WebGlTexture,
-    cov3da_texture: WebGlTexture,
-    cov3db_texture: WebGlTexture,
-    opacity_texture: WebGlTexture,
+    splat_textures: Vec<SplatTexture>,
 }
 
 impl Renderer {
@@ -118,40 +123,53 @@ impl Renderer {
 
         // Activate splat vao
         gl.bind_vertex_array(Some(&splat_vao));
+        let mut splat_textures = Vec::new();
+        for scene_no in [0, 1] {
+            let offset = scene_no * 5 as u32;
+            gl.active_texture(WebGl2RenderingContext::TEXTURE0 + offset);
+            let (color_texture, color_texture_location) = create_texture(
+                &gl,
+                &splat_shader,
+                "u_color_texture",
+                WebGl2RenderingContext::TEXTURE0 + offset + COLOR_TEXTURE_UNIT,
+            )?;
 
-        gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-        let (color_texture, color_texture_location) = create_texture(
-            &gl,
-            &splat_shader,
-            "u_color_texture",
-            WebGl2RenderingContext::TEXTURE0 + COLOR_TEXTURE_UNIT,
-        )?;
+            gl.active_texture(WebGl2RenderingContext::TEXTURE0 + offset + POSITION_TEXTURE_UNIT);
+            let (position_texture, position_texture_location) = create_texture(
+                &gl,
+                &splat_shader,
+                "u_position_texture",
+                WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT,
+            )?;
+            let (cov3da_texture, cov3da_texture_location) = create_texture(
+                &gl,
+                &splat_shader,
+                "u_cov3da_texture",
+                WebGl2RenderingContext::TEXTURE0 + offset + COV3DA_TEXTURE_UNIT,
+            )?;
+            let (cov3db_texture, cov3db_texture_location) = create_texture(
+                &gl,
+                &splat_shader,
+                "u_cov3db_texture",
+                WebGl2RenderingContext::TEXTURE0 + offset + COV3DB_TEXTURE_UNIT,
+            )?;
+            let (opacity_texture, opacity_texture_location) = create_texture(
+                &gl,
+                &splat_shader,
+                "u_opacity_texture",
+                WebGl2RenderingContext::TEXTURE0 + offset + OPACITY_TEXTURE_UNIT,
+            )?;
 
-        gl.active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
-        let (position_texture, position_texture_location) = create_texture(
-            &gl,
-            &splat_shader,
-            "u_position_texture",
-            WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT,
-        )?;
-        let (cov3da_texture, cov3da_texture_location) = create_texture(
-            &gl,
-            &splat_shader,
-            "u_cov3da_texture",
-            WebGl2RenderingContext::TEXTURE0 + COV3DA_TEXTURE_UNIT,
-        )?;
-        let (cov3db_texture, cov3db_texture_location) = create_texture(
-            &gl,
-            &splat_shader,
-            "u_cov3db_texture",
-            WebGl2RenderingContext::TEXTURE0 + COV3DB_TEXTURE_UNIT,
-        )?;
-        let (opacity_texture, opacity_texture_location) = create_texture(
-            &gl,
-            &splat_shader,
-            "u_opacity_texture",
-            WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT,
-        )?;
+            let splat_texture = SplatTexture {
+                color_texture,
+                position_texture,
+                cov3da_texture,
+                cov3db_texture,
+                opacity_texture,
+                offset: 0,
+            };
+            splat_textures.push(splat_texture);
+        }
 
         let line_vao = gl.create_vertex_array().unwrap();
         gl.bind_vertex_array(Some(&line_vao));
@@ -184,18 +202,15 @@ impl Renderer {
             line_vertex_buffer,
             line_color_buffer,
             line_shader,
-            color_texture,
-            position_texture,
-            cov3da_texture,
-            cov3db_texture,
-            opacity_texture,
+            splat_textures,
         };
 
         result.gl.use_program(Some(&result.splat_shader));
         result.gl.bind_vertex_array(Some(&result.splat_vao));
+        // result.bind_splat_textures(0);
 
         result
-            .update_webgl_textures(scene)
+            .update_webgl_textures(&scene, 0)
             .expect("failed to update webgl textures for the first time!");
 
         create_attribute_and_get_location(
@@ -206,85 +221,6 @@ impl Renderer {
             true,
             1,
             WebGl2RenderingContext::UNSIGNED_INT,
-        );
-
-        result
-            .gl
-            .pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
-        result.gl.active_texture(WebGl2RenderingContext::TEXTURE0);
-        result.gl.bind_texture(
-            WebGl2RenderingContext::TEXTURE_2D,
-            Some(&result.color_texture),
-        );
-        set_texture_uniform_value(
-            &result.splat_shader,
-            &result.gl,
-            "u_color_texture",
-            &result.color_texture,
-            COLOR_TEXTURE_UNIT,
-        );
-
-        result
-            .gl
-            .pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
-        result
-            .gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
-        result.gl.bind_texture(
-            WebGl2RenderingContext::TEXTURE_2D,
-            Some(&result.position_texture),
-        );
-        set_texture_uniform_value(
-            &result.splat_shader,
-            &result.gl,
-            "u_position_texture",
-            &result.position_texture,
-            POSITION_TEXTURE_UNIT,
-        );
-
-        result
-            .gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DA_TEXTURE_UNIT);
-        result.gl.bind_texture(
-            WebGl2RenderingContext::TEXTURE_2D,
-            Some(&result.cov3da_texture),
-        );
-        set_texture_uniform_value(
-            &result.splat_shader,
-            &result.gl,
-            "u_cov3da_texture",
-            &result.cov3da_texture,
-            COV3DA_TEXTURE_UNIT,
-        );
-
-        result
-            .gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DB_TEXTURE_UNIT);
-        result.gl.bind_texture(
-            WebGl2RenderingContext::TEXTURE_2D,
-            Some(&result.cov3db_texture),
-        );
-        set_texture_uniform_value(
-            &result.splat_shader,
-            &result.gl,
-            "u_cov3db_texture",
-            &result.cov3db_texture,
-            COV3DB_TEXTURE_UNIT,
-        );
-
-        result
-            .gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT);
-        result.gl.bind_texture(
-            WebGl2RenderingContext::TEXTURE_2D,
-            Some(&result.opacity_texture),
-        );
-        set_texture_uniform_value(
-            &result.splat_shader,
-            &result.gl,
-            "u_opacity_texture",
-            &result.opacity_texture,
-            OPACITY_TEXTURE_UNIT,
         );
 
         result.gl.use_program(Some(&result.geo_shader));
@@ -341,6 +277,56 @@ impl Renderer {
         return Ok(result);
     }
 
+    pub fn bind_splat_textures(self: &Renderer, scene_idx: usize) {
+        let offset = scene_idx as u32 * 5;
+        self.gl.use_program(Some(&self.splat_shader));
+
+        self.gl
+            .pixel_storei(WebGl2RenderingContext::UNPACK_ALIGNMENT, 1);
+
+        let texture_bindings = [
+            (
+                COLOR_TEXTURE_UNIT,
+                &self.splat_textures[scene_idx].color_texture,
+                "u_color_texture",
+            ),
+            (
+                POSITION_TEXTURE_UNIT,
+                &self.splat_textures[scene_idx].position_texture,
+                "u_position_texture",
+            ),
+            (
+                COV3DA_TEXTURE_UNIT,
+                &self.splat_textures[scene_idx].cov3da_texture,
+                "u_cov3da_texture",
+            ),
+            (
+                COV3DB_TEXTURE_UNIT,
+                &self.splat_textures[scene_idx].cov3db_texture,
+                "u_cov3db_texture",
+            ),
+            (
+                OPACITY_TEXTURE_UNIT,
+                &self.splat_textures[scene_idx].opacity_texture,
+                "u_opacity_texture",
+            ),
+        ];
+
+        for (unit, texture, uniform_name) in texture_bindings {
+            self.gl
+                .active_texture(WebGl2RenderingContext::TEXTURE0 + offset + unit);
+            self.gl
+                .bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(texture));
+            set_texture_uniform_value(
+                &self.splat_shader,
+                &self.gl,
+                uniform_name,
+                texture,
+                offset + unit,
+            );
+        }
+    }
+
     pub fn draw_scene(
         self: &Renderer,
         canvas: &web_sys::HtmlCanvasElement,
@@ -350,6 +336,7 @@ impl Renderer {
         normal_projection_matrix: glm::Mat4,
         normal_view_matrix: glm::Mat4,
         settings: &Settings,
+        do_clear: bool,
     ) {
         let gl = &self.gl;
         let width = canvas.width() as i32;
@@ -363,6 +350,14 @@ impl Renderer {
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
         gl.depth_func(WebGl2RenderingContext::LEQUAL);
 
+        if do_clear {
+            gl.clear_color(0.0, 0.0, 0.0, 0.0);
+            // Clear the color buffer bit
+            gl.clear(
+                WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
+            );
+        }
+
         self.draw_splat(
             width,
             height,
@@ -371,6 +366,8 @@ impl Renderer {
             vm,
             scale,
             settings.do_blending,
+            do_clear,
+            scene.model_transform,
         );
 
         // draw scene objects
@@ -391,8 +388,7 @@ impl Renderer {
 
         if scene.gizmo.target_object.is_some() {
             gl.disable(WebGl2RenderingContext::DEPTH_TEST);
-
-            gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+            // gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
             for axis_object in scene.gizmo.get_axis_objects() {
                 self.draw_geo(
                     width,
@@ -456,6 +452,7 @@ impl Renderer {
             Some(&mut buffer),
         )
         .unwrap();
+        log!("buffer: {:?}", buffer);
         if buffer[1] != 0 {
             return (0, false, false);
         }
@@ -500,7 +497,7 @@ impl Renderer {
 
         if scene.gizmo.target_object.is_some() {
             gl.disable(WebGl2RenderingContext::DEPTH_TEST);
-            gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+            // gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
             for (index, axis_object) in scene.gizmo.get_axis_objects().iter().enumerate() {
                 self.draw_geo(
                     width,
@@ -528,20 +525,16 @@ impl Renderer {
         vm: glm::Mat4,
         scale: f32,
         do_blending: bool,
+        do_clear: bool,
+        model_transform: glm::Mat4,
     ) {
         let gl = &self.gl;
         gl.use_program(Some(&self.splat_shader));
         gl.bind_vertex_array(Some(&self.splat_vao));
 
-        let proj_uniform_location = gl
-            .get_uniform_location(&self.splat_shader, "projection")
-            .unwrap();
-        gl.uniform_matrix4fv_with_f32_array(Some(&proj_uniform_location), false, vpm.as_slice());
-
-        let camera_uniform_location = gl
-            .get_uniform_location(&self.splat_shader, "camera")
-            .unwrap();
-        gl.uniform_matrix4fv_with_f32_array(Some(&camera_uniform_location), false, vm.as_slice());
+        set_matrix4_uniform_value(&self.splat_shader, &gl, "projection", vpm);
+        set_matrix4_uniform_value(&self.splat_shader, &gl, "camera", vm);
+        set_matrix4_uniform_value(&self.splat_shader, &gl, "model", model_transform);
 
         let width = width as f32;
         let height = height as f32;
@@ -558,25 +551,29 @@ impl Renderer {
         set_float_uniform_value(&self.splat_shader, &gl, "scale", scale);
         set_bool_uniform_value(&self.splat_shader, &gl, "do_blending", do_blending);
 
-        gl.clear_color(0.0, 0.0, 0.0, 0.0);
         gl.viewport(0, 0, width as i32, height as i32);
-
-        // Clear the color buffer bit
-        gl.clear(
-            WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
-        );
-        // gl.clear_depth(1.0);
 
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);
         gl.depth_func(WebGl2RenderingContext::ALWAYS);
         gl.depth_mask(true);
 
         gl.enable(WebGl2RenderingContext::BLEND);
-
-        gl.blend_func(
-            WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
-            WebGl2RenderingContext::ONE,
-        );
+        if do_clear {
+            gl.blend_func(
+                WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
+                WebGl2RenderingContext::ONE,
+            );
+        } else {
+            gl.blend_func(
+                WebGl2RenderingContext::SRC_ALPHA,
+                WebGl2RenderingContext::ONE_MINUS_SRC_ALPHA,
+            );
+        }
+        // gl.clear_depth(1.0);
+        // gl.blend_func(
+        //     WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
+        //     WebGl2RenderingContext::ONE,
+        // );
         let gaussian_count = num_vertices;
         gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
     }
@@ -813,60 +810,61 @@ impl Renderer {
         );
     }
 
-    pub fn update_webgl_textures(self: &Renderer, scene: &Scene) -> Result<(), JsValue> {
-        let mut splat_positions = Vec::new();
-        let mut splat_colors = Vec::new();
-        let mut splat_cov3da = Vec::new();
-        let mut splat_cov3db = Vec::new();
-        let mut splat_opacities = Vec::new();
+    pub fn update_webgl_textures(
+        self: &Renderer,
+        scene: &Scene,
+        scene_idx: usize,
+    ) -> Result<(), JsValue> {
+        let offset = scene_idx * 5;
+        let mut texture_data = vec![
+            (COLOR_TEXTURE_UNIT, Vec::new()),    // colors
+            (POSITION_TEXTURE_UNIT, Vec::new()), // positions
+            (COV3DA_TEXTURE_UNIT, Vec::new()),   // cov3da
+            (COV3DB_TEXTURE_UNIT, Vec::new()),   // cov3db
+            (OPACITY_TEXTURE_UNIT, Vec::new()),  // opacities
+        ];
 
         for s in &scene.splat_data.splats {
-            splat_positions.extend_from_slice(&[s.x, s.y, s.z]);
-            splat_colors.extend_from_slice(&[s.r, s.g, s.b]);
-            splat_cov3da.extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
-            splat_cov3db.extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
-            splat_opacities.extend_from_slice(&[s.opacity, 0.0, 0.0]);
+            texture_data[0].1.extend_from_slice(&[s.r, s.g, s.b]);
+            texture_data[1].1.extend_from_slice(&[s.x, s.y, s.z]);
+            texture_data[2]
+                .1
+                .extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
+            texture_data[3]
+                .1
+                .extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
+            texture_data[4].1.extend_from_slice(&[s.opacity, 0.0, 0.0]);
         }
 
-        self.gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + COLOR_TEXTURE_UNIT);
-        put_data_into_texture(
-            &self.gl,
-            &self.color_texture,
-            &float32_array_from_vec(&splat_colors),
-        )?;
+        let texture_bindings = [
+            (
+                &self.splat_textures[scene_idx].color_texture,
+                &texture_data[0].1,
+            ),
+            (
+                &self.splat_textures[scene_idx].position_texture,
+                &texture_data[1].1,
+            ),
+            (
+                &self.splat_textures[scene_idx].cov3da_texture,
+                &texture_data[2].1,
+            ),
+            (
+                &self.splat_textures[scene_idx].cov3db_texture,
+                &texture_data[3].1,
+            ),
+            (
+                &self.splat_textures[scene_idx].opacity_texture,
+                &texture_data[4].1,
+            ),
+        ];
 
-        self.gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + POSITION_TEXTURE_UNIT);
-        put_data_into_texture(
-            &self.gl,
-            &self.position_texture,
-            &float32_array_from_vec(&splat_positions),
-        )?;
+        for (i, (texture, data)) in texture_bindings.iter().enumerate() {
+            self.gl
+                .active_texture(WebGl2RenderingContext::TEXTURE0 + (offset + i) as u32);
+            put_data_into_texture(&self.gl, texture, &float32_array_from_vec(data))?;
+        }
 
-        self.gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DA_TEXTURE_UNIT);
-        put_data_into_texture(
-            &self.gl,
-            &self.cov3da_texture,
-            &float32_array_from_vec(&splat_cov3da),
-        )?;
-
-        self.gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + COV3DB_TEXTURE_UNIT);
-        put_data_into_texture(
-            &self.gl,
-            &self.cov3db_texture,
-            &float32_array_from_vec(&splat_cov3db),
-        )?;
-
-        self.gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + OPACITY_TEXTURE_UNIT);
-        put_data_into_texture(
-            &self.gl,
-            &self.opacity_texture,
-            &float32_array_from_vec(&splat_opacities),
-        )?;
         Ok(())
     }
 }
@@ -1035,6 +1033,16 @@ fn set_bool_uniform_value(
 ) {
     let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
     gl.uniform1i(Some(&uniform_location), value as i32);
+}
+
+fn set_matrix4_uniform_value(
+    shader_program: &WebGlProgram,
+    gl: &WebGl2RenderingContext,
+    name: &str,
+    value: glm::Mat4,
+) {
+    let uniform_location = gl.get_uniform_location(&shader_program, name).unwrap();
+    gl.uniform_matrix4fv_with_f32_array(Some(&uniform_location), false, value.as_slice());
 }
 
 fn set_vec3_uniform_value(

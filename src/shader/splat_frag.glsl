@@ -40,14 +40,15 @@ void main() {
     discard;
   }
 
-  gl_FragDepth = -depth / 3.0;
+  gl_FragDepth = -depth / 10.0;
   // fragColor = vec4(1,0,0,1);
   if (do_blending) {
     fragColor = vec4(color * alpha, alpha);
+    // fragColor = vec4(vec3(-depth / 10.0), 1.0);
   } else {
     fragColor = vec4(color, 1);
   }
-  // fragColor = vec4(vec3(-depth), 1.0);
+  // fragColor = vec4(vec3(-depth / 10.0), 1.0);
   // fragColor = vec4(vec3(-(depth / 5.0)), 1.0);
   // fragColor = vec4(color, 1);
   // fragColor = vec4(color,  1);

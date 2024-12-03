@@ -4,7 +4,7 @@ use crate::log;
 
 use crate::ply_splat::PlySplat;
 use crate::timer::Timer;
-use nalgebra_glm::{self as glm, vec3, Vec3};
+use nalgebra_glm::{self as glm, vec3, vec4, Vec3};
 use rkyv::rancor::Error;
 use rkyv::{Archive, Deserialize, Serialize};
 // use speedy::{Readable, Writable, Endianness};
@@ -47,6 +47,13 @@ impl MeshData {
 }
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
+#[rkyv(compare(PartialEq), derive(Debug))]
+pub struct SplatObject {
+    start: u32,
+    end: u32,
+}
+
+#[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[rkyv(
     // This will generate a PartialEq impl between our unarchived
     // and archived types
@@ -56,6 +63,7 @@ impl MeshData {
 )]
 pub struct SplatData {
     pub splats: Vec<Splat>,
+    pub objects: Vec<SplatObject>,
 }
 
 impl SplatData {
@@ -90,9 +98,49 @@ impl SplatData {
 
     pub fn new(splats: Vec<PlySplat>) -> Self {
         let _timer = Timer::new("new scene");
-        let splats = splats.iter().map(|splat| Splat::new(splat)).collect();
+        let splats: Vec<Splat> = splats.iter().map(|splat| Splat::new(splat)).collect();
+        let end = splats.len() as u32 - 1;
 
-        return SplatData { splats: splats };
+        return SplatData {
+            splats: splats,
+            objects: vec![SplatObject { start: 0, end }],
+        };
+    }
+
+    pub fn merge_with_other_splatdata(&mut self, other: SplatData) {
+        let new_start = self.splats.len() as u32;
+        self.splats.extend(other.splats);
+        let new_end = self.splats.len() as u32 - 1;
+        self.objects.push(SplatObject {
+            start: new_start,
+            end: new_end,
+        });
+    }
+    pub fn apply_transformation_to_object(
+        &mut self,
+        object_index: usize,
+        translation: glm::Mat4,
+        rotation: glm::Mat4,
+    ) {
+        let object = &mut self.objects[object_index];
+        for i in object.start..object.end {
+            let splat = &mut self.splats[i as usize];
+            // Transform position
+            let new_splat = translation * vec4(splat.x, splat.y, splat.z, 1.0);
+            splat.x = new_splat[0];
+            splat.y = new_splat[1];
+            splat.z = new_splat[2];
+
+            // let current_rot = glm::quat(splat.rot_0, splat.rot_1, splat.rot_2, splat.rot_3);
+            // let current_rot_mat = glm::quat_to_mat4(&current_rot);
+            // let combined_rot_mat = rotation * current_rot_mat;
+            // let new_quat = glm::mat3_to_quat(&glm::mat4_to_mat3(&combined_rot_mat));
+
+            // splat.rot_0 = new_quat[0]; // x
+            // splat.rot_1 = new_quat[1]; // y
+            // splat.rot_2 = new_quat[2]; // z
+            // splat.rot_3 = new_quat[3]; // w
+        }
     }
 
     pub fn splat_count(&self) -> usize {

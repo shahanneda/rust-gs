@@ -16,6 +16,7 @@ uniform float tan_fovy;
 uniform float scale;
 uniform vec3 boxmin;
 uniform vec3 boxmax;
+uniform mat4 model;
 
 out vec3 col;
 out float depth;
@@ -92,7 +93,7 @@ void main() {
   vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
 
   mat4 projmatrix = projection;
-  vec4 p_hom = projmatrix * vec4(p_orig, 1);
+  vec4 p_hom = projmatrix * model * vec4(p_orig, 1) + model * vec4(0, 0, 0, 0);
   float p_w = 1. / (p_hom.w + 1e-7); // add 1e-7 so we don't divide by zero
 
   vec3 p_proj = p_hom.xyz * p_w;

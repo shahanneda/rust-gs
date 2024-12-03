@@ -12,7 +12,6 @@ pub mod scene_object;
 pub mod shared_utils;
 pub mod splat;
 pub mod timer;
-pub mod toggle_binding;
 
 #[cfg(target_arch = "wasm32")]
 pub mod camera;
@@ -20,6 +19,8 @@ pub mod camera;
 pub mod renderer;
 #[cfg(target_arch = "wasm32")]
 pub mod shader;
+#[cfg(target_arch = "wasm32")]
+pub mod toggle_binding;
 #[cfg(target_arch = "wasm32")]
 pub mod utils;
 #[cfg(target_arch = "wasm32")]

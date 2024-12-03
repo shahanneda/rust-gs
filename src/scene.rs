@@ -17,6 +17,7 @@ pub struct Scene {
     pub original_shadow_splat_colors: HashMap<usize, Vec3>,
     pub gizmo: Gizmo,
     pub oct_tree: OctTree,
+    pub model_transform: glm::Mat4,
 }
 
 impl Scene {
@@ -35,6 +36,7 @@ impl Scene {
             original_shadow_splat_colors: HashMap::new(),
             gizmo: Gizmo::new(),
             oct_tree,
+            model_transform: glm::Mat4::identity(),
         }
     }
 
@@ -66,6 +68,17 @@ impl Scene {
     pub fn clear_lines(&mut self) {
         self.line_mesh.mesh_data.vertices.clear();
         self.line_mesh.mesh_data.colors.clear();
+    }
+    pub fn add_shahan(&mut self) {
+        // let shahan_splat_data = loader::load_ply(&format!(
+        //     "splats/Shahan_03_id01-30000.ply"
+        // ))
+        // .await
+        // .expect("failed to load shahan splat data");
+    }
+
+    pub fn recalculate_octtree(&mut self) {
+        self.oct_tree = OctTree::new(self.splat_data.splats.clone());
     }
 
     pub fn redraw_from_oct_tree(&mut self, only_clicks: bool) {
@@ -215,6 +228,7 @@ impl Scene {
         }
     }
     pub fn hide_gizmo(&mut self) {
+        log!("hiding gizmo!");
         self.gizmo.target_object = None;
     }
 

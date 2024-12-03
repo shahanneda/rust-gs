@@ -24,8 +24,9 @@ void main() {
              W * H * 0.0 * camera * model * vec4(0., 0., 0., 0.);
   v_color = v_col;
   v_normal = v_norm;
-  v_pos_out = v_pos;
-  depth = pos.z;
+  v_pos_out = vec3(model * vec4(v_pos, 1));
+  vec4 p_view = camera * model * vec4(v_pos, 1);
+  depth = p_view.z;
   gl_Position = vec4(pos.x, pos.y, pos.z, pos.w);
   // //   mat4 scaling_mat = mat4(100.0, 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0,
   // 0.0,
