@@ -186,7 +186,7 @@ pub async fn start() -> Result<(), JsValue> {
         vec3(0.1, 0.1, 0.1),
     );
     scene.borrow_mut().objects.push(cube_object);
-    let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.25), 0.1, vec3(0.0, 1.0, 0.1));
+    let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.20), 0.1, vec3(0.0, 1.0, 0.1));
     scene.borrow_mut().objects.push(cube_object_2);
     let teapot_mesh =
         obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
