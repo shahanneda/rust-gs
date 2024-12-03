@@ -125,7 +125,7 @@
 			<input type="checkbox" class="checkbox" id="move-down-checkbox">
 		</div>
 		<div class="checkbox-container">
-			<label for="checkbox" class="checkbox-label">Restrict Gizmo Movement </label>
+			<label for="checkbox" class="checkbox-label">Detect Collisions With Gizmo</label>
 			<input type="checkbox" class="checkbox" id="restrict-gizmo-movement-checkbox">
 		</div>
 		<div style="margin: 10px 0px;">
@@ -140,6 +140,25 @@
 		<div style="margin: 10px 0px;">
 			<span id="collision-detected-span" style="color: rgb(255, 50, 50);"></span>
 		</div>
+		<div style="margin: 10px 0px;">
+			<label for="model-switcher" style="color: white;">Switch Model:</label>
+			<select id="model-switcher" onchange="switchModel(this.value)">
+				<option
+					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/soc_01_polycam.rkyv">
+					House</option>
+				<option
+					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/E7_01_id01-30000.rkyv">
+					E7</option>
+				<option
+					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/socratica_01_edited.rkyv">
+					Grass</option>
+				<option value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/sci_01_edited.rkyv">
+					Sci</option>
+				<option
+					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv">
+					Shahan</option>
+			</select>
+		</div>
 	</div>
 	</div>
 	<script>
@@ -153,6 +172,24 @@
 				document.getElementById("collision-detected-span").innerText = "";
 			}, 1000);
 		}
+		function switchModel(url) {
+			window.location.href = `./?url=${url}`;
+		}
+
+		// Set initial dropdown value based on current URL
+		window.addEventListener('load', function () {
+			const urlParams = new URLSearchParams(window.location.search);
+			const currentUrl = urlParams.get('url');
+			if (currentUrl) {
+				const modelSelect = document.getElementById('model-switcher');
+				for (let option of modelSelect.options) {
+					if (option.value === currentUrl) {
+						option.selected = true;
+						break;
+					}
+				}
+			}
+		});
 	</script>
 	<script type="module">
 

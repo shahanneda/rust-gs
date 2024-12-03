@@ -218,8 +218,9 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "Shahan_03_id01-30000";
     // let scene_name = "E7_01_id01-30000";
     // let scene_name = "corn";
+    // check URL, if there is a
 
-    let scene_name = "socratica_01_edited";
+    // let scene_name = "socratica_01_edited";
     // log!("Loading web!");
     // let scene_name = "Week-09-Sat-Nov-16-2024";
     // let scene_name = "sci_01";
@@ -230,9 +231,22 @@ pub async fn start() -> Result<(), JsValue> {
     // let scene_name = "Shahan_03_id01-30000.cleaned";
     // let scene_name = "soc_01_polycam";
     // let scene_name = "soc_02";
+
+    let window = web_sys::window().unwrap();
+    let search = window.location().search().unwrap();
+    let params = web_sys::UrlSearchParams::new_with_str(&search).unwrap();
+
+    // If there's a url parameter, use that, otherwise use the default
+    let scene_url = match params.get("url") {
+        Some(url) => url,
+        // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv"),
+    };
     // let scene_name = "soc_02_edited";
-    let mut splat: SplatData =
-        SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    let mut splat: SplatData = SplatData::new_from_url(&scene_url).await;
+
     // let scene_name = "Shahan_03_id01-30000.cleaned";
     // let splat2: SplatData =
     //     SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
@@ -400,9 +414,11 @@ pub async fn start() -> Result<(), JsValue> {
     )));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
-    let scene_name = "Shahan_03_id01-30000.cleaned";
-    let shahan_splat_data =
-        SplatData::new_from_url(&format!("http://127.0.0.1:5502/splats/{}.rkyv", scene_name)).await;
+    let shahan_remote_url =
+        "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv";
+    let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
+    let shahan_splat_data = SplatData::new_from_url(&shahan_remote_url).await;
+
     setup_button_callbacks(
         scene.clone(),
         &renderer.clone(),

@@ -5,7 +5,10 @@ use crate::gizmo::{Gizmo, GizmoAxis};
 use crate::log;
 use crate::oct_tree::{OctTreeNode, OctTreeSplat};
 use crate::scene_object::SceneObject;
+
+#[cfg(target_arch = "wasm32")]
 use crate::web::setCollisionDetected;
+
 use crate::{data_objects::SplatData, oct_tree::OctTree};
 use nalgebra_glm::{self as glm, Vec2};
 use nalgebra_glm::{vec3, Vec3};
@@ -305,6 +308,7 @@ impl Scene {
                             object.pos = old_pos;
                             self.gizmo.update_position(old_pos);
                             log!("collision !");
+                            #[cfg(target_arch = "wasm32")]
                             setCollisionDetected();
                             break;
                         }

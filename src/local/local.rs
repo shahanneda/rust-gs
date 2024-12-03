@@ -18,9 +18,10 @@ async fn main() {
     // let scene_name = "sci_01";
     // let scene_name = "soc_02_edited";
     // let scene_name = "Week-09-Sat-Nov-16-2024";
-    let scene_name = "socratica_01_edited";
+    // let scene_name = "socratica_01_edited";
     // let scene_name = "Shahan_03_id01-30000";
-    // let scene_name = "Shahan_03_id01-30000";
+    let scene_name = "Shahan_03_id01-30000";
+    // let scene_name = "sci_01_edited";
     let url = format!("http://127.0.0.1:5502/splats/{}.ply", scene_name);
     println!("Compressing ply file: {}", url);
 

@@ -42,7 +42,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rkyv = "0.8.8"
 speedy = "0.8.7"
-web-sys = { version = "0.3.4", features = ["WebGl2RenderingContext", "WebGlTexture"] }
+web-sys = { version = "0.3.4", features = ["WebGl2RenderingContext", "WebGlTexture", "Url", "UrlSearchParams"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.0", features = ["full"] }
