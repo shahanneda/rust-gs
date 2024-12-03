@@ -763,6 +763,9 @@ extern "C" {
     #[wasm_bindgen(js_name = prompt)]
     fn promptJS(str: &str) -> String;
 
+    #[wasm_bindgen(js_name = setCollisionDetected)]
+    pub fn setCollisionDetected();
+
     #[wasm_bindgen(js_namespace = WebAssembly, js_name = Memory)]
     pub type Memory;
 

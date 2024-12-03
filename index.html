@@ -128,7 +128,6 @@
 			<label for="checkbox" class="checkbox-label">Restrict Gizmo Movement </label>
 			<input type="checkbox" class="checkbox" id="restrict-gizmo-movement-checkbox">
 		</div>
-		<!-- <button id="move-down-btn">Move Down</button> -->
 		<div style="margin: 10px 0px;">
 			<button id="calculate-shadows-btn">Calculate Shadows</button>
 		</div>
@@ -138,13 +137,21 @@
 		<div style="margin: 10px 0px;">
 			<button id="add-shahan-btn">Add Shahan</button>
 		</div>
+		<div style="margin: 10px 0px;">
+			<span id="collision-detected-span" style="color: rgb(255, 50, 50);"></span>
+		</div>
 	</div>
 	</div>
 	<script>
 		function getWebGLContext() {
 			ctx = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"));
 			return ctx;
-
+		}
+		function setCollisionDetected() {
+			document.getElementById("collision-detected-span").innerText = "Collision Detected";
+			setTimeout(() => {
+				document.getElementById("collision-detected-span").innerText = "";
+			}, 1000);
 		}
 	</script>
 	<script type="module">
