@@ -75,7 +75,6 @@ fn handle_splat_delete_click(
     log!("Ray origin: {:?}", ray_origin);
     log!("Ray direction: {:?}", ray_direction);
 
-    // Remove splats near the ray
     let mut splat_pos = vec3(0.0, 0.0, 0.0);
     let mut found = false;
     for t in 0..100 {
