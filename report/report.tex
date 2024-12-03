@@ -181,12 +181,17 @@ To check for collisions between the polygon based objects, whenever a polygon ba
 \subsection{Combining two scenes}
 In order to add one splat to another splat, I first load the other splat, and then I apply a transformation to all the means of the new splat. Then I simply append it to the end of the splat list of the first splat. See the \lstinline[style=inlinecode]{merge_with_other_splatdata} function in \lstinline[style=inlinecode]{data_objects.rs} for the implementation. and \lstinline[style=inlinecode]{apply_transformation_to_object} in \lstinline[style=inlinecode]{scene.rs} for the transformation application. This is what happens when the "Add Shahan" button is clicked.
 
-\subsection{Speeding up opening the viewer (Rkyv)}
-Originally, I read the point cloud file (.ply) file that the splat comes in, inside the viewer. (See the \lstinline[style=inlinecode]{loader.rs} file). The problem with this is that reading the ply file is incrediblly slow, which greatly slowed down the opening of the scene. To fix this, I now precompute the loaded ply file in a serialized format (see the \lstinline[style=inlinecode]{local.rs} file). Using the rust library "Rkyv", I serialize and deserialize the actual "SplatData" struct, which contains all the information about a splat in a binary format. So, when the viewer opens, it simply downloads this file, and is ready to go.
+\subsection{Speeding up opening the ply files using serialization (Rkyv)}
+Originally, I read the point cloud file (.ply) file that the splat comes in, inside the viewer. (See the \lstinline[style=inlinecode]{loader.rs} file). The problem with this is that reading the ply file is incrediblly slow, which greatly slowed down the opening of the scene. To fix this, I now precompute the loaded ply file in a serialized format (see the \lstinline[style=inlinecode]{local.rs} file). Using the rust library "Rkyv", I serialize and deserialize the actual "SplatData" struct, which contains all the information about a splat in a binary format. So, when the viewer opens, it simply downloads this file, and is ready to go. I would esimated that this reduced the loading time of scenes around 10x (a scene that used to take 1.5 minutes to load now only takes ~10 seconds).
 
 
-\subsection{Uploading to web}
-The code is all written in Rust, however, I wanted the project to be very portable, so I used WebGL to render the project, and webassembly to compile the rust so that it runs in the browser. The actual user interface is written in HTML and CSS, which can be seen in the \lstinline[style=inlinecode]{index.html} file.
+\subsection{Making the viewer cross platform using WebAssembly}
+One of the goals of this project was to be very portable. This is why I wrote all code in Rust, used WebGL to render the project, and then compiled to WebAssembly so that the project runs in the browser. This way anyone with a modern browser can run the project, without having to install anything.
+
+One challenge with WebGL is that it doesn't have compute shaders, so there is no way to do the sorting required by Painters Algorithm on the GPU, which is why I did it on the CPU. In the original gaussian splatting paper, they use CUDA, which allows them to do the sorting on the GPU. There is a technology called WebGPU which does support compute shaders, however, it's not fully supported in all browsers yet, so I didn't use it.
+
+
+The actual user interface is written in HTML and CSS, which can be seen in the \lstinline[style=inlinecode]{index.html} file.
 
 \subsection{Picking normal objects}
 To pick the normal objects and object movement Gizmo, I render a special picking image, similar to A3, see the \lstinline[style=inlinecode]{draw_picking_image} function in the \lstinline[style=inlinecode]{renderer.rs} file.

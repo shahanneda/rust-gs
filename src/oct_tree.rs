@@ -34,11 +34,6 @@ const MAX_DEPTH: usize = 10;
 
 impl OctTreeNode {
     pub fn new(splats: Vec<Splat>, center: Vec3, half_width: f32) -> Self {
-        // let center = splats
-        //     .iter()
-        //     .map(|splat| vec3(splat.x, splat.y, splat.z))
-        //     .sum::<Vec3>()
-        //     / splats.len() as f32;
         let len = splats.len();
         let mut oct_tree_splats = vec![];
         for (i, splat) in splats.iter().enumerate() {
@@ -59,16 +54,6 @@ impl OctTreeNode {
             touched: false,
         };
 
-        // let fartherst_splat = splats
-        //     .iter()
-        //     .map(|splat| glm::distance(&center, &vec3(splat.x, splat.y, splat.z)))
-        //     .max_by(|a, b| a.partial_cmp(b).unwrap())
-        //     .unwrap();
-
-        // let half_width = fartherst_splat * 2.0;
-
-        // log!("center is {:?}", center);
-        // log!("half width is {}", half_width);
         out.propogate_splats_to_children(0);
 
         return out;

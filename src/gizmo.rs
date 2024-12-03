@@ -122,7 +122,7 @@ impl Gizmo {
             let delta = current_pos - start_pos;
             let movement_scale = 0.01;
             let mut scaled_delta = delta * movement_scale;
-            if restrict_gizmo_movement {    
+            if restrict_gizmo_movement {
                 self.clamp_delta(&mut scaled_delta);
             }
 
@@ -142,10 +142,6 @@ impl Gizmo {
     }
 
     pub fn end_drag(&mut self) {
-        // self.active_axis = None;
-        // self.target_object = None;
-        // self.drag_start_pos = None;
-        // self.original_object_pos = None;
         self.is_dragging = false;
     }
 

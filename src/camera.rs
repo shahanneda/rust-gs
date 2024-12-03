@@ -99,15 +99,6 @@ impl Camera {
         Ok(())
     }
 
-    //     fn clone(&self) -> Self {
-    //         Self {
-    //             pos: self.pos.clone(),
-    //             rot: self.rot.clone(),
-    //             is_dragging: self.is_dragging,
-    //             last_mouse_pos: self.last_mouse_pos.clone(),
-    //         }
-    //     }
-
     pub fn update_translation_from_keys(self: &mut Camera, keys_pressed: &HashSet<String>) {
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
         log!("keys pressed: {:?}", keys_pressed);
@@ -191,7 +182,7 @@ impl Camera {
         let vpm = proj * vm;
         return (vm, vpm);
     }
-    // TODO: clean this up
+
     pub fn get_normal_projection_and_view_matrices(
         self: &Camera,
         width: i32,

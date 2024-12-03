@@ -73,11 +73,6 @@ pub mod loader {
         let mut reader = header.reader;
         let mut current_line = String::new();
 
-        // for i in 0..header.data_start {
-        //     current_line = "".to_string();
-        //     reader.read_line(&mut current_line).unwrap();
-        // }
-
         let mut splats: Vec<PlySplat> = vec![];
         for _i in 0..header.num_splats {
             // map of prop name to value

@@ -54,14 +54,6 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(gl: WebGl2RenderingContext, scene: &Scene) -> Result<Renderer, JsValue> {
-        // let vertices: [f32; 3 * 4] = [
-        //     -1.0, -1.0, 0.0, //
-        //     1.0, -1.0, 0.0, //
-        //     -1.0, 1.0, 0.0, //
-        //     1.0, 1.0, 0.0, //
-        // ];
-        // let vertices = vertices.map(|v| v);
-
         // Create Splat VAO and buffers
         let splat_vao = gl.create_vertex_array().unwrap();
         gl.bind_vertex_array(Some(&splat_vao));
@@ -207,7 +199,6 @@ impl Renderer {
 
         result.gl.use_program(Some(&result.splat_shader));
         result.gl.bind_vertex_array(Some(&result.splat_vao));
-        // result.bind_splat_textures(0);
 
         result
             .update_webgl_textures(&scene, 0)
@@ -569,11 +560,6 @@ impl Renderer {
                 WebGl2RenderingContext::ONE_MINUS_SRC_ALPHA,
             );
         }
-        // gl.clear_depth(1.0);
-        // gl.blend_func(
-        //     WebGl2RenderingContext::ONE_MINUS_DST_ALPHA,
-        //     WebGl2RenderingContext::ONE,
-        // );
         let gaussian_count = num_vertices;
         gl.draw_arrays_instanced(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4, gaussian_count);
     }

@@ -73,13 +73,6 @@ impl Scene {
         self.line_mesh.mesh_data.vertices.clear();
         self.line_mesh.mesh_data.colors.clear();
     }
-    pub fn add_shahan(&mut self) {
-        // let shahan_splat_data = loader::load_ply(&format!(
-        //     "splats/Shahan_03_id01-30000.ply"
-        // ))
-        // .await
-        // .expect("failed to load shahan splat data");
-    }
 
     pub fn recalculate_octtree(&mut self) {
         self.oct_tree = OctTree::new(self.splat_data.splats.clone());
