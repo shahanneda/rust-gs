@@ -419,12 +419,17 @@ pub async fn start() -> Result<(), JsValue> {
     let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
     let shahan_splat_data = SplatData::new_from_url(&shahan_remote_url).await;
 
+    let obj_name = "teapot.obj";
+    let teapot_mesh =
+        obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
+
     setup_button_callbacks(
         scene.clone(),
         &renderer.clone(),
         settings_ref.clone(),
         camera.clone(),
         shahan_splat_data,
+        teapot_mesh,
         width,
         height,
     )?;
@@ -805,6 +810,7 @@ fn setup_button_callbacks(
     settings: Rc<RefCell<Settings>>,
     camera: Rc<RefCell<Camera>>,
     shahan_splat_data: SplatData,
+    teapot_mesh: MeshData,
     width: i32,
     height: i32,
 ) -> Result<(), JsValue> {
@@ -903,6 +909,32 @@ fn setup_button_callbacks(
     }) as Box<dyn FnMut()>);
     add_shahan_btn.set_onclick(Some(add_shahan_callback.as_ref().unchecked_ref()));
     add_shahan_callback.forget();
+
+    // Add Teapot button
+    let add_teapot_btn = document
+        .get_element_by_id("add-teapot-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let camera_clone = camera.clone();
+    let teapot_mesh = Rc::new(teapot_mesh);
+    let teapot_mesh_clone = teapot_mesh.clone();
+    let add_teapot_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let mut scene = scene_clone.borrow_mut();
+        let camera = camera_clone.borrow();
+        let (origin, direction) = camera.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+        let pos = origin + direction * 3.0;
+        let teapot_object = SceneObject::new(
+            teapot_mesh_clone.as_ref().clone(),
+            pos,
+            vec3(3.14, 0.0, 0.0),
+            vec3(0.01, 0.01, 0.01),
+        );
+        scene.objects.push(teapot_object);
+    }) as Box<dyn FnMut(_)>);
+    add_teapot_btn.set_onclick(Some(add_teapot_callback.as_ref().unchecked_ref()));
+    add_teapot_callback.forget();
 
     Ok(())
 }
