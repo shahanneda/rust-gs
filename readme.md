@@ -1,6 +1,12 @@
 ## Rust + WebAssembly + WebGL Gaussian Splatting Viewer
 
 
+- Install Cargo and Rust
+- Install WasmPack
+- Run `./build.sh`
+
+- (to compress your own splat run `./buildLocal.sh`)
+
 - Written from scratch using rust & web assembly
 - Uses counting sort to sort splats
 - Custom Ply file reader
