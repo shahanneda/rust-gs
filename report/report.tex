@@ -21,17 +21,18 @@ User ID: snedadah
 \end{center}
 \vfill ~\vfill~
 \newpage
+
 \section{Purpose}
-     Create a viewer for 3D Gaussian Splatting, a new 3D world representation which brings photorealistic quality graphics to real-time rasterization based graphics, and combine this new technique with more traditional computer graphics techniques.
+     The goal of this project was to create a viewer for 3D Gaussian Splatting, a new 3D world representation which brings photorealistic quality graphics to real-time rasterization based graphics, and combine this new technique with more traditional computer graphics techniques.
 
 \section{Statement}
      Recently, a new 3D world representation has been created, called 3D gaussian splatting. The idea is instead of meshes, we use a set of 3D gaussian to represent the world, each of which is an ellipsoid. The advantage of this representation, is there are machine learning based approaches to take photos of a scene in the real world, and convert them to a 3D gaussian splat, which look photorealistic, and yet can be rendered in real-time using rasterization. For this project, we will be focusing on how we can view these splats, which is an interesting computer graphics challenge on its own, and not the training side.
 
-     The original viewer in the 3D gaussian splatting paper uses a tile base rasterizer implemented in CUDA. However, due to this viewer being implemented in CUDA, it is not portable to different devices (for example, I can't run it in my Macbook Pro). Furthermore, the viewer does not have support for any traditional computer graphics techniques, such as meshes. Therefore, the goal for this project is to create a more cross-platform viewer, using OpenGL, which has support for both meshes, and 3D gaussian splats.
+     The original viewer in the 3D gaussian splatting paper uses a tile base rasterizer implemented in CUDA. However, due to this viewer being implemented in CUDA, it is not portable to different devices (for example, I can't run it in my Macbook Pro). Furthermore, the viewer does not have support for any traditional computer graphics techniques, such as meshes. Therefore, the goal for this project was to create a more cross-platform viewer, using OpenGL, which has support for both meshes, and 3D gaussian splats.
      
-     This project is interesting since not much work has been done in combining traditional computer graphics with Gaussian Splatting, and therefore, it will be an interesting exploration. Furthermore, there are many challenges in rendering the gaussian splats. For example, since each splat is translucent, and the order that the splats are rendered in is important, and this order is constantly changing when the camera view changes, performance is. Furthermore, due to the shear number of splats (often hundreds of thousands per scene) and this constant sorting, performance is a concern. Thus, there is a lot for me to learn when doing this project.
+     This project is interesting since not much work has been done in combining traditional computer graphics with Gaussian Splatting., and therefore, it will be an interesting exploration. Furthermore, there are many challenges in rendering the gaussian splats. For example, since each splat is translucent, and the order that the splats are rendered in is important, and this order is constantly changing when the camera view changes, performance is. Furthermore, due to the shear number of splats (often hundreds of thousands per scene) and this constant sorting, performance is a concern. Thus, there is a lot for me to learn when doing this project.
 
-\section{Technical Outline}
+\section{Technical Implementation}
 \subsection{Gaussian Representation of the world}
 
      A 3D Gaussian splat is a set of 3D gaussians, $G = \{g_1, g_2, ..., g_n\}$, where each $g_i$ has the following properties:
