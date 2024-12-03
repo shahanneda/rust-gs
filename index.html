@@ -187,10 +187,20 @@
 		window.addEventListener('load', function () {
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
+			const modelSelect = document.getElementById('model-switcher');
+
 			if (currentUrl) {
-				const modelSelect = document.getElementById('model-switcher');
+				// If URL parameter exists, select that option
 				for (let option of modelSelect.options) {
 					if (option.value === currentUrl) {
+						option.selected = true;
+						break;
+					}
+				}
+			} else {
+				// If no URL parameter, set Shahan as default
+				for (let option of modelSelect.options) {
+					if (option.value === "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv") {
 						option.selected = true;
 						break;
 					}
