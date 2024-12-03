@@ -296,14 +296,14 @@ pub async fn start() -> Result<(), JsValue> {
     let obj_name = "teapot.obj";
     // let teapot_mesh =
     //     obj_reader::read_obj(&format!("http://127.0.0.1:5502/obj/{}", obj_name)).await;
-    // https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj
     let teapot_mesh =
         obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
             .await;
+
     let teapot_object = SceneObject::new(
         teapot_mesh,
         vec3(0.2, -0.2, 0.0),
-        vec3(3.14, 0.0, 0.0),
+        vec3(3.15, 0.0, 0.0),
         vec3(0.01, 0.01, 0.01),
     );
     scene.borrow_mut().objects.push(teapot_object);

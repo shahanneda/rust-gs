@@ -233,12 +233,29 @@
 		import init from './pkg/final_project.js';
 
 		async function run() {
-			const wasmInit = await init();
-			const memory = wasmInit.memory;
-			console.log(wasmInit)
+			try {
+				// Initialize the WebAssembly module
+				const wasmInit = await init().catch(e => {
+					console.error("Failed to initialize WebAssembly module:", e);
+					throw e;
+				});
+
+				// Store the memory
+				const memory = wasmInit.memory;
+
+				// Log the initialization result
+				console.log("WebAssembly module initialized successfully:", wasmInit);
+			} catch (error) {
+				console.error("Error during initialization:", error);
+			}
 		}
 
-		run();
+		// Ensure the run function is called after the document is loaded
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', run);
+		} else {
+			run();
+		}
 	</script>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 </body>
