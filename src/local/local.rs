@@ -1,10 +1,10 @@
 use std::io::Write;
 use std::{fs::File, io::Read};
 
-use final_project::data_objects::SplatData;
-use final_project::loader::loader;
-use final_project::log;
-use final_project::scene::Scene;
+use gs_rust::data_objects::SplatData;
+use gs_rust::loader::loader;
+use gs_rust::log;
+use gs_rust::scene::Scene;
 use tokio;
 // use serde_json;
 use rkyv::{deserialize, rancor::Error, Archive, Deserialize, Serialize};

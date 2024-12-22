@@ -228,7 +228,7 @@ pub async fn start() -> Result<(), JsValue> {
 
     let camera = Rc::new(RefCell::new(Camera::new(
         // camera pos: [[-6.679095, 0.14607938, -0.32618168]]
-        // final_project.js:564 camera rot: [[-0.13400005, -1.5560011]]
+        // gs_rust.js:564 camera rot: [[-0.13400005, -1.5560011]]
         // vec3(0.0, 0.0, 0.0),
         vec3(-6.679095, 0.14607938, -0.32618168),
         vec2(-0.13400005, -1.5560011),
