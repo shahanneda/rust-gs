@@ -162,11 +162,17 @@ pub async fn start() -> Result<(), JsValue> {
     // If there's a url parameter, use that, otherwise use the default
     let scene_url = match params.get("url") {
         Some(url) => url,
-        None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        // None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/watermelon.rkyv"),
+        None => String::from("http://127.0.0.1:5502/splats/ninja/pomegranate.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/cake.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/orange.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/bread.rkyv"),
     };
     // let scene_name = "soc_02_edited";
     let mut splat: SplatData = SplatData::new_from_url(&scene_url).await;
@@ -239,6 +245,7 @@ pub async fn start() -> Result<(), JsValue> {
 
     let shahan_remote_url =
         "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv";
+    // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
     // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
     let shahan_splat_data = SplatData::new_from_url(&shahan_remote_url).await;
 

@@ -133,6 +133,7 @@
 		</div>
 		<div style="margin: 10px 0px;">
 			<button id="recalculate-octtree-btn">Recalculate Octtree</button>
+
 		</div>
 		<div style="margin: 10px 0px;">
 			<button id="add-shahan-btn">Add Shahan</button>
@@ -145,26 +146,7 @@
 		</div>
 		<div style="margin: 10px 0px;">
 			<label for="model-switcher" style="color: white;">Switch Model:</label>
-			<select id="model-switcher" onchange="switchModel(this.value)"
-				value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv">
-				<option
-					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/soc_01_polycam.rkyv">
-					House</option>
-				<option
-					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/E7_01_id01-30000.rkyv">
-					E7 Outdoor</option>
-				<option
-					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.rkyv">
-					E7 Indoor</option>
-				<option
-					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/socratica_01_edited.rkyv">
-					Grass</option>
-				<option value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/sci_01_edited.rkyv">
-					Sci</option>
-				<option
-					value="https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv">
-					Shahan</option>
-			</select>
+			<select id="model-switcher" onchange="switchModel(this.value)"></select>
 		</div>
 	</div>
 	</div>
@@ -183,28 +165,42 @@
 			window.location.href = `./?url=${url}`;
 		}
 
-		// Set initial dropdown value based on current URL
+		const MODEL_LIST = [
+			{ display: "House", file: "./soc_01_polycam.rkyv" },
+			{ display: "E7 Outdoor", file: "./E7_01_id01-30000.rkyv" },
+			{ display: "E7 Indoor", file: "./Shahan_03_id01-30000.rkyv" },
+			{ display: "Grass", file: "./socratica_01_edited.rkyv" },
+			{ display: "Sci", file: "./sci_01_edited.rkyv" },
+			{ display: "Shahan", file: "./Shahan_03_id01-30000.cleaned.rkyv" },
+			// splats/Week-09-Sat-Nov-16-2024.rkyv
+			// splats/Week-10-Frid-Nov-22-2024-edited.rkyv
+			{ display: "Week 9 Sat Nov 16", file: "./Week-09-Sat-Nov-16-2024-edited.rkyv" },
+			{ display: "Week 10 Fri Nov 22", file: "./Week-10-Frid-Nov-22-2024-edited.rkyv" },
+		];
+
+		// Function to populate the dropdown
+		function populateModelSelector() {
+			const modelSelect = document.getElementById('model-switcher');
+			MODEL_LIST.forEach(model => {
+				const option = document.createElement('option');
+				option.value = model.file;
+				option.textContent = model.display;
+				modelSelect.appendChild(option);
+			});
+		}
+
+		// Modified window.onload to include populating the dropdown
 		window.addEventListener('load', function () {
+			populateModelSelector();
+
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
 			const modelSelect = document.getElementById('model-switcher');
 
 			if (currentUrl) {
-				// If URL parameter exists, select that option
-				for (let option of modelSelect.options) {
-					if (option.value === currentUrl) {
-						option.selected = true;
-						break;
-					}
-				}
+				modelSelect.value = currentUrl;
 			} else {
-				// If no URL parameter, set Shahan as default
-				for (let option of modelSelect.options) {
-					if (option.value === "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv") {
-						option.selected = true;
-						break;
-					}
-				}
+				modelSelect.value = "./Shahan_03_id01-30000.cleaned.rkyv"; // Default value
 			}
 		});
 	</script>
