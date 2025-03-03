@@ -233,6 +233,29 @@
 		let canvas = document.getElementById("canvas");
 		resizeCanvasToDisplaySize(canvas);
 
+		// Add initialization button to the UI
+		const initButton = document.createElement('button');
+		initButton.textContent = 'Initialize WebAssembly';
+		initButton.style.position = 'absolute';
+		initButton.style.top = '10px';
+		initButton.style.right = '10px';
+		initButton.style.zIndex = '1000';
+		document.body.appendChild(initButton);
+
+		// Add a status message element
+		const statusMessage = document.createElement('div');
+		statusMessage.style.position = 'absolute';
+		statusMessage.style.top = '50px';
+		statusMessage.style.right = '10px';
+		statusMessage.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+		statusMessage.style.color = 'white';
+		statusMessage.style.padding = '10px';
+		statusMessage.style.borderRadius = '5px';
+		statusMessage.style.zIndex = '1000';
+		statusMessage.style.maxWidth = '300px';
+		statusMessage.textContent = 'Click the button above to initialize';
+		document.body.appendChild(statusMessage);
+
 		// Use ES module import syntax to import functionality from the module
 		// that we have compiled.
 		//
@@ -242,30 +265,147 @@
 		// eventually the manual initialization won't be required!
 		import init from './pkg/gs_rust.js';
 
-		async function run() {
+		// Function to update status message
+		function updateStatus(message, isError = false) {
+			statusMessage.textContent = message;
+			statusMessage.style.backgroundColor = isError ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)';
+			console.log(message);
+		}
+
+		// Worker reference
+		let worker = null;
+
+		// Function to initialize WebAssembly
+		async function initializeWasm() {
 			try {
-				// Initialize the WebAssembly module
-				const wasmInit = await init().catch(e => {
-					console.error("Failed to initialize WebAssembly module:", e);
-					throw e;
-				});
+				updateStatus("Starting WebAssembly initialization...");
 
-				// Store the memory
-				const memory = wasmInit.memory;
+				// Disable the button during initialization
+				initButton.disabled = true;
+				initButton.textContent = 'Initializing...';
 
-				// Log the initialization result
-				console.log("WebAssembly module initialized successfully:", wasmInit);
+				// Initialize the WebAssembly module on the main thread
+				// This is needed to load the module initially
+				updateStatus("Loading WebAssembly module on main thread...");
+				await init();
+				updateStatus("WebAssembly module loaded successfully on main thread");
+
+				// Check for multithreading support
+				const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+				const hasAtomics = typeof Atomics !== 'undefined';
+				const multithreadingSupported = hasSharedArrayBuffer && hasAtomics;
+
+				if (!multithreadingSupported) {
+					updateStatus("Note: Multithreading not supported in this browser (SharedArrayBuffer or Atomics missing)", true);
+					console.warn("Multithreading not supported: SharedArrayBuffer or Atomics not available");
+
+					// Create a worker for single-threaded mode anyway
+					// This avoids Atomics.wait on main thread issues
+					createAndInitializeWorker(1);
+				} else {
+					// Calculate number of threads based on hardware concurrency
+					// Limiting to 2 threads for stability during testing
+					const numThreads = Math.min(navigator.hardwareConcurrency || 4, 2);
+					updateStatus(`Detected ${navigator.hardwareConcurrency} CPU cores, using ${numThreads} threads`);
+
+					// Create and initialize the worker with the thread pool
+					createAndInitializeWorker(numThreads);
+				}
 			} catch (error) {
 				console.error("Error during initialization:", error);
+				// Display error to user
+				initButton.textContent = 'Initialization Failed - Try Again';
+				initButton.disabled = false;
+				initButton.style.backgroundColor = 'red';
+
+				updateStatus(`Error: ${error.message}`, true);
 			}
 		}
 
-		// Ensure the run function is called after the document is loaded
-		if (document.readyState === 'loading') {
-			document.addEventListener('DOMContentLoaded', run);
-		} else {
-			run();
+		// Function to create and initialize the worker
+		function createAndInitializeWorker(numThreads) {
+			try {
+				updateStatus(`Creating worker for thread pool initialization with ${numThreads} threads...`);
+
+				// Create the worker
+				worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+
+				// Set up message handler for the worker
+				worker.onmessage = function (e) {
+					const { status, message, success, threads, stack } = e.data;
+
+					switch (status) {
+						case 'worker_loaded':
+							updateStatus("Worker loaded successfully");
+							// Initialize the worker
+							worker.postMessage({ type: 'init', numThreads });
+							break;
+
+						case 'initializing_wasm':
+							updateStatus("Worker: Initializing WebAssembly module...");
+							break;
+
+						case 'wasm_initialized':
+							updateStatus("Worker: WebAssembly module initialized successfully");
+							break;
+
+						case 'initializing_thread_pool':
+							updateStatus(`Worker: Initializing thread pool with ${threads} threads...`);
+							break;
+
+						case 'thread_pool_initialized':
+							updateStatus("Worker: Thread pool initialized successfully!");
+							initButton.textContent = 'Initialized Successfully';
+							initButton.style.backgroundColor = 'green';
+
+							// Hide the status message after a delay
+							setTimeout(() => {
+								statusMessage.style.opacity = '0.5';
+							}, 3000);
+
+							// Tell the worker to execute any initial commands
+							worker.postMessage({ type: 'execute' });
+							break;
+
+						case 'ready_for_commands':
+							updateStatus("Worker: Ready to execute commands");
+							break;
+
+						case 'error':
+							console.error("Worker error:", message, stack);
+							updateStatus(`Worker error: ${message}`, true);
+							initButton.textContent = 'Initialization Failed - Try Again';
+							initButton.disabled = false;
+							initButton.style.backgroundColor = 'red';
+							break;
+
+						default:
+							console.log("Worker message:", e.data);
+					}
+				};
+
+				// Handle worker errors
+				worker.onerror = function (error) {
+					console.error("Worker error:", error);
+					updateStatus(`Worker error: ${error.message}`, true);
+					initButton.textContent = 'Initialization Failed - Try Again';
+					initButton.disabled = false;
+					initButton.style.backgroundColor = 'red';
+				};
+			} catch (error) {
+				console.error("Error creating worker:", error);
+				updateStatus(`Error creating worker: ${error.message}`, true);
+				initButton.textContent = 'Initialization Failed - Try Again';
+				initButton.disabled = false;
+				initButton.style.backgroundColor = 'red';
+			}
 		}
+
+		// Add click event listener to the initialization button
+		initButton.addEventListener('click', initializeWasm);
+
+		// Don't automatically initialize - wait for user to click the button
+		console.log("WebAssembly initialization deferred. Click the 'Initialize WebAssembly' button to start.");
 	</script>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 </body>

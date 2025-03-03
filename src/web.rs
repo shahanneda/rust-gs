@@ -30,6 +30,8 @@ use wasm_bindgen::JsCast;
 use web_sys::WebGl2RenderingContext;
 use web_sys::{Document, HtmlElement};
 
+pub use wasm_bindgen_rayon::init_thread_pool;
+
 #[derive(Default)]
 struct ClickState {
     clicked: bool,
@@ -114,9 +116,13 @@ fn handle_splat_delete_click(
 
     if settings.use_octtree_for_splat_removal {
         let oct_tree = &mut scene.oct_tree;
-        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
+        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.1);
+        log!(
+            "about to loop through {:?} splats to set opacity to 0.0",
+            splats_near.len()
+        );
         for splat in splats_near {
-            log!("splat near {:?}", splat.opacity);
+            // log!("splat near {:?}", splat.opacity);
             scene.splat_data.splats[splat.index].opacity = 0.0;
         }
     } else {
