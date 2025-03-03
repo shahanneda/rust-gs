@@ -29,7 +29,7 @@ pub struct OctTree {
 }
 // mapping from i to top right back, top right front, bottom right back, bottom right front, top left back, top left front, bottom left back, bottom left front
 // const SPLIT_LIMIT: usize = 10;
-const SPLIT_LIMIT: usize = 500;
+const SPLIT_LIMIT: usize = 1000;
 const MAX_DEPTH: usize = 10;
 
 impl OctTreeNode {
@@ -282,11 +282,11 @@ impl OctTreeNode {
                 );
             log!("looping through {} splats", self.splats.len());
             for splat in &self.splats {
-                // out.push(splat.clone());
-                if glm::distance(&vec3(splat.x, splat.y, splat.z), &center) <= radius {
-                    //     log!("found splat {:?}", splat);
-                    out.push(splat.clone());
-                }
+                out.push(splat.clone());
+                // if glm::distance(&vec3(splat.x, splat.y, splat.z), &center) <= radius {
+                //     //     log!("found splat {:?}", splat);
+                //     out.push(splat.clone());
+                // }
             }
         } else {
             for child in &mut self.children {

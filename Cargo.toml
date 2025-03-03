@@ -43,6 +43,8 @@ serde_json = "1.0"
 rkyv = "0.8.8"
 speedy = "0.8.7"
 web-sys = { version = "0.3.4", features = ["WebGl2RenderingContext", "WebGlTexture", "Url", "UrlSearchParams"] }
+rayon = "1.8"
+wasm-bindgen-rayon = { version = "1.2", features = ["no-bundler"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.0", features = ["full"] }
@@ -73,6 +75,11 @@ web-sys = { version = "0.3.4", features = [
   'WorkerOptions',
   'WorkerType',
 ] }
+
+
+[unstable]
+build-std = ["panic_abort", "std"]
+
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.34"

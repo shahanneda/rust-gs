@@ -116,6 +116,71 @@ impl SplatData {
             end: new_end,
         });
     }
+
+    pub fn split_object(&mut self, object_index: usize, separation_distance: f32) -> Option<usize> {
+        if object_index >= self.objects.len() {
+            return None;
+        }
+
+        let object = &self.objects[object_index];
+        let start = object.start as usize;
+        let end = object.end as usize;
+
+        if end <= start {
+            return None;
+        }
+
+        // Find the center of the object
+        let mut center = vec3(0.0, 0.0, 0.0);
+        let mut count = 0;
+        for i in start..=end {
+            if i < self.splats.len() {
+                let splat = &self.splats[i];
+                center.x += splat.x;
+                center.y += splat.y;
+                center.z += splat.z;
+                count += 1;
+            }
+        }
+
+        if count == 0 {
+            return None;
+        }
+
+        center.x /= count as f32;
+        center.y /= count as f32;
+        center.z /= count as f32;
+
+        // Create a new object for the second half (right side of the center)
+        let new_object = SplatObject {
+            start: object.start,
+            end: object.end,
+        };
+
+        // Add the new object to the list
+        self.objects.push(new_object);
+        let new_object_index = self.objects.len() - 1;
+
+        // Move the two halves apart by applying transformations directly to the splats
+        // based on their position relative to the center
+        for i in start..=end {
+            if i < self.splats.len() {
+                let splat = &mut self.splats[i];
+
+                // Determine which direction to move based on position relative to center
+                if splat.x < center.x {
+                    // Move left
+                    splat.x -= separation_distance;
+                } else {
+                    // Move right
+                    splat.x += separation_distance;
+                }
+            }
+        }
+
+        return Some(new_object_index);
+    }
+
     pub fn apply_transformation_to_object(
         &mut self,
         object_index: usize,

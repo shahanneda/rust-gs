@@ -25,10 +25,13 @@ extern crate js_sys;
 extern crate nalgebra_glm as glm;
 extern crate ply_rs;
 extern crate wasm_bindgen;
+use rayon::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::WebGl2RenderingContext;
 use web_sys::{Document, HtmlElement};
+
+pub use wasm_bindgen_rayon::init_thread_pool;
 
 #[derive(Default)]
 struct ClickState {
@@ -61,6 +64,8 @@ fn handle_splat_delete_click(
     keys_pressed: &std::collections::HashSet<String>,
     settings: &Settings,
 ) {
+    let mut overall_timer = Timer::new("handle_splat_delete_click");
+
     let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
     let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
     if !keys_pressed.contains("Alt") {
@@ -75,6 +80,7 @@ fn handle_splat_delete_click(
     log!("Ray origin: {:?}", ray_origin);
     log!("Ray direction: {:?}", ray_direction);
 
+    let mut ray_casting_timer = Timer::new("ray_casting");
     let mut splat_pos = vec3(0.0, 0.0, 0.0);
     let mut found = false;
     for t in 0..100 {
@@ -84,18 +90,27 @@ fn handle_splat_delete_click(
         if settings.use_octtree_for_splat_removal {
             let oct_tree = &mut scene.oct_tree;
             log!("finding splats in radius {:?}", pos);
+
+            let mut octree_search_timer = Timer::new("octree_search_single_point");
             let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.05);
+            octree_search_timer.end();
+
             for splat in octree_found_splats {
                 // log!("octree found splat {:?}", splat.opacity);
                 if splat.opacity >= 0.5 {
                     splat_pos = vec3(splat.x, splat.y, splat.z);
                     log!("found splat {:?}!! ### EXiting", splat_pos);
                     found = true;
+
+                    let mut redraw_timer = Timer::new("redraw_from_oct_tree");
                     scene.redraw_from_oct_tree(settings.only_show_clicks);
+                    redraw_timer.end();
+
                     break;
                 }
             }
         } else {
+            let mut linear_search_timer = Timer::new("linear_search_single_point");
             for splat in scene.splat_data.splats.iter_mut() {
                 if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.05
                     && splat.opacity >= 0.5
@@ -105,37 +120,104 @@ fn handle_splat_delete_click(
                     break;
                 }
             }
+            linear_search_timer.end();
         }
 
         if found {
             break;
         }
     }
+    ray_casting_timer.end();
 
+    let mut deletion_timer = Timer::new("splat_deletion");
     if settings.use_octtree_for_splat_removal {
         let oct_tree = &mut scene.oct_tree;
-        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
-        for splat in splats_near {
-            log!("splat near {:?}", splat.opacity);
-            scene.splat_data.splats[splat.index].opacity = 0.0;
+
+        let mut radius_search_timer = Timer::new("octree_radius_search");
+        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.1);
+        radius_search_timer.end();
+
+        log!(
+            "about to loop through {:?} splats to set opacity to 0.0",
+            splats_near.len()
+        );
+
+        // First collect all indices to modify
+        let mut indices_timer = Timer::new("collect_indices");
+        let indices: Vec<usize> = splats_near.iter().map(|splat| splat.index).collect();
+        indices_timer.end();
+
+        // For very small collections, use sequential processing for efficiency
+        if indices.len() < 100 {
+            let mut sequential_update_timer = Timer::new("sequential_update");
+            for &index in &indices {
+                scene.splat_data.splats[index].opacity = 0.0;
+            }
+            sequential_update_timer.end();
+        } else {
+            // For larger collections, mark the splats to be updated, then process in parallel
+            let mut parallel_update_timer = Timer::new("parallel_update");
+
+            // Step 1: Create a bitset/mask to mark which splats need updating
+            let mut mark_timer = Timer::new("mark_splats_to_update");
+            let mut to_update = vec![false; scene.splat_data.splats.len()];
+
+            // Step 2: Mark indices that need updating
+            for &index in &indices {
+                if index < to_update.len() {
+                    to_update[index] = true;
+                }
+            }
+            mark_timer.end();
+
+            // Step 3: Use par_iter_mut to safely process all splats in parallel
+            let mut par_iter_timer = Timer::new("parallel_iter_update");
+            scene
+                .splat_data
+                .splats
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, splat)| {
+                    // Check if this splat is marked for update
+                    if i < to_update.len() && to_update[i] {
+                        splat.opacity = 0.0;
+                    }
+                });
+            par_iter_timer.end();
+
+            parallel_update_timer.end();
+
+            log!(
+                "Processed {} splats in parallel using marking approach",
+                indices.len()
+            );
         }
     } else {
-        for splat in scene.splat_data.splats.iter_mut() {
+        // For this case, we can use par_iter_mut directly since we're modifying the splats collection itself
+        let mut direct_par_update_timer = Timer::new("direct_parallel_update");
+        scene.splat_data.splats.par_iter_mut().for_each(|splat| {
             if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
                 splat.opacity = 0.0;
             }
-        }
+        });
+        direct_par_update_timer.end();
     }
+    deletion_timer.end();
+
+    let mut update_textures_timer = Timer::new("update_webgl_textures");
     renderer
         .update_webgl_textures(&scene, 0)
         .expect("failed to update webgl textures when editing");
+    update_textures_timer.end();
 
     match state.button {
         0 => log!("Left click"),
         1 => log!("Middle click"),
         2 => log!("Right click"),
-        _ => log!("Other button"),
+        _ => log!("Unknown button"),
     }
+
+    overall_timer.end();
 }
 
 #[allow(non_snake_case)]
@@ -162,11 +244,23 @@ pub async fn start() -> Result<(), JsValue> {
     // If there's a url parameter, use that, otherwise use the default
     let scene_url = match params.get("url") {
         Some(url) => url,
-        None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        // None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple_rotate.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/watermelon.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/pomegranate.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/pomegranate_simplified.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple_simplified.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple_voxel.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple_voxel_medium.rkyv"),
+        None => String::from("http://127.0.0.1:5502/splats/ninja/orange_extra_full.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/cake.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/orange.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/bread.rkyv"),
     };
     // let scene_name = "soc_02_edited";
     let mut splat: SplatData = SplatData::new_from_url(&scene_url).await;
@@ -191,13 +285,13 @@ pub async fn start() -> Result<(), JsValue> {
     let teapot_mesh =
         obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
             .await;
-    let teapot_object = SceneObject::new(
-        teapot_mesh,
-        vec3(0.2, -0.2, 0.0),
-        vec3(3.15, 0.0, 0.0),
-        vec3(0.01, 0.01, 0.01),
-    );
-    scene.borrow_mut().objects.push(teapot_object);
+    // let teapot_object = SceneObject::new(
+    //     teapot_mesh,
+    //     vec3(0.2, -0.2, 0.0),
+    //     vec3(3.15, 0.0, 0.0),
+    //     vec3(0.01, 0.01, 0.01),
+    // );
+    // scene.borrow_mut().objects.push(teapot_object);
 
     let mut settings = Settings {
         show_octtree: false,
@@ -239,6 +333,7 @@ pub async fn start() -> Result<(), JsValue> {
 
     let shahan_remote_url =
         "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv";
+    // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
     // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
     let shahan_splat_data = SplatData::new_from_url(&shahan_remote_url).await;
 
@@ -668,6 +763,35 @@ fn setup_button_callbacks(
     }) as Box<dyn FnMut(_)>);
     add_teapot_btn.set_onclick(Some(add_teapot_callback.as_ref().unchecked_ref()));
     add_teapot_callback.forget();
+
+    // Split Object button
+    let split_object_btn = document
+        .get_element_by_id("split-object-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let renderer_clone = renderer.clone();
+    let settings_clone = settings.clone();
+    let split_object_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let renderer = renderer_clone.borrow();
+        let settings = settings_clone.borrow();
+        let mut scene = scene_clone.borrow_mut();
+
+        // Always split the first object (index 0) which is the main Gaussian splat
+        let object_index = 0;
+
+        // Split the object with a separation distance of 0.5
+        if let Some(new_object_index) = scene.splat_data.split_object(object_index, 0.5) {
+            // Update the scene without recalculating the octree
+            renderer.update_webgl_textures(&scene, 0).unwrap();
+            log!("Gaussian splat split successfully");
+        } else {
+            log!("Failed to split Gaussian splat");
+        }
+    }) as Box<dyn FnMut(_)>);
+    split_object_btn.set_onclick(Some(split_object_callback.as_ref().unchecked_ref()));
+    split_object_callback.forget();
 
     Ok(())
 }
