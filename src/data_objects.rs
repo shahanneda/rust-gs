@@ -7,6 +7,7 @@ use crate::timer::Timer;
 use nalgebra_glm::{self as glm, vec3, vec4, Vec3};
 use rkyv::rancor::Error;
 use rkyv::{Archive, Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 // use speedy::{Readable, Writable, Endianness};
 
 #[derive(Debug, Clone)]
@@ -69,13 +70,128 @@ pub struct SplatData {
 impl SplatData {
     pub async fn new_from_url(url: &str) -> Self {
         let _timer = Timer::new("loading json file");
-        let loaded_file = reqwest::get(url)
-            .await
-            .expect("error")
-            .bytes()
-            .await
-            .expect("went wrong when reading!");
-        return SplatData::new_from_rkyv(&loaded_file);
+
+        // Create a new request with progress tracking
+        let client = reqwest::Client::new();
+        let res = client.get(url).send().await.expect("error sending request");
+
+        // Get content length if available
+        let total_size = res.content_length().unwrap_or(0);
+        log!("Total file size: {} bytes", total_size);
+
+        // Update loading status in DOM
+        let window = web_sys::window().expect("should have a window");
+        let document = window.document().expect("should have a document");
+
+        // Set up loading container if it doesn't exist
+        if document.get_element_by_id("loading-container").is_none() {
+            let loading_container = document.create_element("div").unwrap();
+            loading_container.set_id("loading-container");
+
+            // Style the loading container
+            loading_container.set_attribute("style", "position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.7); padding: 20px; border-radius: 5px; z-index: 1000; text-align: center;").unwrap();
+
+            let loading_text = document.create_element("div").unwrap();
+            loading_text.set_id("loading-text");
+            loading_text.set_text_content(Some("Loading model..."));
+            loading_text
+                .set_attribute(
+                    "style",
+                    "color: white; margin-bottom: 10px; font-family: sans-serif;",
+                )
+                .unwrap();
+
+            let progress_container = document.create_element("div").unwrap();
+            progress_container
+                .set_attribute(
+                    "style",
+                    "width: 300px; background-color: #ddd; border-radius: 3px;",
+                )
+                .unwrap();
+
+            let progress_bar = document.create_element("div").unwrap();
+            progress_bar.set_id("loading-progress");
+            progress_bar.set_attribute("style", "width: 0%; height: 20px; background-color: #4CAF50; border-radius: 3px; transition: width 0.3s;").unwrap();
+
+            let progress_text = document.create_element("div").unwrap();
+            progress_text.set_id("progress-text");
+            progress_text.set_text_content(Some("0%"));
+            progress_text
+                .set_attribute(
+                    "style",
+                    "color: white; margin-top: 5px; font-family: sans-serif;",
+                )
+                .unwrap();
+
+            progress_container.append_child(&progress_bar).unwrap();
+            loading_container.append_child(&loading_text).unwrap();
+            loading_container.append_child(&progress_container).unwrap();
+            loading_container.append_child(&progress_text).unwrap();
+
+            let body = document.body().unwrap();
+            body.append_child(&loading_container).unwrap();
+        }
+
+        // Stream the response and track download progress
+        let mut downloaded: u64 = 0;
+        let mut all_chunks = Vec::new();
+
+        let mut stream = res.bytes_stream();
+        use futures::StreamExt;
+
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    downloaded += chunk.len() as u64;
+
+                    // Only update UI every ~5% or if total size is unknown
+                    if total_size > 0 {
+                        let percentage = (downloaded as f64 / total_size as f64 * 100.0) as u32;
+
+                        // Update the progress bar
+                        if let Some(progress_bar) = document.get_element_by_id("loading-progress") {
+                            progress_bar.set_attribute("style", &format!("width: {}%; height: 20px; background-color: #4CAF50; border-radius: 3px; transition: width 0.3s;", percentage)).unwrap();
+                        }
+
+                        // Update progress text
+                        if let Some(progress_text) = document.get_element_by_id("progress-text") {
+                            progress_text.set_text_content(Some(&format!(
+                                "{}% ({}/{} KB)",
+                                percentage,
+                                downloaded / 1024,
+                                total_size / 1024
+                            )));
+                        }
+                    } else {
+                        // If we don't know the total size, just show downloaded amount
+                        if let Some(progress_text) = document.get_element_by_id("progress-text") {
+                            progress_text.set_text_content(Some(&format!(
+                                "{} KB downloaded",
+                                downloaded / 1024
+                            )));
+                        }
+                    }
+
+                    all_chunks.push(chunk);
+                }
+                Err(e) => {
+                    log!("Error downloading chunk: {:?}", e);
+                    break;
+                }
+            }
+        }
+
+        // Combine all chunks into a single Bytes object
+        let combined = bytes::Bytes::from(all_chunks.concat());
+
+        // Remove the loading container when done
+        if let Some(container) = document.get_element_by_id("loading-container") {
+            if let Some(parent) = container.parent_node() {
+                parent.remove_child(&container).unwrap();
+            }
+        }
+
+        return SplatData::new_from_rkyv(&combined);
     }
 
     pub fn new_from_rkyv(bytes: &[u8]) -> Self {

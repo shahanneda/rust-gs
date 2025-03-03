@@ -3,6 +3,28 @@
 export function start(): Promise<void>;
 export function initThreadPool(num_threads: number): Promise<any>;
 export function wbg_rayon_start_worker(receiver: number): void;
+export class IntoUnderlyingByteSource {
+  private constructor();
+  free(): void;
+  start(controller: ReadableByteStreamController): void;
+  pull(controller: ReadableByteStreamController): Promise<any>;
+  cancel(): void;
+  readonly type: string;
+  readonly autoAllocateChunkSize: number;
+}
+export class IntoUnderlyingSink {
+  private constructor();
+  free(): void;
+  write(chunk: any): Promise<any>;
+  close(): Promise<any>;
+  abort(reason: any): Promise<any>;
+}
+export class IntoUnderlyingSource {
+  private constructor();
+  free(): void;
+  pull(controller: ReadableStreamDefaultController): Promise<any>;
+  cancel(): void;
+}
 export class wbg_rayon_PoolBuilder {
   private constructor();
   free(): void;
@@ -16,6 +38,19 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly start: () => void;
+  readonly __wbg_intounderlyingsink_free: (a: number, b: number) => void;
+  readonly intounderlyingsink_write: (a: number, b: any) => any;
+  readonly intounderlyingsink_close: (a: number) => any;
+  readonly intounderlyingsink_abort: (a: number, b: any) => any;
+  readonly __wbg_intounderlyingsource_free: (a: number, b: number) => void;
+  readonly intounderlyingsource_pull: (a: number, b: any) => any;
+  readonly intounderlyingsource_cancel: (a: number) => void;
+  readonly __wbg_intounderlyingbytesource_free: (a: number, b: number) => void;
+  readonly intounderlyingbytesource_type: (a: number) => [number, number];
+  readonly intounderlyingbytesource_autoAllocateChunkSize: (a: number) => number;
+  readonly intounderlyingbytesource_start: (a: number, b: any) => void;
+  readonly intounderlyingbytesource_pull: (a: number, b: any) => any;
+  readonly intounderlyingbytesource_cancel: (a: number) => void;
   readonly __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
   readonly wbg_rayon_poolbuilder_mainJS: (a: number) => any;
   readonly wbg_rayon_poolbuilder_numThreads: (a: number) => number;
@@ -31,13 +66,13 @@ export interface InitOutput {
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_7: WebAssembly.Table;
-  readonly closure74_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure72_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure352_externref_shim: (a: number, b: number, c: any) => void;
-  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__ha98afe45d9b17010: (a: number, b: number) => void;
-  readonly closure358_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure356_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure399_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure55_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure57_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure371_externref_shim: (a: number, b: number, c: any) => void;
+  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hfd151172077412d1: (a: number, b: number) => void;
+  readonly closure380_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure382_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure423_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_thread_destroy: (a?: number, b?: number, c?: number) => void;
   readonly __wbindgen_start: (a: number) => void;
 }

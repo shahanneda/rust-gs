@@ -1,6 +1,6 @@
 ## Rust + WebAssembly + WebGL Gaussian Splatting Viewer
 
-https://shahan.ca/gs-rust
+### https://shahan.ca/rust-gs
 
 - Written from scratch using rust & web assembly
 - Uses counting sort to sort splats
