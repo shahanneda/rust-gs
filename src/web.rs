@@ -64,6 +64,8 @@ fn handle_splat_delete_click(
     keys_pressed: &std::collections::HashSet<String>,
     settings: &Settings,
 ) {
+    let mut overall_timer = Timer::new("handle_splat_delete_click");
+
     let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
     let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
     if !keys_pressed.contains("Alt") {
@@ -78,6 +80,7 @@ fn handle_splat_delete_click(
     log!("Ray origin: {:?}", ray_origin);
     log!("Ray direction: {:?}", ray_direction);
 
+    let mut ray_casting_timer = Timer::new("ray_casting");
     let mut splat_pos = vec3(0.0, 0.0, 0.0);
     let mut found = false;
     for t in 0..100 {
@@ -87,18 +90,27 @@ fn handle_splat_delete_click(
         if settings.use_octtree_for_splat_removal {
             let oct_tree = &mut scene.oct_tree;
             log!("finding splats in radius {:?}", pos);
+
+            let mut octree_search_timer = Timer::new("octree_search_single_point");
             let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.05);
+            octree_search_timer.end();
+
             for splat in octree_found_splats {
                 // log!("octree found splat {:?}", splat.opacity);
                 if splat.opacity >= 0.5 {
                     splat_pos = vec3(splat.x, splat.y, splat.z);
                     log!("found splat {:?}!! ### EXiting", splat_pos);
                     found = true;
+
+                    let mut redraw_timer = Timer::new("redraw_from_oct_tree");
                     scene.redraw_from_oct_tree(settings.only_show_clicks);
+                    redraw_timer.end();
+
                     break;
                 }
             }
         } else {
+            let mut linear_search_timer = Timer::new("linear_search_single_point");
             for splat in scene.splat_data.splats.iter_mut() {
                 if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.05
                     && splat.opacity >= 0.5
@@ -108,33 +120,46 @@ fn handle_splat_delete_click(
                     break;
                 }
             }
+            linear_search_timer.end();
         }
 
         if found {
             break;
         }
     }
+    ray_casting_timer.end();
 
+    let mut deletion_timer = Timer::new("splat_deletion");
     if settings.use_octtree_for_splat_removal {
         let oct_tree = &mut scene.oct_tree;
+
+        let mut radius_search_timer = Timer::new("octree_radius_search");
         let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.1);
+        radius_search_timer.end();
+
         log!(
             "about to loop through {:?} splats to set opacity to 0.0",
             splats_near.len()
         );
 
         // First collect all indices to modify
+        let mut indices_timer = Timer::new("collect_indices");
         let indices: Vec<usize> = splats_near.iter().map(|splat| splat.index).collect();
+        indices_timer.end();
 
         // For very small collections, use sequential processing for efficiency
         if indices.len() < 100 {
+            let mut sequential_update_timer = Timer::new("sequential_update");
             for &index in &indices {
                 scene.splat_data.splats[index].opacity = 0.0;
             }
+            sequential_update_timer.end();
         } else {
             // For larger collections, mark the splats to be updated, then process in parallel
+            let mut parallel_update_timer = Timer::new("parallel_update");
 
             // Step 1: Create a bitset/mask to mark which splats need updating
+            let mut mark_timer = Timer::new("mark_splats_to_update");
             let mut to_update = vec![false; scene.splat_data.splats.len()];
 
             // Step 2: Mark indices that need updating
@@ -143,9 +168,10 @@ fn handle_splat_delete_click(
                     to_update[index] = true;
                 }
             }
+            mark_timer.end();
 
             // Step 3: Use par_iter_mut to safely process all splats in parallel
-            // This is safe because each thread has its own slice of the splats array
+            let mut par_iter_timer = Timer::new("parallel_iter_update");
             scene
                 .splat_data
                 .splats
@@ -157,6 +183,9 @@ fn handle_splat_delete_click(
                         splat.opacity = 0.0;
                     }
                 });
+            par_iter_timer.end();
+
+            parallel_update_timer.end();
 
             log!(
                 "Processed {} splats in parallel using marking approach",
@@ -165,22 +194,30 @@ fn handle_splat_delete_click(
         }
     } else {
         // For this case, we can use par_iter_mut directly since we're modifying the splats collection itself
+        let mut direct_par_update_timer = Timer::new("direct_parallel_update");
         scene.splat_data.splats.par_iter_mut().for_each(|splat| {
             if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
                 splat.opacity = 0.0;
             }
         });
+        direct_par_update_timer.end();
     }
+    deletion_timer.end();
+
+    let mut update_textures_timer = Timer::new("update_webgl_textures");
     renderer
         .update_webgl_textures(&scene, 0)
         .expect("failed to update webgl textures when editing");
+    update_textures_timer.end();
 
     match state.button {
         0 => log!("Left click"),
         1 => log!("Middle click"),
         2 => log!("Right click"),
-        _ => log!("Other button"),
+        _ => log!("Unknown button"),
     }
+
+    overall_timer.end();
 }
 
 #[allow(non_snake_case)]

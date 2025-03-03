@@ -4,7 +4,7 @@ use web_sys::console;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-const DISABLED: bool = true;
+const DISABLED: bool = false;
 pub struct Timer<'a> {
     name: &'a str,
     #[cfg(not(target_arch = "wasm32"))]
