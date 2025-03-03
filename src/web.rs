@@ -25,6 +25,7 @@ extern crate js_sys;
 extern crate nalgebra_glm as glm;
 extern crate ply_rs;
 extern crate wasm_bindgen;
+use rayon::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::WebGl2RenderingContext;
@@ -121,16 +122,54 @@ fn handle_splat_delete_click(
             "about to loop through {:?} splats to set opacity to 0.0",
             splats_near.len()
         );
-        for splat in splats_near {
-            // log!("splat near {:?}", splat.opacity);
-            scene.splat_data.splats[splat.index].opacity = 0.0;
+
+        // First collect all indices to modify
+        let indices: Vec<usize> = splats_near.iter().map(|splat| splat.index).collect();
+
+        // For very small collections, use sequential processing for efficiency
+        if indices.len() < 100 {
+            for &index in &indices {
+                scene.splat_data.splats[index].opacity = 0.0;
+            }
+        } else {
+            // For larger collections, mark the splats to be updated, then process in parallel
+
+            // Step 1: Create a bitset/mask to mark which splats need updating
+            let mut to_update = vec![false; scene.splat_data.splats.len()];
+
+            // Step 2: Mark indices that need updating
+            for &index in &indices {
+                if index < to_update.len() {
+                    to_update[index] = true;
+                }
+            }
+
+            // Step 3: Use par_iter_mut to safely process all splats in parallel
+            // This is safe because each thread has its own slice of the splats array
+            scene
+                .splat_data
+                .splats
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, splat)| {
+                    // Check if this splat is marked for update
+                    if i < to_update.len() && to_update[i] {
+                        splat.opacity = 0.0;
+                    }
+                });
+
+            log!(
+                "Processed {} splats in parallel using marking approach",
+                indices.len()
+            );
         }
     } else {
-        for splat in scene.splat_data.splats.iter_mut() {
+        // For this case, we can use par_iter_mut directly since we're modifying the splats collection itself
+        scene.splat_data.splats.par_iter_mut().for_each(|splat| {
             if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
                 splat.opacity = 0.0;
             }
-        }
+        });
     }
     renderer
         .update_webgl_textures(&scene, 0)

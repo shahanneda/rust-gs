@@ -37,6 +37,15 @@ self.onmessage = async function (e) {
   }
 };
 
+// Set up error handling for uncaught errors
+self.addEventListener("error", function (event) {
+  self.postMessage({
+    status: "error",
+    message: `Worker error: ${event.message}`,
+    stack: event.error ? event.error.stack : "",
+  });
+});
+
 // Notify the main thread that the worker is ready
 self.postMessage({ status: "worker_loaded" });
 
