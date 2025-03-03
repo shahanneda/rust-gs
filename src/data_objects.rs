@@ -233,7 +233,12 @@ impl SplatData {
         });
     }
 
-    pub fn split_object(&mut self, object_index: usize, separation_distance: f32) -> Option<usize> {
+    pub fn split_object(
+        &mut self,
+        object_index: usize,
+        separation_distance: f32,
+        split_direction: &str,
+    ) -> Option<usize> {
         if object_index >= self.objects.len() {
             return None;
         }
@@ -267,7 +272,7 @@ impl SplatData {
         center.y /= count as f32;
         center.z /= count as f32;
 
-        // Create a new object for the second half (right side of the center)
+        // Create a new object for the second half
         let new_object = SplatObject {
             start: object.start,
             end: object.end,
@@ -283,13 +288,38 @@ impl SplatData {
             if i < self.splats.len() {
                 let splat = &mut self.splats[i];
 
-                // Determine which direction to move based on position relative to center
-                if splat.x < center.x {
-                    // Move left
-                    splat.x -= separation_distance;
-                } else {
-                    // Move right
-                    splat.x += separation_distance;
+                // Determine which direction to move based on split_direction
+                match split_direction {
+                    "horizontal" => {
+                        // Split along Y-axis (horizontal split)
+                        if splat.y < center.y {
+                            // Move down
+                            splat.y -= separation_distance;
+                        } else {
+                            // Move up
+                            splat.y += separation_distance;
+                        }
+                    }
+                    "depth" => {
+                        // Split along Z-axis (depth split)
+                        if splat.z < center.z {
+                            // Move backward
+                            splat.z -= separation_distance;
+                        } else {
+                            // Move forward
+                            splat.z += separation_distance;
+                        }
+                    }
+                    _ => {
+                        // Default: Split along X-axis (vertical split)
+                        if splat.x < center.x {
+                            // Move left
+                            splat.x -= separation_distance;
+                        } else {
+                            // Move right
+                            splat.x += separation_distance;
+                        }
+                    }
                 }
             }
         }

@@ -28,8 +28,10 @@ extern crate wasm_bindgen;
 use rayon::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::WebGl2RenderingContext;
-use web_sys::{Document, HtmlElement};
+use web_sys::{
+    Document, Element, HtmlElement, HtmlSelectElement, MouseEvent, Node, WebGl2RenderingContext,
+    Window,
+};
 
 pub use wasm_bindgen_rayon::init_thread_pool;
 
@@ -773,16 +775,29 @@ fn setup_button_callbacks(
     let scene_clone = scene.clone();
     let renderer_clone = renderer.clone();
     let settings_clone = settings.clone();
+    let document_clone = document.clone();
     let split_object_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
         let renderer = renderer_clone.borrow();
         let settings = settings_clone.borrow();
         let mut scene = scene_clone.borrow_mut();
 
+        // Get the selected split direction
+        let split_direction_select = document_clone
+            .get_element_by_id("split-direction")
+            .unwrap()
+            .dyn_into::<web_sys::HtmlSelectElement>()
+            .unwrap();
+        let split_direction = split_direction_select.value();
+
         // Always split the first object (index 0) which is the main Gaussian splat
         let object_index = 0;
 
         // Split the object with a separation distance of 0.5
-        if let Some(new_object_index) = scene.splat_data.split_object(object_index, 0.5) {
+        if let Some(new_object_index) =
+            scene
+                .splat_data
+                .split_object(object_index, 0.5, &split_direction)
+        {
             // Update the scene without recalculating the octree
             renderer.update_webgl_textures(&scene, 0).unwrap();
             log!("Gaussian splat split successfully");
