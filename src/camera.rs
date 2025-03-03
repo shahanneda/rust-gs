@@ -101,7 +101,7 @@ impl Camera {
 
     pub fn update_translation_from_keys(self: &mut Camera, keys_pressed: &HashSet<String>) {
         let mut cam_translation_local = vec3(0.0, 0.0, 0.0);
-        log!("keys pressed: {:?}", keys_pressed);
+        // log!("keys pressed: {:?}", keys_pressed);
         if keys_pressed.contains("Alt") {
             log!("returning early because alt is pressed");
             return;

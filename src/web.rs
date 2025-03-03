@@ -165,10 +165,11 @@ pub async fn start() -> Result<(), JsValue> {
         // None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
-        // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/apple.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/apple_rotate.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/watermelon.rkyv"),
-        None => String::from("http://127.0.0.1:5502/splats/ninja/pomegranate.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/ninja/pomegranate.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/cake.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/orange.rkyv"),
@@ -197,13 +198,13 @@ pub async fn start() -> Result<(), JsValue> {
     let teapot_mesh =
         obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
             .await;
-    let teapot_object = SceneObject::new(
-        teapot_mesh,
-        vec3(0.2, -0.2, 0.0),
-        vec3(3.15, 0.0, 0.0),
-        vec3(0.01, 0.01, 0.01),
-    );
-    scene.borrow_mut().objects.push(teapot_object);
+    // let teapot_object = SceneObject::new(
+    //     teapot_mesh,
+    //     vec3(0.2, -0.2, 0.0),
+    //     vec3(3.15, 0.0, 0.0),
+    //     vec3(0.01, 0.01, 0.01),
+    // );
+    // scene.borrow_mut().objects.push(teapot_object);
 
     let mut settings = Settings {
         show_octtree: false,
@@ -675,6 +676,35 @@ fn setup_button_callbacks(
     }) as Box<dyn FnMut(_)>);
     add_teapot_btn.set_onclick(Some(add_teapot_callback.as_ref().unchecked_ref()));
     add_teapot_callback.forget();
+
+    // Split Object button
+    let split_object_btn = document
+        .get_element_by_id("split-object-btn")
+        .unwrap()
+        .dyn_into::<HtmlElement>()?;
+
+    let scene_clone = scene.clone();
+    let renderer_clone = renderer.clone();
+    let settings_clone = settings.clone();
+    let split_object_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
+        let renderer = renderer_clone.borrow();
+        let settings = settings_clone.borrow();
+        let mut scene = scene_clone.borrow_mut();
+
+        // Always split the first object (index 0) which is the main Gaussian splat
+        let object_index = 0;
+
+        // Split the object with a separation distance of 0.5
+        if let Some(new_object_index) = scene.splat_data.split_object(object_index, 0.5) {
+            // Update the scene without recalculating the octree
+            renderer.update_webgl_textures(&scene, 0).unwrap();
+            log!("Gaussian splat split successfully");
+        } else {
+            log!("Failed to split Gaussian splat");
+        }
+    }) as Box<dyn FnMut(_)>);
+    split_object_btn.set_onclick(Some(split_object_callback.as_ref().unchecked_ref()));
+    split_object_callback.forget();
 
     Ok(())
 }

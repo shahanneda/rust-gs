@@ -26,7 +26,8 @@ async fn main() {
     // let scene_name = "ninja/orange";
     // let scene_name = "ninja/bread";
     // let scene_name = "ninja/bread";
-    let scene_name = "ninja/pomegranate";
+    // let scene_name = "ninja/pomegranate";
+    let scene_name = "ninja/apple_rotate";
     // let scene_name = "sci_01_edited";
     let url = format!("http://127.0.0.1:5502/splats/{}.ply", scene_name);
     println!("Compressing ply file: {}", url);
