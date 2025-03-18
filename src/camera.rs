@@ -171,7 +171,7 @@ impl Camera {
     }
 
     pub fn get_vm_and_vpm(self: &Camera, width: i32, height: i32) -> (Mat4, Mat4) {
-        let _timer = Timer::new("get_scene_ready_for_draw");
+        // let _timer = Timer::new("get_scene_ready_for_draw");
         let mut proj = glm::perspective(
             (width as f32) / (height as f32),
             0.820176f32,

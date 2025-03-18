@@ -136,7 +136,7 @@ fn handle_splat_delete_click(
         let oct_tree = &mut scene.oct_tree;
 
         let mut radius_search_timer = Timer::new("octree_radius_search");
-        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.1);
+        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
         radius_search_timer.end();
 
         log!(
@@ -246,10 +246,10 @@ pub async fn start() -> Result<(), JsValue> {
     // If there's a url parameter, use that, otherwise use the default
     let scene_url = match params.get("url") {
         Some(url) => url,
-        // None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
-        None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/apple.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/apple_rotate.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/ninja/watermelon.rkyv"),

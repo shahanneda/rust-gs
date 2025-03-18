@@ -282,11 +282,11 @@ impl OctTreeNode {
                 );
             log!("looping through {} splats", self.splats.len());
             for splat in &self.splats {
-                out.push(splat.clone());
-                // if glm::distance(&vec3(splat.x, splat.y, splat.z), &center) <= radius {
-                //     //     log!("found splat {:?}", splat);
-                //     out.push(splat.clone());
-                // }
+                // out.push(splat.clone());
+                if glm::distance(&vec3(splat.x, splat.y, splat.z), &center) <= radius {
+                    //     log!("found splat {:?}", splat);
+                    out.push(splat.clone());
+                }
             }
         } else {
             for child in &mut self.children {

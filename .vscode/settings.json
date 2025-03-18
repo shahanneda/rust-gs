@@ -2,7 +2,7 @@
 	"rust-analyzer.linkedProjects": [
 		"./Cargo.toml"
 	],
-	"liveServer.settings.port": 5502,
+	"liveServer.settings.port": 5503,
 	"svn.ignoreMissingSvnWarning": true,
 	"rust-analyzer.cargo.target": "wasm32-unknown-unknown",
 	"rust-analyzer.checkOnSave.allTargets": false,

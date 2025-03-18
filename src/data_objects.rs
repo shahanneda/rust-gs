@@ -69,7 +69,7 @@ pub struct SplatData {
 
 impl SplatData {
     pub async fn new_from_url(url: &str) -> Self {
-        let _timer = Timer::new("loading json file");
+        // let _timer = Timer::new("loading json file");
 
         // Create a new request with progress tracking
         let client = reqwest::Client::new();
@@ -195,7 +195,7 @@ impl SplatData {
     }
 
     pub fn new_from_rkyv(bytes: &[u8]) -> Self {
-        let _timer = Timer::new("new scene from json");
+        // let _timer = Timer::new("new scene from json");
         log!("Creating a new scene from rkyv");
 
         match rkyv::from_bytes::<SplatData, Error>(bytes) {
