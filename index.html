@@ -177,7 +177,7 @@
 			}, 1000);
 		}
 		function switchModel(url) {
-			const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "";
+			const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : ".";
 
 			// Find the model's camera configuration
 			const MODEL_LIST = getModelList();
@@ -188,7 +188,7 @@
 				cameraParam = `&camera=${encodeURIComponent(JSON.stringify(selectedModel.camera))}`;
 			}
 
-			window.location.href = BASE_LOCAL_URL + "/?url=" + url + cameraParam;
+			window.location.href = baseUrl + "/?url=" + url + cameraParam;
 		}
 
 		// Define model paths that are the same for both local and remote
