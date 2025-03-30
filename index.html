@@ -177,7 +177,7 @@
 			}, 1000);
 		}
 		function switchModel(url) {
-			const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : ".";
+			const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "./";
 
 			// Find the model's camera configuration
 			const MODEL_LIST = getModelList();
@@ -188,7 +188,7 @@
 				cameraParam = `&camera=${encodeURIComponent(JSON.stringify(selectedModel.camera))}`;
 			}
 
-			window.location.href = baseUrl + "/?url=" + url + cameraParam;
+			window.location.href = baseUrl + "?url=" + url + cameraParam;
 		}
 
 		// Define model paths that are the same for both local and remote
@@ -206,7 +206,7 @@
 			{ display: "Cake Extra Full", file: "/ninja/cake_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			{ display: "Orange Extra Full", file: "/ninja/orange_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			{ display: "Watermelon Extra Full", file: "/ninja/watermelon_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Neo Splat", file: "/neo_splat.rkyv", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
+			{ display: "Neo Dinner", file: "/neo_splat.rkyv", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
 
 		];
 		// camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] }
@@ -241,14 +241,34 @@
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
 			const modelSelect = document.getElementById('model-switcher');
-			const defaultPath = "/Shahan_03_id01-30000.cleaned.rkyv";
+			const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
+			const defaultFullPath = USE_LOCAL ?
+				BASE_LOCAL_URL + "splats" + defaultModel :
+				BASE_REMOTE_URL + "splats" + defaultModel;
 
 			if (currentUrl) {
+				// Try to select the matching option in the dropdown
 				modelSelect.value = currentUrl;
 			} else {
-				modelSelect.value = USE_LOCAL ?
-					BASE_LOCAL_URL + defaultPath :
-					BASE_REMOTE_URL + defaultPath;
+				// If no URL parameter, load the default model
+				const shahanModel = MODEL_PATHS.find(model => model.display === "Shahan");
+				if (shahanModel) {
+					const fullPath = USE_LOCAL ?
+						BASE_LOCAL_URL + "splats" + shahanModel.file :
+						BASE_REMOTE_URL + "splats" + shahanModel.file;
+
+					modelSelect.value = fullPath;
+
+					// Redirect to include the URL parameter
+					const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "./";
+					const cameraParam = shahanModel.camera ?
+						`&camera=${encodeURIComponent(JSON.stringify(shahanModel.camera))}` : "";
+
+					// Only redirect if we're not already on the right URL
+					if (!currentUrl) {
+						window.location.href = baseUrl + "?url=" + fullPath + cameraParam;
+					}
+				}
 			}
 		});
 	</script>
