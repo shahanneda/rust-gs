@@ -162,6 +162,10 @@
 	</div>
 	</div>
 	<script>
+		const USE_LOCAL = true; // Set this to true to use local URLs, false for remote S3 URLs
+		const BASE_LOCAL_URL = "http://127.0.0.1:5503/";
+		const BASE_REMOTE_URL = "https://zimpmodels.s3.us-east-2.amazonaws.com/";
+
 		function getWebGLContext() {
 			ctx = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"));
 			return ctx;
@@ -173,32 +177,55 @@
 			}, 1000);
 		}
 		function switchModel(url) {
-			window.location.href = `./?url=${url}`;
+			const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "";
+
+			// Find the model's camera configuration
+			const MODEL_LIST = getModelList();
+			const selectedModel = MODEL_LIST.find(model => model.file === url);
+			let cameraParam = "";
+
+			if (selectedModel && selectedModel.camera) {
+				cameraParam = `&camera=${encodeURIComponent(JSON.stringify(selectedModel.camera))}`;
+			}
+
+			window.location.href = BASE_LOCAL_URL + "/?url=" + url + cameraParam;
 		}
 
-		const MODEL_LIST = [
-			{ display: "House", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/soc_01_polycam.rkyv" },
-			{ display: "E7 Outdoor", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/E7_01_id01-30000.rkyv" },
-			{ display: "E7 Indoor", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.rkyv" },
-			{ display: "Grass", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/socratica_01_edited.rkyv" },
-			{ display: "Sci", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/sci_01_edited.rkyv" },
-			{ display: "Shahan", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv" },
-			{ display: "The Rec", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/rec_cleaned_2.rkyv" },
-			// splats/Week-09-Sat-Nov-16-2024.rkyv
-			// splats/Week-10-Frid-Nov-22-2024-edited.rkyv
-			// { display: "Week 9 Sat Nov 16", file: "./Week-09-Sat-Nov-16-2024-edited.rkyv" },
-			// { display: "Week 10 Fri Nov 22", file: "./Week-10-Frid-Nov-22-2024-edited.rkyv" },
-			{ display: "Apple Extra Full", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/ninja/apple_extra_full.rkyv" },
-			{ display: "Apple Rotate Extra Full", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/ninja/apple_rotate_extra_full.rkyv" },
-			{ display: "Bread Extra Full", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/ninja/bread_extra_full.rkyv" },
-			{ display: "Cake Extra Full", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/ninja/cake_extra_full.rkyv" },
-			{ display: "Orange Extra Full", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/ninja/orange_extra_full.rkyv" },
-			{ display: "Watermelon Extra Full", file: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/ninja/watermelon_extra_full.rkyv" },
+		// Define model paths that are the same for both local and remote
+		const MODEL_PATHS = [
+			{ display: "House", file: "/soc_01_polycam.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "E7 Outdoor", file: "/E7_01_id01-30000.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "E7 Indoor", file: "/Shahan_03_id01-30000.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Grass", file: "/socratica_01_edited.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Sci", file: "/sci_01_edited.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Shahan", file: "/Shahan_03_id01-30000.cleaned.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "The Rec", file: "/rec_cleaned_2.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Apple Extra Full", file: "/ninja/apple_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Apple Rotate Extra Full", file: "/ninja/apple_rotate_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Bread Extra Full", file: "/ninja/bread_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Cake Extra Full", file: "/ninja/cake_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Orange Extra Full", file: "/ninja/orange_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Watermelon Extra Full", file: "/ninja/watermelon_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Neo Splat", file: "/neo_splat.rkyv", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
+
 		];
+		// camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] }
+
+		// Function to get the full model list with appropriate URLs
+		function getModelList() {
+			return MODEL_PATHS.map(model => ({
+				display: model.display,
+				file: USE_LOCAL ?
+					BASE_LOCAL_URL + "splats" + model.file :
+					BASE_REMOTE_URL + "splats" + model.file,
+				camera: model.camera
+			}));
+		}
 
 		// Function to populate the dropdown
 		function populateModelSelector() {
 			const modelSelect = document.getElementById('model-switcher');
+			const MODEL_LIST = getModelList();
 			MODEL_LIST.forEach(model => {
 				const option = document.createElement('option');
 				option.value = model.file;
@@ -214,11 +241,14 @@
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
 			const modelSelect = document.getElementById('model-switcher');
+			const defaultPath = "/Shahan_03_id01-30000.cleaned.rkyv";
 
 			if (currentUrl) {
 				modelSelect.value = currentUrl;
 			} else {
-				modelSelect.value = "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"; // Default value
+				modelSelect.value = USE_LOCAL ?
+					BASE_LOCAL_URL + defaultPath :
+					BASE_REMOTE_URL + defaultPath;
 			}
 		});
 	</script>
@@ -320,7 +350,7 @@
 					// Calculate number of threads based on hardware concurrency
 					// Limiting to 2 threads for stability during testing
 					const numThreads = Math.min(navigator.hardwareConcurrency || 4, 2);
-					updateStatus(`Detected ${navigator.hardwareConcurrency} CPU cores, using ${numThreads} threads`);
+					updateStatus("Detected " + navigator.hardwareConcurrency + " CPU cores, using " + numThreads + " threads");
 
 					// Create and initialize the worker with the thread pool
 					createAndInitializeWorker(numThreads);
@@ -332,17 +362,18 @@
 				initButton.disabled = false;
 				initButton.style.backgroundColor = 'red';
 
-				updateStatus(`Error: ${error.message}`, true);
+				updateStatus("Error: " + error.message, true);
 			}
 		}
 
 		// Function to create and initialize the worker
 		function createAndInitializeWorker(numThreads) {
 			try {
-				updateStatus(`Creating worker for thread pool initialization with ${numThreads} threads...`);
+				updateStatus("Creating worker for thread pool initialization with " + numThreads + " threads...");
 
 				// Create the worker
-				worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+				const workerUrl = USE_LOCAL ? (BASE_LOCAL_URL + '/worker.js') : './worker.js';
+				worker = new Worker(new URL(workerUrl, import.meta.url), { type: 'module' });
 
 				// Set up message handler for the worker
 				worker.onmessage = function (e) {
@@ -364,7 +395,7 @@
 							break;
 
 						case 'initializing_thread_pool':
-							updateStatus(`Worker: Initializing thread pool with ${threads} threads...`);
+							updateStatus("Worker: Initializing thread pool with " + threads + " threads...");
 							break;
 
 						case 'thread_pool_initialized':
@@ -387,7 +418,7 @@
 
 						case 'error':
 							console.error("Worker error:", message, stack);
-							updateStatus(`Worker error: ${message}`, true);
+							updateStatus("Worker error: " + message, true);
 							initButton.textContent = 'Initialization Failed - Try Again';
 							initButton.disabled = false;
 							initButton.style.backgroundColor = 'red';
@@ -401,14 +432,14 @@
 				// Handle worker errors
 				worker.onerror = function (error) {
 					console.error("Worker error:", error);
-					updateStatus(`Worker error: ${error.message}`, true);
+					updateStatus("Worker error: " + error.message, true);
 					initButton.textContent = 'Initialization Failed - Try Again';
 					initButton.disabled = false;
 					initButton.style.backgroundColor = 'red';
 				};
 			} catch (error) {
 				console.error("Error creating worker:", error);
-				updateStatus(`Error creating worker: ${error.message}`, true);
+				updateStatus("Error creating worker: " + error.message, true);
 				initButton.textContent = 'Initialization Failed - Try Again';
 				initButton.disabled = false;
 				initButton.style.backgroundColor = 'red';
@@ -422,6 +453,61 @@
 		console.log("WebAssembly initialization deferred. Click the 'Initialize WebAssembly' button to start.");
 	</script>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+	<!-- Add button to print current camera position -->
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			const gui = document.getElementById('gui');
+
+			// Create button for printing camera position
+			const printCameraBtn = document.createElement('button');
+			printCameraBtn.id = 'print-camera-btn';
+			printCameraBtn.textContent = 'Print Camera Position';
+			printCameraBtn.style.margin = '10px 0px';
+
+			// Create div to display camera position
+			const cameraPositionDiv = document.createElement('div');
+			cameraPositionDiv.id = 'camera-position';
+			cameraPositionDiv.style.margin = '10px 0px';
+			cameraPositionDiv.style.color = 'white';
+			cameraPositionDiv.style.fontSize = '10px';
+			cameraPositionDiv.style.maxWidth = '250px';
+			cameraPositionDiv.style.wordWrap = 'break-word';
+
+			// Create copy to clipboard button
+			const copyBtn = document.createElement('button');
+			copyBtn.id = 'copy-camera-btn';
+			copyBtn.textContent = 'Copy to Clipboard';
+			copyBtn.style.margin = '10px 0px';
+			copyBtn.style.fontSize = '12px';
+			copyBtn.addEventListener('click', function () {
+				const cameraPosText = document.getElementById('camera-position').textContent;
+				if (cameraPosText) {
+					navigator.clipboard.writeText(cameraPosText)
+						.then(() => {
+							// Change button text temporarily to indicate success
+							const originalText = copyBtn.textContent;
+							copyBtn.textContent = 'Copied!';
+							setTimeout(() => {
+								copyBtn.textContent = originalText;
+							}, 1500);
+						})
+						.catch(err => {
+							console.error('Could not copy text: ', err);
+							copyBtn.textContent = 'Copy failed';
+							setTimeout(() => {
+								copyBtn.textContent = 'Copy to Clipboard';
+							}, 1500);
+						});
+				}
+			});
+
+			// Add elements to GUI
+			gui.appendChild(printCameraBtn);
+			gui.appendChild(cameraPositionDiv);
+			gui.appendChild(copyBtn);
+		});
+	</script>
 </body>
 
 </html>

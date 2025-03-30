@@ -30,7 +30,7 @@ async fn main() {
     // let scene_name = "ninja/pomegranate_simplified";
     // let scene_name = "ninja/apple_voxel";
     // let scene_name = "ninja/apple_extra_full";
-    let scene_name = "rec_cleaned_2";
+    let scene_name = "neo_splat";
 
     // let scene_name = "ninja/apple_rotate";
     // let scene_name = "sci_01_edited";

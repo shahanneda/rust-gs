@@ -322,15 +322,55 @@ pub async fn start() -> Result<(), JsValue> {
         Renderer::new(gl, &scene.borrow_mut()).unwrap(),
     ));
 
-    let camera = Rc::new(RefCell::new(Camera::new(
-        // camera pos: [[-6.679095, 0.14607938, -0.32618168]]
-        // gs_rust.js:564 camera rot: [[-0.13400005, -1.5560011]]
-        // vec3(0.0, 0.0, 0.0),
-        vec3(-6.679095, 0.14607938, -0.32618168),
-        vec2(-0.13400005, -1.5560011),
-        // vec3(-1.020468, 1.4699098, -2.7163901),
-        // vec2(0.0, 3.14 / 2.0),
-    )));
+    // Get camera parameters from URL if available
+    let default_camera_pos = vec3(-6.679095, 0.14607938, -0.32618168);
+    let default_camera_rot = vec2(-0.13400005, -1.5560011);
+
+    let camera_pos;
+    let camera_rot;
+
+    if let Some(camera_str) = params.get("camera") {
+        match serde_json::from_str::<serde_json::Value>(&camera_str) {
+            Ok(camera_json) => {
+                if let (Some(pos_arr), Some(rot_arr)) = (
+                    camera_json.get("pos").and_then(|p| p.as_array()),
+                    camera_json.get("rot").and_then(|r| r.as_array()),
+                ) {
+                    // Parse position array
+                    if pos_arr.len() >= 3 {
+                        let pos_x = pos_arr[0].as_f64().unwrap_or(-6.679095) as f32;
+                        let pos_y = pos_arr[1].as_f64().unwrap_or(0.14607938) as f32;
+                        let pos_z = pos_arr[2].as_f64().unwrap_or(-0.32618168) as f32;
+                        camera_pos = vec3(pos_x, pos_y, pos_z);
+                    } else {
+                        camera_pos = default_camera_pos;
+                    }
+
+                    // Parse rotation array
+                    if rot_arr.len() >= 2 {
+                        let rot_x = rot_arr[0].as_f64().unwrap_or(-0.13400005) as f32;
+                        let rot_y = rot_arr[1].as_f64().unwrap_or(-1.5560011) as f32;
+                        camera_rot = vec2(rot_x, rot_y);
+                    } else {
+                        camera_rot = default_camera_rot;
+                    }
+                } else {
+                    camera_pos = default_camera_pos;
+                    camera_rot = default_camera_rot;
+                }
+            }
+            Err(_) => {
+                camera_pos = default_camera_pos;
+                camera_rot = default_camera_rot;
+            }
+        }
+    } else {
+        camera_pos = default_camera_pos;
+        camera_rot = default_camera_rot;
+    }
+
+    // Create the camera with the position and rotation
+    let camera = Rc::new(RefCell::new(Camera::new(camera_pos, camera_rot)));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
     let shahan_remote_url =
@@ -525,9 +565,14 @@ pub async fn start() -> Result<(), JsValue> {
     // let orbit_height = 0.2f32;
     // let orbit_speed = 0.005f32;
     renderer.borrow_mut().bind_splat_textures(0);
+
+    // Clone document and camera for the animation frame closure
+    let document_for_loop = document.clone();
+    let camera_for_loop = camera.clone();
+
     *g.borrow_mut() = Some(Closure::new(move || {
         let _timer = Timer::new("main loop");
-        let mut cam_mut = camera.borrow_mut();
+        let mut cam_mut = camera_for_loop.borrow_mut();
         let settings = settings_ref.clone();
         // // update orbit angle and camera position
         // orbit_angle += orbit_speed;
@@ -546,6 +591,22 @@ pub async fn start() -> Result<(), JsValue> {
 
         cam_mut.update_translation_from_keys(&keys_pressed.borrow());
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
+
+        // Update camera position display if it exists
+        if let Some(pos_div) = document_for_loop.get_element_by_id("camera-position") {
+            if let Ok(pos_div) = pos_div.dyn_into::<HtmlElement>() {
+                // Format the camera position and rotation as JSON
+                let pos_str = format!(
+                    "[{:.6}, {:.6}, {:.6}]",
+                    cam_mut.pos.x, cam_mut.pos.y, cam_mut.pos.z
+                );
+                let rot_str = format!("[{:.6}, {:.6}]", cam_mut.rot.x, cam_mut.rot.y);
+
+                let json_str = format!("camera: {{ pos: {}, rot: {} }}", pos_str, rot_str);
+
+                pos_div.set_inner_text(&json_str);
+            }
+        }
 
         if click_state.borrow().clicked {
             let state = click_state.borrow();
@@ -615,6 +676,38 @@ pub async fn start() -> Result<(), JsValue> {
     }));
 
     request_animation_frame(g.borrow().as_ref().unwrap());
+
+    // Add print camera button functionality
+    let print_camera_btn = document.get_element_by_id("print-camera-btn");
+    if let Some(btn) = print_camera_btn {
+        let btn = btn.dyn_into::<HtmlElement>()?;
+        let cam_clone = camera.clone();
+        let document_clone = document.clone();
+
+        let print_callback = Closure::wrap(Box::new(move |_: web_sys::MouseEvent| {
+            let cam = cam_clone.borrow();
+
+            // Format the camera position and rotation
+            let pos_str = format!("[{:.6}, {:.6}, {:.6}]", cam.pos.x, cam.pos.y, cam.pos.z);
+            let rot_str = format!("[{:.6}, {:.6}]", cam.rot.x, cam.rot.y);
+
+            // Create a JSON representation
+            let json_str = format!("camera: {{ pos: {}, rot: {} }}", pos_str, rot_str);
+
+            // Update the display in the DOM
+            if let Some(pos_div) = document_clone.get_element_by_id("camera-position") {
+                let pos_div = pos_div.dyn_into::<HtmlElement>().unwrap();
+                pos_div.set_inner_html(&json_str);
+            }
+
+            // Log to console
+            log!("Current camera: {}", json_str);
+        }) as Box<dyn FnMut(_)>);
+
+        btn.set_onclick(Some(print_callback.as_ref().unchecked_ref()));
+        print_callback.forget();
+    }
+
     Ok(())
 }
 
