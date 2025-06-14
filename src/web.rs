@@ -268,25 +268,25 @@ pub async fn start() -> Result<(), JsValue> {
     let mut splat: SplatData = SplatData::new_from_url(&scene_url).await;
     let scene = Rc::new(RefCell::new(Scene::new(splat)));
 
-    let cube_mesh = MeshData::new(
-        scene_geo::CUBE_VERTICES.to_vec(),
-        scene_geo::CUBE_INDICES.to_vec(),
-        scene_geo::CUBE_COLORS.to_vec(),
-        scene_geo::CUBE_NORMALS.to_vec(),
-    );
-    let cube_object = SceneObject::new(
-        cube_mesh.clone(),
-        vec3(-0.0, -2.0, -0.2),
-        vec3(0.0, 0.0, 0.0),
-        // vec3(1.0, 0.1, 0.1),
-        vec3(0.1, 0.1, 0.1),
-    );
-    scene.borrow_mut().objects.push(cube_object);
-    let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.25), 0.1, vec3(0.0, 1.0, 0.1));
-    scene.borrow_mut().objects.push(cube_object_2);
-    let teapot_mesh =
-        obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
-            .await;
+    // let cube_mesh = MeshData::new(
+    //     scene_geo::CUBE_VERTICES.to_vec(),
+    //     scene_geo::CUBE_INDICES.to_vec(),
+    //     scene_geo::CUBE_COLORS.to_vec(),
+    //     scene_geo::CUBE_NORMALS.to_vec(),
+    // );
+    // let cube_object = SceneObject::new(
+    //     cube_mesh.clone(),
+    //     vec3(-0.0, -2.0, -0.2),
+    //     vec3(0.0, 0.0, 0.0),
+    //     // vec3(1.0, 0.1, 0.1),
+    //     vec3(0.1, 0.1, 0.1),
+    // );
+    // scene.borrow_mut().objects.push(cube_object);
+    // let cube_object_2 = SceneObject::new_cube(vec3(2.0, -2.0, -0.25), 0.1, vec3(0.0, 1.0, 0.1));
+    // scene.borrow_mut().objects.push(cube_object_2);
+    // let teapot_mesh =
+    //     obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
+    //         .await;
     // let teapot_object = SceneObject::new(
     //     teapot_mesh,
     //     vec3(0.2, -0.2, 0.0),
@@ -301,7 +301,7 @@ pub async fn start() -> Result<(), JsValue> {
         use_octtree_for_splat_removal: true,
         view_individual_splats: false,
         do_sorting: true,
-        do_blending: true,
+        do_blending: false,
         move_down: false,
         restrict_gizmo_movement: false,
         selected_object: None,
@@ -569,6 +569,7 @@ pub async fn start() -> Result<(), JsValue> {
     // Clone document and camera for the animation frame closure
     let document_for_loop = document.clone();
     let camera_for_loop = camera.clone();
+    let last_sort_cam_rot = Rc::new(RefCell::new(vec2(std::f32::NAN, std::f32::NAN)));
 
     *g.borrow_mut() = Some(Closure::new(move || {
         let _timer = Timer::new("main loop");
@@ -584,7 +585,7 @@ pub async fn start() -> Result<(), JsValue> {
         // cam_mut.rot.x = -0.13400005; // Keep original x rotation
         // cam_mut.rot.y = orbit_angle + std::f32::consts::PI / 2.0; // Make camera face center
 
-        scene.borrow_mut().objects[0].recalculate_min_max();
+        // scene.borrow_mut().objects[0].recalculate_min_max();
         if settings.borrow().move_down {
             scene.borrow_mut().move_down();
         }
@@ -653,12 +654,29 @@ pub async fn start() -> Result<(), JsValue> {
         let (normal_projection_matrix, normal_view_matrix) =
             cam_mut.get_normal_projection_and_view_matrices(width, height);
 
+        let rot_threshold: f32 = 0.3; // ~2.8 degrees in radians
+        let mut do_sort_now = false;
         if settings.borrow().do_sorting {
+            let last_rot = last_sort_cam_rot.borrow().clone();
+            if last_rot.x.is_nan() {
+                // First frame (or after reset) – force a sort
+                do_sort_now = true;
+            } else {
+                let rot_diff = glm::distance(&cam_mut.rot, &last_rot);
+                if rot_diff > rot_threshold {
+                    do_sort_now = true;
+                }
+            }
+        }
+
+        if do_sort_now {
             let splat_indices = scene
                 .borrow_mut()
                 .splat_data
                 .sort_splats_based_on_depth(vpm);
             renderer.borrow_mut().update_splat_indices(&splat_indices);
+            // Remember the rotation at which we just sorted
+            *last_sort_cam_rot.borrow_mut() = cam_mut.rot;
         }
 
         // renderer.borrow_mut().bind_splat_textures(0);

@@ -196,7 +196,7 @@ impl SplatData {
 
     pub fn new_from_rkyv(bytes: &[u8]) -> Self {
         // let _timer = Timer::new("new scene from json");
-        log!("Creating a new scene from rkyv");
+        log!("Creating a new scene from rkyv UPDATED");
 
         match rkyv::from_bytes::<SplatData, Error>(bytes) {
             Ok(mut scene) => {

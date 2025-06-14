@@ -97,7 +97,7 @@
 	</script>
 	<canvas id="canvas"></canvas>
 	<div id="gui">
-		<h1>GSplat Viewer</h1>
+		<h1>Fruit Ninja GSplat</h1>
 		<!-- <button onclick="">Testing</button> -->
 		<div class="checkbox-container">
 			<label for="checkbox" class="checkbox-label">Show Octtree</label>
@@ -107,7 +107,7 @@
 			<label for="checkbox" class="checkbox-label">Only Show Octree at Click </label>
 			<input type="checkbox" class="checkbox" id="only-show-clicks-checkbox">
 		</div>
-		<div class="checkbox-container">
+		<div class="checkbox-container" style="display: none;">
 			<label for="checkbox" class="checkbox-label">Use OctTree for Editing </label>
 			<input type="checkbox" class="checkbox" id="use-octtree-for-editing-checkbox" checked>
 		</div>
@@ -121,9 +121,9 @@
 		</div>
 		<div class="checkbox-container">
 			<label for="checkbox" class="checkbox-label">Do Blending </label>
-			<input type="checkbox" class="checkbox" id="do-blending-checkbox" checked>
+			<input type="checkbox" class="checkbox" id="do-blending-checkbox">
 		</div>
-		<div class="checkbox-container">
+		<div class="checkbox-container" style="display: none;">
 			<label for="checkbox" class="checkbox-label">Move Down </label>
 			<input type="checkbox" class="checkbox" id="move-down-checkbox">
 		</div>
@@ -131,17 +131,17 @@
 			<label for="checkbox" class="checkbox-label">Detect Collisions With Gizmo</label>
 			<input type="checkbox" class="checkbox" id="restrict-gizmo-movement-checkbox">
 		</div>
-		<div style="margin: 10px 0px;">
+		<div style="margin: 10px 0px; display: none;">
 			<button id="calculate-shadows-btn">Calculate Shadows</button>
 		</div>
 		<div style="margin: 10px 0px;">
 			<button id="recalculate-octtree-btn">Recalculate Octtree</button>
 
 		</div>
-		<div style="margin: 10px 0px;">
+		<div style="margin: 10px 0px; display: none;">
 			<button id="add-shahan-btn">Add Shahan</button>
 		</div>
-		<div style="margin: 10px 0px;">
+		<div style="margin: 10px 0px; display:none;">
 			<button id="add-teapot-btn">Add Teapot</button>
 		</div>
 		<div style="margin: 10px 0px;">
@@ -191,8 +191,51 @@
 			window.location.href = baseUrl + "?url=" + url + cameraParam;
 		}
 
+
+		// FILES=(
+		//     "apple_rotate.ply"
+		//     "bread.ply"
+		//     "cake.ply"
+		//     "orange.ply"
+		//     "watermelon.ply"
+		// )
 		// Define model paths that are the same for both local and remote
 		const MODEL_PATHS = [
+			// { display: "Cake 100%", file: "/ninja/cake_rotate.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Cake 90%", file: "/ninja/cake_rotate_9.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Cake 100%", file: "/ninja/cake_rotate.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Apple 100%", file: "/ninja/apple_rotate.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Bread 100%", file: "/ninja/bread.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Orange 100%", file: "/ninja/orange.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Watermelon 100%", file: "/ninja/watermelon.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+
+			{ display: "Cake 80%", file: "/ninja/cake_rotate_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Orange 80%", file: "/ninja/orange_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Apple 80%", file: "/ninja/apple_rotate_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Watermelon 80%", file: "/ninja/watermelon_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Bread 80%", file: "/ninja/bread_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Orange 50%", file: "/ninja/orange_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Apple 50%", file: "/ninja/apple_rotate_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Cake 50%", file: "/ninja/cake_rotate_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Watermelon 50%", file: "/ninja/watermelon_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Bread 50%", file: "/ninja/bread_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+
+			{ display: "Orange 30%", file: "/ninja/orange_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Apple 30%", file: "/ninja/apple_rotate_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Cake 30%", file: "/ninja/cake_rotate_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Watermelon 30%", file: "/ninja/watermelon_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Bread 30%", file: "/ninja/bread_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Watermelon 10%", file: "/ninja/watermelon_1.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+
+
+			// { display: "Orange Fuller", file: "/ninja/orange_fuller.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Orange Extra Full", file: "/ninja/orange_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// // { display: "Apple ", file: "/ninja/apple_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Apple 50%", file: "/ninja/apple_rotate_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Apple 80%", file: "/ninja/apple_rotate_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Bread Extra Full", file: "/ninja/bread_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Cake Extra Full", file: "/ninja/cake_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Watermelon Extra Full", file: "/ninja/watermelon_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] }
 			{ display: "House", file: "/soc_01_polycam.rkyv", camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] } },
 
@@ -209,12 +252,6 @@
 			// camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] }
 			{ display: "The Rec", file: "/rec_cleaned_2.rkyv", camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] } },
 
-			{ display: "Apple Extra Full", file: "/ninja/apple_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Apple Rotate Extra Full", file: "/ninja/apple_rotate_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Bread Extra Full", file: "/ninja/bread_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Cake Extra Full", file: "/ninja/cake_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Orange Extra Full", file: "/ninja/orange_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Watermelon Extra Full", file: "/ninja/watermelon_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			{ display: "Neo Dinner", file: "/neo_splat.rkyv", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
 
 			// camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] }
@@ -253,7 +290,8 @@
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
 			const modelSelect = document.getElementById('model-switcher');
-			const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
+			// const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
+			const defaultModel = "cake_rotate_5.rkyv";
 			const defaultFullPath = USE_LOCAL ?
 				BASE_LOCAL_URL + "splats" + defaultModel :
 				BASE_REMOTE_URL + "splats" + defaultModel;
@@ -263,7 +301,7 @@
 				modelSelect.value = currentUrl;
 			} else {
 				// If no URL parameter, load the default model
-				const shahanModel = MODEL_PATHS.find(model => model.display === "Shahan");
+				const shahanModel = MODEL_PATHS.find(model => model.display === "Cake 50%");
 				if (shahanModel) {
 					const fullPath = USE_LOCAL ?
 						BASE_LOCAL_URL + "splats" + shahanModel.file :
@@ -316,6 +354,7 @@
 		initButton.style.top = '10px';
 		initButton.style.right = '10px';
 		initButton.style.zIndex = '1000';
+		initButton.style.display = 'none';
 		document.body.appendChild(initButton);
 
 		// Add a status message element
@@ -330,6 +369,7 @@
 		statusMessage.style.zIndex = '1000';
 		statusMessage.style.maxWidth = '300px';
 		statusMessage.textContent = 'Click the button above to initialize';
+		statusMessage.style.display = 'none';
 		document.body.appendChild(statusMessage);
 
 		// Use ES module import syntax to import functionality from the module
@@ -479,7 +519,8 @@
 		}
 
 		// Add click event listener to the initialization button
-		initButton.addEventListener('click', initializeWasm);
+		// initButton.addEventListener('click', initializeWasm);
+		initializeWasm();
 
 		// Don't automatically initialize - wait for user to click the button
 		console.log("WebAssembly initialization deferred. Click the 'Initialize WebAssembly' button to start.");
@@ -538,6 +579,11 @@
 			gui.appendChild(printCameraBtn);
 			gui.appendChild(cameraPositionDiv);
 			gui.appendChild(copyBtn);
+			// make these display none:
+			printCameraBtn.style = "display: none;"
+			cameraPositionDiv.style = "display: none;"
+			copyBtn.style = "display: none;"
+
 		});
 	</script>
 </body>
