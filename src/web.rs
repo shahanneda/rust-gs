@@ -323,7 +323,7 @@ pub async fn start() -> Result<(), JsValue> {
     ));
 
     // Get camera parameters from URL if available
-    let default_camera_pos = vec3(-6.679095, 0.14607938, -0.32618168);
+    let default_camera_pos = vec3(-6.679095, 3.44607938, -0.32618168);
     let default_camera_rot = vec2(-0.13400005, -1.5560011);
 
     let camera_pos;
