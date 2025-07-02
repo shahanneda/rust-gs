@@ -301,7 +301,7 @@ pub async fn start() -> Result<(), JsValue> {
         use_octtree_for_splat_removal: true,
         view_individual_splats: false,
         do_sorting: true,
-        do_blending: false,
+        do_blending: true,
         move_down: false,
         restrict_gizmo_movement: false,
         selected_object: None,
@@ -418,9 +418,16 @@ pub async fn start() -> Result<(), JsValue> {
     let click_state = Rc::new(RefCell::new(ClickState::default()));
     let click_state_clone = click_state.clone();
 
+    // Stores the first mouse position when the user is drawing a cutting line. We key this off of the
+    // "p" key being held (for "plane"), so: hold the "p" key, click-drag to draw the line, then
+    // release the mouse button to perform the split.
+    let line_draw_start: Rc<RefCell<Option<(i32, i32)>>> = Rc::new(RefCell::new(None));
+
     let scene_clone = scene.clone();
     let camera_clone = camera.clone();
     let renderer_clone = renderer.clone();
+    let line_draw_start_clone = line_draw_start.clone();
+    let keys_pressed_click = keys_pressed.clone();
     let click_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
         let mut scene = scene_clone.borrow_mut();
         let mut state = click_state_clone.borrow_mut();
@@ -430,6 +437,14 @@ pub async fn start() -> Result<(), JsValue> {
         state.x = e.client_x();
         state.y = e.client_y();
         state.button = e.button();
+
+        // If the user is holding the "p" key, we start recording the line for plane splitting
+        if keys_pressed_click.borrow().contains("p") {
+            *line_draw_start_clone.borrow_mut() = Some((state.x, state.y));
+            // Prevent camera rotation while drawing the cutting plane
+            camera_clone.borrow_mut().is_dragging = false;
+        }
+
         let (vm, vpm) = camera_clone.borrow().get_vm_and_vpm(width, height);
         let (index, is_gizmo, hit_object) =
             renderer.get_at_mouse_position(width, height, state.x, state.y, vpm, vm, &scene);
@@ -480,10 +495,69 @@ pub async fn start() -> Result<(), JsValue> {
 
     let click_state_up = click_state.clone();
     let scene_clone = scene.clone();
-    let mouseup_cb = Closure::wrap(Box::new(move |_: web_sys::MouseEvent| {
+    let camera_clone_up = camera.clone();
+    let renderer_clone_up = renderer.clone();
+    let settings_clone_for_split = settings_ref.clone();
+    let line_draw_start_up = line_draw_start.clone();
+    let keys_pressed_mouseup = keys_pressed.clone();
+    let mouseup_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
         let mut state = click_state_up.borrow_mut();
         state.dragging = false;
         scene_clone.borrow_mut().end_gizmo_drag();
+
+        // If we were in "plane draw" mode (p key held) and had a start point recorded, perform the split now.
+        if let Some((sx, sy)) = line_draw_start_up.borrow_mut().take() {
+            if keys_pressed_mouseup.borrow().contains("p") {
+                let ex = e.client_x();
+                let ey = e.client_y();
+
+                // Convert the two screen points to NDC
+                let ndc_sx = (sx as f32 / width as f32) * 2.0 - 1.0;
+                let ndc_sy = 1.0 - (sy as f32 / height as f32) * 2.0;
+                let ndc_ex = (ex as f32 / width as f32) * 2.0 - 1.0;
+                let ndc_ey = 1.0 - (ey as f32 / height as f32) * 2.0;
+
+                let cam = camera_clone_up.borrow();
+                let (ray_origin_s, ray_dir_s) =
+                    cam.get_ray_origin_and_direction(width, height, ndc_sx, ndc_sy);
+                let (ray_origin_e, ray_dir_e) =
+                    cam.get_ray_origin_and_direction(width, height, ndc_ex, ndc_ey);
+
+                // Pick a reasonably sized t to get points in front of the camera
+                let t = 3.0f32;
+                let p1 = ray_origin_s + ray_dir_s * t;
+                let p2 = ray_origin_e + ray_dir_e * t;
+
+                // Direction along the drawn line in 3D
+                let line_dir = glm::normalize(&(p2 - p1));
+
+                // Camera forward direction (use ray through screen center)
+                let (_ray_origin_c, cam_forward) =
+                    cam.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+
+                // Plane normal is perpendicular to both the camera forward vector and the line direction.
+                let plane_normal = glm::cross(&cam_forward, &line_dir);
+
+                if plane_normal != glm::vec3(0.0, 0.0, 0.0) {
+                    let mut scene_mut = scene_clone.borrow_mut();
+                    let mut settings = settings_clone_for_split.borrow_mut();
+
+                    // Always split the first object (index 0) as before
+                    if let Some(_new_idx) =
+                        scene_mut
+                            .splat_data
+                            .split_object_along_plane(0, p1, plane_normal, 0.5)
+                    {
+                        scene_mut.recalculate_octtree();
+                        scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
+                        renderer_clone_up
+                            .borrow()
+                            .update_webgl_textures(&scene_mut, 0)
+                            .unwrap();
+                    }
+                }
+            }
+        }
     }) as Box<dyn FnMut(_)>);
 
     canvas.add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;

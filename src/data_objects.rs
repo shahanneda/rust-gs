@@ -461,6 +461,56 @@ impl SplatData {
         output_vector_timer.end();
         return output_indices;
     }
+
+    pub fn split_object_along_plane(
+        &mut self,
+        object_index: usize,
+        plane_point: glm::Vec3,
+        plane_normal_in: glm::Vec3,
+        separation_distance: f32,
+    ) -> Option<usize> {
+        if object_index >= self.objects.len() {
+            return None;
+        }
+
+        // Ensure the normal is normalized to avoid scaling issues
+        let plane_normal = glm::normalize(&plane_normal_in);
+        if plane_normal == glm::vec3(0.0, 0.0, 0.0) {
+            // Degenerate normal – cannot split
+            return None;
+        }
+
+        // Copy start/end so we can push a new object without keeping the immutable borrow alive.
+        let (obj_start, obj_end) = {
+            let obj_ref = &self.objects[object_index];
+            (obj_ref.start, obj_ref.end)
+        };
+
+        self.objects.push(SplatObject {
+            start: obj_start,
+            end: obj_end,
+        });
+        let new_object_index = self.objects.len() - 1;
+
+        // Move splats on opposite sides of the plane in opposite directions along the plane normal.
+        for i in obj_start..=obj_end {
+            let idx = i as usize;
+            if idx >= self.splats.len() {
+                continue;
+            }
+            let splat = &mut self.splats[idx];
+            let pos = glm::vec3(splat.x, splat.y, splat.z);
+            let distance = glm::dot(&(pos - plane_point), &plane_normal);
+            // Determine displacement direction based on which side of the plane the splat lies
+            let direction = if distance < 0.0 { -1.0 } else { 1.0 };
+            let offset = plane_normal * separation_distance * direction;
+            splat.x += offset.x;
+            splat.y += offset.y;
+            splat.z += offset.z;
+        }
+
+        Some(new_object_index)
+    }
 }
 
 pub fn u32_to_4_bytes(x: u32) -> [u8; 4] {

@@ -121,7 +121,7 @@
 		</div>
 		<div class="checkbox-container">
 			<label for="checkbox" class="checkbox-label">Do Blending </label>
-			<input type="checkbox" class="checkbox" id="do-blending-checkbox">
+			<input type="checkbox" class="checkbox" id="do-blending-checkbox" checked>
 		</div>
 		<div class="checkbox-container" style="display: none;">
 			<label for="checkbox" class="checkbox-label">Move Down </label>
@@ -162,7 +162,7 @@
 	</div>
 	</div>
 	<script>
-		const USE_LOCAL = false; // Set this to true to use local URLs, false for remote S3 URLs
+		const USE_LOCAL = true; // Set this to true to use local URLs, false for remote S3 URLs
 		const BASE_LOCAL_URL = "http://127.0.0.1:5503/";
 		const BASE_REMOTE_URL = "https://zimpmodels.s3.us-east-2.amazonaws.com/";
 

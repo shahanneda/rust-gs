@@ -107,6 +107,11 @@ impl Camera {
             return;
         }
 
+        // Disable movement entirely while user is holding the "p" key (used for plane cutting)
+        if keys_pressed.contains("p") {
+            return;
+        }
+
         if keys_pressed.contains("w") {
             cam_translation_local.z += MOVE_SPEED;
         }
