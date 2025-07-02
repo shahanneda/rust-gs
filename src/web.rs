@@ -528,17 +528,21 @@ pub async fn start() -> Result<(), JsValue> {
                 let p1 = ray_origin_s + ray_dir_s * t;
                 let p2 = ray_origin_e + ray_dir_e * t;
 
-                // Direction along the drawn line in 3D
-                let line_dir = glm::normalize(&(p2 - p1));
+                // Primary plane normal: perpendicular to the two rays that go through the screen points.
+                let mut plane_normal = glm::cross(&ray_dir_s, &ray_dir_e);
 
-                // Camera forward direction (use ray through screen center)
-                let (_ray_origin_c, cam_forward) =
-                    cam.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+                // If the user drew a very short line the above cross product can be close to zero, fall back to the
+                // previous method that uses camera-forward and the 3-D line direction.
+                if glm::length(&plane_normal) < 1e-5 {
+                    let line_dir = glm::normalize(&(p2 - p1));
+                    let (_ray_origin_c, cam_forward) =
+                        cam.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+                    plane_normal = glm::cross(&cam_forward, &line_dir);
+                }
 
-                // Plane normal is perpendicular to both the camera forward vector and the line direction.
-                let plane_normal = glm::cross(&cam_forward, &line_dir);
-
-                if plane_normal != glm::vec3(0.0, 0.0, 0.0) {
+                // Normalise and ensure it isn't the zero vector.
+                if glm::length(&plane_normal) > 1e-5 {
+                    let plane_normal = glm::normalize(&plane_normal);
                     let mut scene_mut = scene_clone.borrow_mut();
                     let mut settings = settings_clone_for_split.borrow_mut();
 
