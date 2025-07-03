@@ -556,7 +556,14 @@ pub async fn start() -> Result<(), JsValue> {
                             .splat_data
                             .split_object_along_plane(0, p1, plane_normal, 0.5)
                     {
-                        scene_mut.recalculate_octtree();
+                        if scene_mut.splat_data.splats.len() < 5_000_000 {
+                            scene_mut.recalculate_octtree();
+                        } else {
+                            log!(
+                                "Skipping octtree recalculation for large scene: {} splats",
+                                scene_mut.splat_data.splats.len()
+                            );
+                        }
                         scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
                         debug_memory("pre_upload");
                         renderer_clone_up

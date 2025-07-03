@@ -27,13 +27,21 @@ pub struct OctTreeNode {
 pub struct OctTree {
     pub root: OctTreeNode,
 }
-// mapping from i to top right back, top right front, bottom right back, bottom right front, top left back, top left front, bottom left back, bottom left front
-// const SPLIT_LIMIT: usize = 10;
-const SPLIT_LIMIT: usize = 1000;
-const MAX_DEPTH: usize = 10;
+
+// Dynamic split parameters will be chosen at runtime in `OctTree::new`.
+
+// These are just fallback defaults for very small scenes.
+const DEFAULT_SPLIT_LIMIT: usize = 1000;
+const DEFAULT_MAX_DEPTH: usize = 10;
+
+#[derive(Clone, Copy)]
+struct SplitParams {
+    split_limit: usize,
+    max_depth: usize,
+}
 
 impl OctTreeNode {
-    pub fn new(splats: Vec<Splat>, center: Vec3, half_width: f32) -> Self {
+    pub fn new(splats: Vec<Splat>, center: Vec3, half_width: f32, params: SplitParams) -> Self {
         let len = splats.len();
         let mut oct_tree_splats = vec![];
         for (i, splat) in splats.iter().enumerate() {
@@ -54,7 +62,7 @@ impl OctTreeNode {
             touched: false,
         };
 
-        out.propogate_splats_to_children(0);
+        out.propogate_splats_to_children(0, params);
 
         return out;
     }
@@ -185,12 +193,12 @@ impl OctTreeNode {
         return out;
     }
 
-    fn propogate_splats_to_children(&mut self, depth: usize) {
+    fn propogate_splats_to_children(&mut self, depth: usize, params: SplitParams) {
         let len = self.splats.len();
-        if len < SPLIT_LIMIT {
+        if len < params.split_limit {
             return;
         }
-        if depth >= MAX_DEPTH {
+        if depth >= params.max_depth {
             return;
         }
 
@@ -200,7 +208,7 @@ impl OctTreeNode {
             let direction = OctTreeNode::index_to_direction(i);
             let new_center = self.center + direction * self.half_width / 2.0;
 
-            let child = OctTreeNode::new(vec![], new_center, self.half_width / 2.0);
+            let child = OctTreeNode::new(vec![], new_center, self.half_width / 2.0, params);
             self.children.push(child);
         }
 
@@ -250,7 +258,7 @@ impl OctTreeNode {
 
         for child in &mut self.children {
             // log!("child has {} splats", child.splats.len());
-            child.propogate_splats_to_children(depth + 1);
+            child.propogate_splats_to_children(depth + 1, params);
         }
     }
 
@@ -302,9 +310,33 @@ impl OctTreeNode {
 impl OctTree {
     pub fn new(splats: Vec<Splat>) -> Self {
         log!("new octtree with {} splats", splats.len());
-        // let root = OctTreeNode::new(splats);
-        let root = OctTreeNode::new(splats, vec3(0.0, 0.0, 0.0), 10.0);
-        return OctTree { root: root };
+
+        // Choose adaptive parameters based on total splat count.
+        let total = splats.len();
+        let params = if total > 1_000_000 {
+            // Very large cloud – keep the tree shallow, split less aggressively.
+            log!("using very large cloud params");
+            SplitParams {
+                split_limit: 1_000_000,
+                max_depth: 6,
+            }
+        } else if total > 300_000 {
+            // Medium-large cloud
+            log!("using medium-large cloud params");
+            SplitParams {
+                split_limit: 10_000,
+                max_depth: 6,
+            }
+        } else {
+            // Default parameters for small/medium scenes
+            SplitParams {
+                split_limit: DEFAULT_SPLIT_LIMIT,
+                max_depth: DEFAULT_MAX_DEPTH,
+            }
+        };
+
+        let root = OctTreeNode::new(splats, vec3(0.0, 0.0, 0.0), 10.0, params);
+        OctTree { root }
     }
 
     pub fn get_cubes(&self) -> Vec<SceneObject> {
