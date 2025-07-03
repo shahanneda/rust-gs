@@ -571,9 +571,9 @@
 						progressBar.style.width = percentage + '%';
 					}
 				} else {
-					// No percentage, show indeterminate progress
+					// No percentage, start at 0%
 					if (progressBar) {
-						progressBar.style.width = '30%';
+						progressBar.style.width = '0%';
 					}
 				}
 			} else {
@@ -963,7 +963,10 @@
 			// Only show model loading messages in the instructions overlay
 			if (document.getElementById('instructions-overlay').style.display === 'flex') {
 				if (isError) {
-					setInstructionsLoading(true, 'Error loading scene');
+					// Only show actual errors, not warnings about browser features
+					if (!message.includes('Multithreading not supported')) {
+						setInstructionsLoading(true, 'Error loading scene');
+					}
 				} else if (message.includes('ready') || message.includes('Ready') || message.includes('Successfully') || message.includes('success')) {
 					// WebAssembly finished - but don't hide loading until model is done
 					console.log("WebAssembly ready, but waiting for model completion");
@@ -996,7 +999,7 @@
 				const multithreadingSupported = hasSharedArrayBuffer && hasAtomics;
 
 				if (!multithreadingSupported) {
-					updateStatus("Note: Multithreading not supported in this browser (SharedArrayBuffer or Atomics missing)", true);
+					updateStatus("Note: Multithreading not supported in this browser (SharedArrayBuffer or Atomics missing)", false);
 					console.warn("Multithreading not supported: SharedArrayBuffer or Atomics not available");
 
 					// Create a worker for single-threaded mode anyway
