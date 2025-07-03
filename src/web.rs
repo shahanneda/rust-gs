@@ -36,6 +36,36 @@ use web_sys::{
 
 pub use wasm_bindgen_rayon::init_thread_pool;
 
+// JavaScript function bindings for slicing UI
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = "showSliceMode")]
+    fn show_slice_mode();
+
+    #[wasm_bindgen(js_name = "hideSliceMode")]
+    fn hide_slice_mode();
+
+    #[wasm_bindgen(js_name = "showSliceLine")]
+    fn show_slice_line(start_x: i32, start_y: i32, end_x: i32, end_y: i32);
+
+    #[wasm_bindgen(js_name = "hideSliceLine")]
+    fn hide_slice_line();
+
+    #[wasm_bindgen(js_name = "showLoadingOverlay")]
+    fn show_loading_overlay(message: &str);
+
+    #[wasm_bindgen(js_name = "hideLoadingOverlay")]
+    fn hide_loading_overlay();
+
+    #[wasm_bindgen(js_name = "updateLoadingMessage")]
+    fn update_loading_message(message: &str);
+
+    // JavaScript setTimeout binding
+    #[wasm_bindgen(js_name = "setTimeout")]
+    fn set_timeout(closure: &Closure<dyn FnMut()>, delay: i32) -> i32;
+}
+
+
 #[derive(Default)]
 struct ClickState {
     clicked: bool,
@@ -485,12 +515,21 @@ pub async fn start() -> Result<(), JsValue> {
     let click_state_move = click_state.clone();
     let scene_clone = scene.clone();
     let camera_clone = camera.clone();
+    let line_draw_start_move = line_draw_start.clone();
+    let keys_pressed_move = keys_pressed.clone();
     let mousemove_cb = Closure::wrap(Box::new(move |e: web_sys::MouseEvent| {
         let mut state = click_state_move.borrow_mut();
         if state.dragging {
             state.x = e.client_x();
             state.y = e.client_y();
             state.clicked = true;
+
+            // Show slice line if in slice mode and we have a start point
+            if keys_pressed_move.borrow().contains("p") {
+                if let Some((start_x, start_y)) = *line_draw_start_move.borrow() {
+                    show_slice_line(start_x, start_y, state.x, state.y);
+                }
+            }
         }
     }) as Box<dyn FnMut(_)>);
 
@@ -508,6 +547,9 @@ pub async fn start() -> Result<(), JsValue> {
         let mut state = click_state_up.borrow_mut();
         state.dragging = false;
         scene_clone.borrow_mut().end_gizmo_drag();
+        
+        // Hide slice line when mouse is released
+        hide_slice_line();
 
         // If we were in "plane draw" mode (p key held) and had a start point recorded, perform the split now.
         if let Some((sx, sy)) = line_draw_start_up.borrow_mut().take() {
@@ -547,31 +589,57 @@ pub async fn start() -> Result<(), JsValue> {
                 // Normalise and ensure it isn't the zero vector.
                 if glm::length(&plane_normal) > 1e-5 {
                     let plane_normal = glm::normalize(&plane_normal);
-                    let mut scene_mut = scene_clone.borrow_mut();
-                    let mut settings = settings_clone_for_split.borrow_mut();
-
-                    // Always split the first object (index 0) as before
-                    if let Some(_new_idx) =
-                        scene_mut
-                            .splat_data
-                            .split_object_along_plane(0, p1, plane_normal, 0.5)
-                    {
-                        if scene_mut.splat_data.splats.len() < 5_000_000 {
-                            scene_mut.recalculate_octtree();
-                        } else {
-                            log!(
-                                "Skipping octtree recalculation for large scene: {} splats",
-                                scene_mut.splat_data.splats.len()
-                            );
+                    
+                    // Show loading overlay immediately
+                    show_loading_overlay("Processing slice...");
+                    
+                    // Simple timeout to allow the UI to render the loading overlay
+                    let scene_for_operation = scene_clone.clone();
+                    let renderer_for_operation = renderer_clone_up.clone();
+                    let settings_for_operation = settings_clone_for_split.clone();
+                    
+                    let operation_closure = Closure::wrap(Box::new(move || {
+                        let mut scene_mut = scene_for_operation.borrow_mut();
+                        let settings = settings_for_operation.borrow();
+                        
+                        // Always split the first object (index 0) as before
+                        if let Some(_new_idx) =
+                            scene_mut
+                                .splat_data
+                                .split_object_along_plane(0, p1, plane_normal, 0.5)
+                        {
+                            update_loading_message("Recalculating octree...");
+                            
+                            if scene_mut.splat_data.splats.len() < 5_000_000 {
+                                scene_mut.recalculate_octtree();
+                            } else {
+                                log!(
+                                    "Skipping octtree recalculation for large scene: {} splats",
+                                    scene_mut.splat_data.splats.len()
+                                );
+                            }
+                            
+                            update_loading_message("Updating scene...");
+                            scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
+                            debug_memory("pre_upload");
+                            
+                            update_loading_message("Uploading to GPU...");
+                            renderer_for_operation
+                                .borrow()
+                                .update_webgl_textures(&scene_mut, 0)
+                                .unwrap();
+                            debug_memory("post_upload");
                         }
-                        scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
-                        debug_memory("pre_upload");
-                        renderer_clone_up
-                            .borrow()
-                            .update_webgl_textures(&scene_mut, 0)
-                            .unwrap();
-                        debug_memory("post_upload");
-                    }
+                        
+                        // Hide loading overlay
+                        hide_loading_overlay();
+                    }) as Box<dyn FnMut()>);
+                    
+                    set_timeout(&operation_closure, 100);
+                    operation_closure.forget();
+                } else {
+                    // Hide slice line if plane calculation failed
+                    hide_slice_line();
                 }
             }
         }
@@ -683,6 +751,19 @@ pub async fn start() -> Result<(), JsValue> {
 
         cam_mut.update_translation_from_keys(&keys_pressed.borrow());
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
+
+        // Handle slice mode UI updates
+        static mut SLICE_MODE_ACTIVE: bool = false;
+        let p_key_pressed = keys_pressed.borrow().contains("p");
+        unsafe {
+            if p_key_pressed && !SLICE_MODE_ACTIVE {
+                show_slice_mode();
+                SLICE_MODE_ACTIVE = true;
+            } else if !p_key_pressed && SLICE_MODE_ACTIVE {
+                hide_slice_mode();
+                SLICE_MODE_ACTIVE = false;
+            }
+        }
 
         // Update camera position display if it exists
         if let Some(pos_div) = document_for_loop.get_element_by_id("camera-position") {
