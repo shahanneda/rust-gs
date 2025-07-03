@@ -692,8 +692,12 @@
 				</div>
 			</div>
 			<div style="margin: 20px 0;">
-				<label for="instruction-model-switcher" style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch Model:</label>
-				<select id="instruction-model-switcher" onchange="switchModelFromInstructions(this.value)" class="model-select-instructions">
+				<label for="instruction-model-switcher"
+					style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch
+					Model:</label>
+				<select id="instruction-model-switcher"
+					onchange="switchModelFromInstructions(this.value)"
+					class="model-select-instructions">
 					<option value="">Select a model...</option>
 				</select>
 			</div>
@@ -823,10 +827,10 @@
 
 		function switchModelFromInstructions(url) {
 			if (!url) return; // Don't switch if no model selected
-			
+
 			// Immediately show switching state
 			setInstructionsLoading(true, 'Switching model...');
-			
+
 			// Try to stop everything immediately
 			try {
 				// Cancel any ongoing loading
@@ -834,28 +838,28 @@
 					currentLoadController.abort();
 					currentLoadController = null;
 				}
-				
+
 				// Cancel workers and timers
 				if (worker) {
 					worker.terminate();
 					worker = null;
 				}
-				
+
 				// Clear all timeouts aggressively
 				for (let i = 0; i < 10000; i++) {
 					clearTimeout(i);
 					clearInterval(i);
 				}
-				
+
 				// Try to stop any ongoing fetch requests (if any globals exist)
 				if (window.stop) {
 					window.stop();
 				}
-				
+
 			} catch (e) {
 				console.log("Error during cancellation:", e);
 			}
-			
+
 			// Force immediate redirect
 			switchModel(url);
 		}
@@ -945,14 +949,14 @@
 			const modelSelect = document.getElementById('model-switcher');
 			const instructionModelSelect = document.getElementById('instruction-model-switcher');
 			const MODEL_LIST = getModelList();
-			
+
 			MODEL_LIST.forEach(model => {
 				// Populate main dropdown
 				const option = document.createElement('option');
 				option.value = model.file;
 				option.textContent = model.display;
 				modelSelect.appendChild(option);
-				
+
 				// Populate instruction dropdown
 				const instructionOption = document.createElement('option');
 				instructionOption.value = model.file;
