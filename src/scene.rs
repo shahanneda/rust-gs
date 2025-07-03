@@ -132,7 +132,7 @@ impl Scene {
         let min_splats = 10;
 
         // if this node is not fine grain enough, try to go deeper first
-        if node.splats.len() > min_splats && node.children.len() > 0 {
+        if node.splat_indices.len() > min_splats && node.children.len() > 0 {
             for child in &node.children {
                 self.find_shadow_splats(&child, out_set);
             }
@@ -141,9 +141,9 @@ impl Scene {
 
         // if this node is fine grain enough, just check if the center is in shadow
         if self.is_point_in_shadow(pos, self.light_pos) {
-            for splat in &node.splats {
+            for &splat_index in &node.splat_indices {
                 // if self.is_point_in_shadow(vec3(splat.x, splat.y, splat.z), self.light_pos) {
-                out_set.insert(splat.index);
+                out_set.insert(splat_index);
                 // }
             }
             // TODO: now actually check each individual splat
@@ -156,7 +156,7 @@ impl Scene {
         let min_splats = 10;
 
         // if this node is not fine grain enough, try to go deeper first
-        if node.splats.len() > min_splats && node.children.len() > 0 {
+        if node.splat_indices.len() > min_splats && node.children.len() > 0 {
             for child in &node.children {
                 out_set.extend(self.get_shadow_splat_indices(child));
             }
@@ -165,8 +165,8 @@ impl Scene {
 
         // if this node is fine grain enough, check if the center is in shadow
         if self.is_point_in_shadow(pos, self.light_pos) {
-            for splat in &node.splats {
-                out_set.insert(splat.index);
+            for &splat_index in &node.splat_indices {
+                out_set.insert(splat_index);
             }
         }
         out_set
