@@ -60,6 +60,10 @@ extern "C" {
     #[wasm_bindgen(js_name = "updateLoadingMessage")]
     fn update_loading_message(message: &str);
 
+    // Model loading status bindings
+    #[wasm_bindgen(js_name = "setModelLoading")]
+    fn set_model_loading(is_loading: bool, message: &str);
+
     // JavaScript setTimeout binding
     #[wasm_bindgen(js_name = "setTimeout")]
     fn set_timeout(closure: &Closure<dyn FnMut()>, delay: i32) -> i32;
@@ -593,50 +597,91 @@ pub async fn start() -> Result<(), JsValue> {
                     // Show loading overlay immediately
                     show_loading_overlay("Processing slice...");
                     
-                    // Simple timeout to allow the UI to render the loading overlay
-                    let scene_for_operation = scene_clone.clone();
-                    let renderer_for_operation = renderer_clone_up.clone();
-                    let settings_for_operation = settings_clone_for_split.clone();
+                    // Break operations into separate steps with timeouts
+                    let scene_step1 = scene_clone.clone();
+                    let renderer_step1 = renderer_clone_up.clone();
+                    let settings_step1 = settings_clone_for_split.clone();
                     
-                    let operation_closure = Closure::wrap(Box::new(move || {
-                        let mut scene_mut = scene_for_operation.borrow_mut();
-                        let settings = settings_for_operation.borrow();
+                    // Step 1: Perform the slice operation
+                    let slice_operation = Closure::wrap(Box::new(move || {
+                        let mut scene_mut = scene_step1.borrow_mut();
                         
                         // Always split the first object (index 0) as before
-                        if let Some(_new_idx) =
-                            scene_mut
-                                .splat_data
-                                .split_object_along_plane(0, p1, plane_normal, 0.5)
-                        {
+                        let slice_result = scene_mut
+                            .splat_data
+                            .split_object_along_plane(0, p1, plane_normal, 0.5);
+                        
+                        if slice_result.is_some() {
+                            // Update loading message and continue to next step
                             update_loading_message("Recalculating octree...");
                             
-                            if scene_mut.splat_data.splats.len() < 5_000_000 {
-                                scene_mut.recalculate_octtree();
-                            } else {
-                                log!(
-                                    "Skipping octtree recalculation for large scene: {} splats",
-                                    scene_mut.splat_data.splats.len()
-                                );
-                            }
+                            // Step 2: Octree recalculation
+                            let scene_step2 = scene_step1.clone();
+                            let renderer_step2 = renderer_step1.clone();
+                            let settings_step2 = settings_step1.clone();
                             
-                            update_loading_message("Updating scene...");
-                            scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
-                            debug_memory("pre_upload");
+                            let octree_operation = Closure::wrap(Box::new(move || {
+                                let mut scene_mut = scene_step2.borrow_mut();
+                                
+                                if scene_mut.splat_data.splats.len() < 5_000_000 {
+                                    scene_mut.recalculate_octtree();
+                                } else {
+                                    log!(
+                                        "Skipping octtree recalculation for large scene: {} splats",
+                                        scene_mut.splat_data.splats.len()
+                                    );
+                                }
+                                
+                                update_loading_message("Updating scene...");
+                                
+                                // Step 3: Scene update
+                                let scene_step3 = scene_step2.clone();
+                                let renderer_step3 = renderer_step2.clone();
+                                let settings_step3 = settings_step2.clone();
+                                
+                                let scene_operation = Closure::wrap(Box::new(move || {
+                                    let mut scene_mut = scene_step3.borrow_mut();
+                                    let settings = settings_step3.borrow();
+                                    
+                                    scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
+                                    debug_memory("pre_upload");
+                                    
+                                    update_loading_message("Uploading to GPU...");
+                                    
+                                    // Step 4: GPU upload
+                                    let scene_step4 = scene_step3.clone();
+                                    let renderer_step4 = renderer_step3.clone();
+                                    
+                                    let gpu_operation = Closure::wrap(Box::new(move || {
+                                        let scene_mut = scene_step4.borrow();
+                                        renderer_step4
+                                            .borrow()
+                                            .update_webgl_textures(&scene_mut, 0)
+                                            .unwrap();
+                                        debug_memory("post_upload");
+                                        
+                                        // Hide loading overlay
+                                        hide_loading_overlay();
+                                    }) as Box<dyn FnMut()>);
+                                    
+                                    set_timeout(&gpu_operation, 50);
+                                    gpu_operation.forget();
+                                }) as Box<dyn FnMut()>);
+                                
+                                set_timeout(&scene_operation, 50);
+                                scene_operation.forget();
+                            }) as Box<dyn FnMut()>);
                             
-                            update_loading_message("Uploading to GPU...");
-                            renderer_for_operation
-                                .borrow()
-                                .update_webgl_textures(&scene_mut, 0)
-                                .unwrap();
-                            debug_memory("post_upload");
+                            set_timeout(&octree_operation, 50);
+                            octree_operation.forget();
+                        } else {
+                            // Hide loading overlay if slice failed
+                            hide_loading_overlay();
                         }
-                        
-                        // Hide loading overlay
-                        hide_loading_overlay();
                     }) as Box<dyn FnMut()>);
                     
-                    set_timeout(&operation_closure, 100);
-                    operation_closure.forget();
+                    set_timeout(&slice_operation, 100);
+                    slice_operation.forget();
                 } else {
                     // Hide slice line if plane calculation failed
                     hide_slice_line();
@@ -897,6 +942,9 @@ pub async fn start() -> Result<(), JsValue> {
         btn.set_onclick(Some(print_callback.as_ref().unchecked_ref()));
         print_callback.forget();
     }
+
+    // Signal that model loading and initialization is complete
+    set_model_loading(false, "");
 
     Ok(())
 }

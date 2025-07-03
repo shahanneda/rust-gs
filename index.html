@@ -83,7 +83,7 @@
 	}
 
 	/* To remove the scrollbars */
-	
+
 	/* Slicing mode styles */
 	.slice-mode-border {
 		position: fixed;
@@ -97,7 +97,7 @@
 		z-index: 1000;
 		transition: opacity 0.2s ease;
 	}
-	
+
 	.slice-instructions {
 		position: fixed;
 		top: 50px;
@@ -115,12 +115,19 @@
 		z-index: 1001;
 		animation: pulse 1.5s infinite;
 	}
-	
+
 	@keyframes pulse {
-		0%, 100% { opacity: 0.9; }
-		50% { opacity: 1.0; }
+
+		0%,
+		100% {
+			opacity: 0.9;
+		}
+
+		50% {
+			opacity: 1.0;
+		}
 	}
-	
+
 	.slice-line {
 		position: fixed;
 		background: #ff0000;
@@ -129,7 +136,7 @@
 		pointer-events: none;
 		box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
 	}
-	
+
 	.loading-overlay {
 		position: fixed;
 		top: 0;
@@ -145,29 +152,14 @@
 		color: white;
 		font-family: sans-serif;
 	}
-	
-	.loading-spinner {
-		width: 50px;
-		height: 50px;
-		border: 5px solid rgba(255, 255, 255, 0.3);
-		border-top: 5px solid #ff0000;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 20px;
-	}
-	
-	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
-	}
-	
+
 	.loading-text {
 		font-size: 18px;
 		font-weight: bold;
 		text-align: center;
 		margin-top: 10px;
 	}
-	
+
 	.loading-progress {
 		width: 300px;
 		height: 6px;
@@ -176,18 +168,274 @@
 		margin-top: 15px;
 		overflow: hidden;
 	}
-	
+
 	.loading-progress-bar {
 		height: 100%;
 		background: linear-gradient(90deg, #ff0000, #ff6600);
 		border-radius: 3px;
 		animation: loadingProgress 2s ease-in-out infinite;
 	}
-	
+
 	@keyframes loadingProgress {
-		0% { width: 0%; }
-		50% { width: 70%; }
-		100% { width: 100%; }
+		0% {
+			width: 0%;
+		}
+
+		50% {
+			width: 70%;
+		}
+
+		100% {
+			width: 100%;
+		}
+	}
+
+	/* Instructions overlay */
+	.instructions-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.9);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 3000;
+		color: white;
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	}
+
+	.instructions-content {
+		background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+		border: 2px solid #ff4444;
+		border-radius: 15px;
+		padding: 40px;
+		max-width: 600px;
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+		text-align: center;
+		position: relative;
+	}
+
+	.instructions-title {
+		font-size: 32px;
+		font-weight: bold;
+		margin-bottom: 30px;
+		color: #ff4444;
+		text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+	}
+
+	.instructions-list {
+		text-align: left;
+		margin: 30px 0;
+		font-size: 18px;
+		line-height: 2.2;
+	}
+
+	.instruction-item {
+		margin: 20px 0;
+		padding: 15px 20px;
+		background: rgba(255, 255, 255, 0.05);
+		border-radius: 10px;
+		border-left: 4px solid #ff4444;
+		display: flex;
+		align-items: center;
+		font-weight: 500;
+	}
+
+	.instruction-key {
+		font-weight: bold;
+		color: #fff;
+		font-family: 'Courier New', monospace;
+		background: linear-gradient(135deg, #333, #555);
+		padding: 8px 12px;
+		border-radius: 8px;
+		margin-right: 12px;
+		border: 2px solid #666;
+		box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+		font-size: 14px;
+		letter-spacing: 1px;
+		min-width: 60px;
+		text-align: center;
+		display: inline-block;
+		position: relative;
+		top: -1px;
+	}
+
+	.instruction-key:before {
+		content: '';
+		position: absolute;
+		top: -2px;
+		left: -2px;
+		right: -2px;
+		bottom: -2px;
+		background: linear-gradient(135deg, #ff4444, #cc3333);
+		border-radius: 10px;
+		z-index: -1;
+		opacity: 0.3;
+	}
+
+	.instructions-buttons {
+		margin-top: 30px;
+		display: flex;
+		gap: 15px;
+		justify-content: center;
+	}
+
+	.instruction-button {
+		background: linear-gradient(135deg, #ff4444, #cc3333);
+		color: white;
+		border: none;
+		padding: 12px 24px;
+		border-radius: 8px;
+		font-size: 16px;
+		font-weight: bold;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+	}
+
+	.instruction-button:hover:not(:disabled) {
+		background: linear-gradient(135deg, #ff6666, #ff4444);
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
+	}
+
+	.instruction-button:disabled {
+		background: linear-gradient(135deg, #666, #444);
+		color: #999;
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.instruction-loading {
+		margin-top: 20px;
+		font-size: 14px;
+		color: #ccc;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+	}
+
+	.instruction-loading-bar {
+		width: 200px;
+		height: 4px;
+		background: rgba(255, 255, 255, 0.2);
+		border-radius: 2px;
+		overflow: hidden;
+		margin-top: 10px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.instruction-loading-progress {
+		height: 100%;
+		background: linear-gradient(90deg, #ff4444, #ff6600);
+		border-radius: 2px;
+		width: 0%;
+		transition: width 0.3s ease;
+	}
+
+	.instruction-button.secondary {
+		background: linear-gradient(135deg, #666, #444);
+		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+	}
+
+	.instruction-button.secondary:hover {
+		background: linear-gradient(135deg, #888, #666);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+	}
+
+	/* Help button */
+	.help-button {
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		background: linear-gradient(135deg, #ff4444, #cc3333);
+		color: white;
+		border: none;
+		padding: 12px 16px;
+		border-radius: 50%;
+		font-size: 18px;
+		font-weight: bold;
+		cursor: pointer;
+		z-index: 1500;
+		box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+		transition: all 0.3s ease;
+		width: 50px;
+		height: 50px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.help-button:hover {
+		background: linear-gradient(135deg, #ff6666, #ff4444);
+		transform: scale(1.1);
+		box-shadow: 0 6px 20px rgba(255, 68, 68, 0.5);
+	}
+
+	/* Updated GUI styling */
+	#gui {
+		background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 20, 0.9));
+		border: 1px solid #333;
+		border-radius: 12px;
+		backdrop-filter: blur(10px);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+		padding: 20px;
+	}
+
+	#gui h1 {
+		color: #ff4444;
+		text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+		margin-bottom: 20px;
+		font-size: 24px;
+	}
+
+	.checkbox-container {
+		background: rgba(255, 255, 255, 0.05);
+		border-radius: 6px;
+		padding: 8px 12px;
+		margin: 8px 0;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		transition: all 0.2s ease;
+	}
+
+	.checkbox-container:hover {
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 68, 68, 0.3);
+	}
+
+	input[type="checkbox"] {
+		accent-color: #ff4444;
+	}
+
+	button {
+		background: linear-gradient(135deg, #ff4444, #cc3333);
+		color: white;
+		border: none;
+		padding: 10px 16px;
+		border-radius: 6px;
+		font-weight: bold;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		box-shadow: 0 2px 10px rgba(255, 68, 68, 0.2);
+	}
+
+	button:hover {
+		background: linear-gradient(135deg, #ff6666, #ff4444);
+		transform: translateY(-1px);
+		box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+	}
+
+	select {
+		background: rgba(0, 0, 0, 0.7);
+		color: white;
+		border: 1px solid #333;
+		border-radius: 4px;
+		padding: 4px 8px;
 	}
 </style>
 
@@ -218,13 +466,13 @@
 
 		function showSliceLine(startX, startY, endX, endY) {
 			const sliceLine = document.getElementById('slice-line');
-			
+
 			// Calculate line position and rotation
 			const dx = endX - startX;
 			const dy = endY - startY;
 			const length = Math.sqrt(dx * dx + dy * dy);
 			const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-			
+
 			// Position the line
 			sliceLine.style.left = startX + 'px';
 			sliceLine.style.top = startY + 'px';
@@ -251,25 +499,137 @@
 			document.getElementById('loading-text').textContent = message;
 		}
 
+		// Instructions overlay management
+		function showInstructions() {
+			document.getElementById('instructions-overlay').style.display = 'flex';
+		}
+
+		function hideInstructions() {
+			document.getElementById('instructions-overlay').style.display = 'none';
+		}
+
+		function setInstructionsLoading(isLoading, message = 'Loading scene...') {
+			const loadingElement = document.getElementById('instruction-loading');
+			const startButton = document.getElementById('start-exploring');
+			const progressBar = document.querySelector('.instruction-loading-progress');
+
+			if (isLoading) {
+				loadingElement.style.display = 'block';
+				loadingElement.querySelector('span').textContent = message;
+				startButton.disabled = true;
+				startButton.textContent = 'Loading...';
+
+				// Extract percentage from message if present
+				const percentMatch = message.match(/(\d+)%/);
+				if (percentMatch) {
+					const percentage = parseInt(percentMatch[1]);
+					if (progressBar) {
+						progressBar.style.width = percentage + '%';
+					}
+				} else {
+					// No percentage, show indeterminate progress
+					if (progressBar) {
+						progressBar.style.width = '30%';
+					}
+				}
+			} else {
+				loadingElement.style.display = 'none';
+				startButton.disabled = false;
+				startButton.textContent = 'Start Exploring!';
+				if (progressBar) {
+					progressBar.style.width = '0%';
+				}
+			}
+		}
+
+		function setModelLoading(isLoading, message = 'Loading model...') {
+			if (document.getElementById('instructions-overlay').style.display === 'flex') {
+				setInstructionsLoading(isLoading, message);
+			}
+		}
+
+		// Initialize instructions on page load
+		document.addEventListener('DOMContentLoaded', function () {
+			// Show instructions on every page load/refresh
+			showInstructions();
+			// Start in loading state
+			setInstructionsLoading(true, 'Loading model...');
+
+			// Handle instruction buttons
+			document.getElementById('start-exploring').addEventListener('click', function () {
+				hideInstructions();
+			});
+
+			// Handle help button
+			document.getElementById('help-button').addEventListener('click', function () {
+				showInstructions();
+			});
+
+			// Close instructions with Escape key
+			document.addEventListener('keydown', function (e) {
+				if (e.key === 'Escape' && document.getElementById('instructions-overlay').style.display === 'flex') {
+					hideInstructions();
+				}
+			});
+		});
+
 	</script>
 	<canvas id="canvas"></canvas>
-	
+
+	<!-- Help button -->
+	<button id="help-button" class="help-button">?</button>
+
+	<!-- Instructions overlay -->
+	<div id="instructions-overlay" class="instructions-overlay">
+		<div class="instructions-content">
+			<h2 class="instructions-title">🍎 Fruit Ninja GSplat 🗡️</h2>
+			<div class="instructions-list">
+				<div class="instruction-item">
+					<span class="instruction-key">WASD</span>Move around the scene
+				</div>
+				<div class="instruction-item">
+					<span class="instruction-key">Mouse Drag</span>Look around / rotate camera
+				</div>
+				<div class="instruction-item">
+					<span class="instruction-key">Alt + Click</span>Take a bite / delete splats
+				</div>
+				<div class="instruction-item">
+					<span class="instruction-key">P + Drag</span>Hold P and drag to slice objects
+				</div>
+				<div class="instruction-item">
+					<span class="instruction-key">O</span>Toggle octree visualization
+				</div>
+			</div>
+			<p style="margin: 20px 0; color: #ccc; font-style: italic;">
+				Explore the 3D scene and slice through objects with realistic physics!
+			</p>
+			<div id="instruction-loading" class="instruction-loading" style="display: none;">
+				<span>Loading scene...</span>
+				<div class="instruction-loading-bar">
+					<div class="instruction-loading-progress"></div>
+				</div>
+			</div>
+			<div class="instructions-buttons">
+				<button id="start-exploring" class="instruction-button">Start Exploring!</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- Slicing mode UI elements -->
 	<div id="slice-mode-border" class="slice-mode-border" style="display: none;"></div>
 	<div id="slice-instructions" class="slice-instructions" style="display: none;">
 		Click and drag to define a slice line
 	</div>
 	<div id="slice-line" class="slice-line" style="display: none;"></div>
-	
+
 	<!-- Loading overlay -->
 	<div id="loading-overlay" class="loading-overlay" style="display: none;">
-		<div class="loading-spinner"></div>
 		<div id="loading-text" class="loading-text">Processing slice...</div>
 		<div class="loading-progress">
 			<div class="loading-progress-bar"></div>
 		</div>
 	</div>
-	
+
 	<div id="gui">
 		<h1>Fruit Ninja GSplat</h1>
 		<!-- <button onclick="">Testing</button> -->
@@ -277,7 +637,7 @@
 			<label for="checkbox" class="checkbox-label">Show Octtree</label>
 			<input type="checkbox" class="checkbox" id="show-octtree-checkbox">
 		</div>
-		<div class="checkbox-container">
+		<div class="checkbox-container" style="display: none;">
 			<label for="checkbox" class="checkbox-label">Only Show Octree at Click </label>
 			<input type="checkbox" class="checkbox" id="only-show-clicks-checkbox">
 		</div>
@@ -318,7 +678,7 @@
 		<div style="margin: 10px 0px; display:none;">
 			<button id="add-teapot-btn">Add Teapot</button>
 		</div>
-		<div style="margin: 10px 0px;">
+		<div style="margin: 10px 0px; display: none;">
 			<button id="split-object-btn">Split Object</button>
 			<select id="split-direction" style="width: 150px; margin-left: 5px;">
 				<option value="vertical">Vertical Split (X-axis)</option>
@@ -521,29 +881,14 @@
 		let canvas = document.getElementById("canvas");
 		resizeCanvasToDisplaySize(canvas);
 
-		// Add initialization button to the UI
+		// Hide the initialization button - user doesn't want to see WebAssembly initialization
 		const initButton = document.createElement('button');
-		initButton.textContent = 'Initialize WebAssembly';
-		initButton.style.position = 'absolute';
-		initButton.style.top = '10px';
-		initButton.style.right = '10px';
-		initButton.style.zIndex = '1000';
-		initButton.style.display = 'none';
+		initButton.style.display = 'none'; // Hide completely
 		document.body.appendChild(initButton);
 
-		// Add a status message element
+		// Hide the WebAssembly status messages - user doesn't want to see them
 		const statusMessage = document.createElement('div');
-		statusMessage.style.position = 'absolute';
-		statusMessage.style.top = '50px';
-		statusMessage.style.right = '10px';
-		statusMessage.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-		statusMessage.style.color = 'white';
-		statusMessage.style.padding = '10px';
-		statusMessage.style.borderRadius = '5px';
-		statusMessage.style.zIndex = '1000';
-		statusMessage.style.maxWidth = '300px';
-		statusMessage.textContent = 'Click the button above to initialize';
-		statusMessage.style.display = 'none';
+		statusMessage.style.display = 'none'; // Hide completely
 		document.body.appendChild(statusMessage);
 
 		// Use ES module import syntax to import functionality from the module
@@ -557,9 +902,19 @@
 
 		// Function to update status message
 		function updateStatus(message, isError = false) {
-			statusMessage.textContent = message;
-			statusMessage.style.backgroundColor = isError ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)';
-			console.log(message);
+			// Hide WebAssembly initialization messages - user doesn't want to see them
+			console.log("Status update:", message); // Still log to console for debugging
+
+			// Only show model loading messages in the instructions overlay
+			if (document.getElementById('instructions-overlay').style.display === 'flex') {
+				if (isError) {
+					setInstructionsLoading(true, 'Error loading scene');
+				} else if (message.includes('ready') || message.includes('Ready') || message.includes('Successfully') || message.includes('success')) {
+					// WebAssembly finished - but don't hide loading until model is done
+					console.log("WebAssembly ready, but waiting for model completion");
+				}
+				// Don't show WebAssembly initialization messages in UI
+			}
 		}
 
 		// Worker reference
@@ -648,11 +1003,6 @@
 							updateStatus("Worker: Thread pool initialized successfully!");
 							initButton.textContent = 'Initialized Successfully';
 							initButton.style.backgroundColor = 'green';
-
-							// Hide the status message after a delay
-							setTimeout(() => {
-								statusMessage.style.opacity = '0.5';
-							}, 3000);
 
 							// Tell the worker to execute any initial commands
 							worker.postMessage({ type: 'execute' });

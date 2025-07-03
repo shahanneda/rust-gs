@@ -8,6 +8,13 @@ use nalgebra_glm::{self as glm, vec3, vec4, Vec3};
 use rkyv::rancor::Error;
 use rkyv::{Archive, Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+
+// JavaScript function bindings for loading indicators
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = "setModelLoading")]
+    fn set_model_loading(is_loading: bool, message: &str);
+}
 // use speedy::{Readable, Writable, Endianness};
 
 #[derive(Debug, Clone)]
@@ -69,7 +76,8 @@ pub struct SplatData {
 
 impl SplatData {
     pub async fn new_from_url(url: &str) -> Self {
-        // let _timer = Timer::new("loading json file");
+        // Show loading indicator for model download
+        set_model_loading(true, "Loading model...");
 
         // Create a new request with progress tracking
         let client = reqwest::Client::new();
@@ -148,6 +156,9 @@ impl SplatData {
                     if total_size > 0 {
                         let percentage = (downloaded as f64 / total_size as f64 * 100.0) as u32;
 
+                        // Update model loading progress
+                        set_model_loading(true, &format!("Loading model... {}%", percentage));
+
                         // Update the progress bar
                         if let Some(progress_bar) = document.get_element_by_id("loading-progress") {
                             progress_bar.set_attribute("style", &format!("width: {}%; height: 20px; background-color: #4CAF50; border-radius: 3px; transition: width 0.3s;", percentage)).unwrap();
@@ -191,7 +202,15 @@ impl SplatData {
             }
         }
 
-        return SplatData::new_from_rkyv(&combined);
+        // Show processing message before parsing
+        set_model_loading(true, "Processing model data...");
+        
+        let result = SplatData::new_from_rkyv(&combined);
+        
+        // Hide loading indicator when completely done
+        set_model_loading(false, "");
+        
+        return result;
     }
 
     pub fn new_from_rkyv(bytes: &[u8]) -> Self {
