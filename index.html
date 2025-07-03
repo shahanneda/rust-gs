@@ -131,6 +131,38 @@
 		background: rgba(255, 170, 0, 0.9);
 	}
 
+	.model-select-instructions {
+		width: 100%;
+		padding: 12px 16px;
+		border-radius: 8px;
+		border: 2px solid #444;
+		background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+		color: white;
+		font-size: 14px;
+		font-family: sans-serif;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+		transition: all 0.3s ease;
+		cursor: pointer;
+	}
+
+	.model-select-instructions:hover {
+		border-color: #666;
+		background: linear-gradient(135deg, #333, #222);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+	}
+
+	.model-select-instructions:focus {
+		outline: none;
+		border-color: #ff6600;
+		box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.2);
+	}
+
+	.model-select-instructions option {
+		background: #222;
+		color: white;
+		padding: 8px;
+	}
+
 	@keyframes pulse {
 
 		0%,
@@ -659,6 +691,12 @@
 					<div class="instruction-loading-progress"></div>
 				</div>
 			</div>
+			<div style="margin: 20px 0;">
+				<label for="instruction-model-switcher" style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch Model:</label>
+				<select id="instruction-model-switcher" onchange="switchModelFromInstructions(this.value)" class="model-select-instructions">
+					<option value="">Select a model...</option>
+				</select>
+			</div>
 			<div class="instructions-buttons">
 				<button id="start-exploring" class="instruction-button">Start Exploring!</button>
 			</div>
@@ -780,6 +818,48 @@
 			window.location.href = baseUrl + "?url=" + url + cameraParam;
 		}
 
+		// Global variable to track AbortController for cancelling requests
+		let currentLoadController = null;
+
+		function switchModelFromInstructions(url) {
+			if (!url) return; // Don't switch if no model selected
+			
+			// Immediately show switching state
+			setInstructionsLoading(true, 'Switching model...');
+			
+			// Try to stop everything immediately
+			try {
+				// Cancel any ongoing loading
+				if (currentLoadController) {
+					currentLoadController.abort();
+					currentLoadController = null;
+				}
+				
+				// Cancel workers and timers
+				if (worker) {
+					worker.terminate();
+					worker = null;
+				}
+				
+				// Clear all timeouts aggressively
+				for (let i = 0; i < 10000; i++) {
+					clearTimeout(i);
+					clearInterval(i);
+				}
+				
+				// Try to stop any ongoing fetch requests (if any globals exist)
+				if (window.stop) {
+					window.stop();
+				}
+				
+			} catch (e) {
+				console.log("Error during cancellation:", e);
+			}
+			
+			// Force immediate redirect
+			switchModel(url);
+		}
+
 
 		// FILES=(
 		//     "apple_rotate.ply"
@@ -860,15 +940,24 @@
 			}));
 		}
 
-		// Function to populate the dropdown
+		// Function to populate the dropdowns
 		function populateModelSelector() {
 			const modelSelect = document.getElementById('model-switcher');
+			const instructionModelSelect = document.getElementById('instruction-model-switcher');
 			const MODEL_LIST = getModelList();
+			
 			MODEL_LIST.forEach(model => {
+				// Populate main dropdown
 				const option = document.createElement('option');
 				option.value = model.file;
 				option.textContent = model.display;
 				modelSelect.appendChild(option);
+				
+				// Populate instruction dropdown
+				const instructionOption = document.createElement('option');
+				instructionOption.value = model.file;
+				instructionOption.textContent = model.display;
+				instructionModelSelect.appendChild(instructionOption);
 			});
 		}
 
@@ -879,6 +968,7 @@
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
 			const modelSelect = document.getElementById('model-switcher');
+			const instructionModelSelect = document.getElementById('instruction-model-switcher');
 			// const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
 			const defaultModel = "cake_rotate_5.rkyv";
 			const defaultFullPath = USE_LOCAL ?
@@ -886,8 +976,9 @@
 				BASE_REMOTE_URL + "splats" + defaultModel;
 
 			if (currentUrl) {
-				// Try to select the matching option in the dropdown
+				// Try to select the matching option in both dropdowns
 				modelSelect.value = currentUrl;
+				instructionModelSelect.value = currentUrl;
 			} else {
 				// If no URL parameter, load the default model
 				const shahanModel = MODEL_PATHS.find(model => model.display === "Cake 50%");
@@ -897,6 +988,7 @@
 						BASE_REMOTE_URL + "splats" + shahanModel.file;
 
 					modelSelect.value = fullPath;
+					instructionModelSelect.value = fullPath;
 
 					// Redirect to include the URL parameter
 					const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "./";
