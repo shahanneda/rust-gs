@@ -46,9 +46,10 @@ impl Camera {
         // Mouse down handler
         let cam_mousedown = camera.clone();
         let mousedown_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
-            let mut camera = cam_mousedown.as_ref().borrow_mut();
-            camera.is_dragging = true;
-            camera.last_mouse_pos = vec2(e.client_x() as f32, e.client_y() as f32);
+            if let Ok(mut camera) = cam_mousedown.as_ref().try_borrow_mut() {
+                camera.is_dragging = true;
+                camera.last_mouse_pos = vec2(e.client_x() as f32, e.client_y() as f32);
+            }
         }) as Box<dyn FnMut(_)>);
         canvas
             .add_event_listener_with_callback("mousedown", mousedown_cb.as_ref().unchecked_ref())?;
@@ -57,7 +58,10 @@ impl Camera {
         let scene_clone = scene.clone();
         let cam_mousemove = camera.clone();
         let mousemove_cb = Closure::wrap(Box::new(move |e: MouseEvent| {
-            let mut cam = cam_mousemove.as_ref().borrow_mut();
+            let mut cam = match cam_mousemove.as_ref().try_borrow_mut() {
+                Ok(c) => c,
+                Err(_) => return, // another borrow active, skip this event
+            };
             if scene_clone.borrow().gizmo.is_dragging {
                 return;
             }
@@ -90,8 +94,9 @@ impl Camera {
 
         let cam_mouseup = camera.clone();
         let mouseup_cb = Closure::wrap(Box::new(move |_: MouseEvent| {
-            let mut cam = cam_mouseup.as_ref().borrow_mut();
-            cam.is_dragging = false;
+            if let Ok(mut cam) = cam_mouseup.as_ref().try_borrow_mut() {
+                cam.is_dragging = false;
+            }
         }) as Box<dyn FnMut(_)>);
         document
             .add_event_listener_with_callback("mouseup", mouseup_cb.as_ref().unchecked_ref())?;

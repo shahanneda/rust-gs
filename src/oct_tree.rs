@@ -101,9 +101,9 @@ impl OctTreeNode {
     fn get_lines_of_children(&self, only_clicks: bool) -> Vec<Line> {
         let mut out = vec![];
 
-        log!("in octtree only clicks is {:?}", only_clicks);
+        // log!("in octtree only clicks is {:?}", only_clicks);
         if only_clicks && !self.touched {
-            log!("returning early because only clicks and not touched");
+            // log!("returning early because only clicks and not touched");
             return out;
         }
 
@@ -249,7 +249,7 @@ impl OctTreeNode {
         }
 
         for child in &mut self.children {
-            log!("child has {} splats", child.splats.len());
+            // log!("child has {} splats", child.splats.len());
             child.propogate_splats_to_children(depth + 1);
         }
     }
@@ -301,6 +301,7 @@ impl OctTreeNode {
 
 impl OctTree {
     pub fn new(splats: Vec<Splat>) -> Self {
+        log!("new octtree with {} splats", splats.len());
         // let root = OctTreeNode::new(splats);
         let root = OctTreeNode::new(splats, vec3(0.0, 0.0, 0.0), 10.0);
         return OctTree { root: root };

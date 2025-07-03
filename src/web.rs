@@ -13,6 +13,7 @@ use crate::data_objects::SplatData;
 use crate::oct_tree::OctTree;
 use crate::timer::Timer;
 use crate::toggle_binding::ToggleBinding;
+use crate::utils::debug_memory;
 use crate::utils::set_panic_hook;
 use glm::vec2;
 use glm::vec3;
@@ -441,8 +442,11 @@ pub async fn start() -> Result<(), JsValue> {
         // If the user is holding the "p" key, we start recording the line for plane splitting
         if keys_pressed_click.borrow().contains("p") {
             *line_draw_start_clone.borrow_mut() = Some((state.x, state.y));
-            // Prevent camera rotation while drawing the cutting plane
-            camera_clone.borrow_mut().is_dragging = false;
+            // Prevent camera rotation while drawing the cutting plane; use limited scope to release borrow early
+            {
+                let mut cam_mut = camera_clone.borrow_mut();
+                cam_mut.is_dragging = false;
+            }
         }
 
         let (vm, vpm) = camera_clone.borrow().get_vm_and_vpm(width, height);
@@ -554,10 +558,12 @@ pub async fn start() -> Result<(), JsValue> {
                     {
                         scene_mut.recalculate_octtree();
                         scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
+                        debug_memory("pre_upload");
                         renderer_clone_up
                             .borrow()
                             .update_webgl_textures(&scene_mut, 0)
                             .unwrap();
+                        debug_memory("post_upload");
                     }
                 }
             }

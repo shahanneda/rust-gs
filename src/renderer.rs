@@ -11,6 +11,7 @@ extern crate nalgebra_glm as glm;
 extern crate ply_rs;
 extern crate wasm_bindgen;
 use crate::scene_geo;
+use crate::utils::debug_memory;
 use crate::utils::float32_array_from_vec;
 use crate::utils::uint32_array_from_vec;
 use crate::web::Settings;
@@ -50,6 +51,7 @@ pub struct Renderer {
     line_color_buffer: WebGlBuffer,
     line_shader: WebGlProgram,
     splat_textures: Vec<SplatTexture>,
+    temp_texture_data: std::cell::RefCell<Vec<Vec<f32>>>,
 }
 
 impl Renderer {
@@ -178,7 +180,13 @@ impl Renderer {
             float32_array_from_vec(&vec![1.0, 0.0, 0.0]),
         );
 
-        let result = Renderer {
+        // Pre-allocate reusable buffers to avoid reallocations during texture updates
+        let mut temp_texture_data: Vec<Vec<f32>> = Vec::with_capacity(5);
+        for _ in 0..5 {
+            temp_texture_data.push(Vec::with_capacity(scene.splat_data.splats.len() * 3));
+        }
+
+        let mut result = Renderer {
             gl: gl,
             splat_shader,
             splat_vao,
@@ -195,6 +203,7 @@ impl Renderer {
             line_color_buffer,
             line_shader,
             splat_textures,
+            temp_texture_data: std::cell::RefCell::new(temp_texture_data),
         };
 
         result.gl.use_program(Some(&result.splat_shader));
@@ -756,53 +765,38 @@ impl Renderer {
         );
     }
 
-    pub fn update_webgl_textures(
-        self: &Renderer,
-        scene: &Scene,
-        scene_idx: usize,
-    ) -> Result<(), JsValue> {
+    pub fn update_webgl_textures(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
+        debug_memory("update_tex_begin");
+        let mut timer = Timer::new("update_webgl_textures_inner");
+
         let offset = scene_idx * 5;
-        let mut texture_data = vec![
-            (COLOR_TEXTURE_UNIT, Vec::new()),    // colors
-            (POSITION_TEXTURE_UNIT, Vec::new()), // positions
-            (COV3DA_TEXTURE_UNIT, Vec::new()),   // cov3da
-            (COV3DB_TEXTURE_UNIT, Vec::new()),   // cov3db
-            (OPACITY_TEXTURE_UNIT, Vec::new()),  // opacities
-        ];
+
+        // Work with temp buffers via single mutable borrow
+        let required_len = scene.splat_data.splats.len() * 3;
+        let mut temp = self.temp_texture_data.borrow_mut();
+
+        // Ensure capacity and clear
+        for buf in temp.iter_mut() {
+            if buf.capacity() < required_len {
+                buf.reserve(required_len - buf.capacity());
+            }
+            buf.clear();
+        }
 
         for s in &scene.splat_data.splats {
-            texture_data[0].1.extend_from_slice(&[s.r, s.g, s.b]);
-            texture_data[1].1.extend_from_slice(&[s.x, s.y, s.z]);
-            texture_data[2]
-                .1
-                .extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
-            texture_data[3]
-                .1
-                .extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
-            texture_data[4].1.extend_from_slice(&[s.opacity, 0.0, 0.0]);
+            temp[0].extend_from_slice(&[s.r, s.g, s.b]);
+            temp[1].extend_from_slice(&[s.x, s.y, s.z]);
+            temp[2].extend_from_slice(&[s.cov3d[0], s.cov3d[1], s.cov3d[2]]);
+            temp[3].extend_from_slice(&[s.cov3d[3], s.cov3d[4], s.cov3d[5]]);
+            temp[4].extend_from_slice(&[s.opacity, 0.0, 0.0]);
         }
 
         let texture_bindings = [
-            (
-                &self.splat_textures[scene_idx].color_texture,
-                &texture_data[0].1,
-            ),
-            (
-                &self.splat_textures[scene_idx].position_texture,
-                &texture_data[1].1,
-            ),
-            (
-                &self.splat_textures[scene_idx].cov3da_texture,
-                &texture_data[2].1,
-            ),
-            (
-                &self.splat_textures[scene_idx].cov3db_texture,
-                &texture_data[3].1,
-            ),
-            (
-                &self.splat_textures[scene_idx].opacity_texture,
-                &texture_data[4].1,
-            ),
+            (&self.splat_textures[scene_idx].color_texture, &temp[0]),
+            (&self.splat_textures[scene_idx].position_texture, &temp[1]),
+            (&self.splat_textures[scene_idx].cov3da_texture, &temp[2]),
+            (&self.splat_textures[scene_idx].cov3db_texture, &temp[3]),
+            (&self.splat_textures[scene_idx].opacity_texture, &temp[4]),
         ];
 
         for (i, (texture, data)) in texture_bindings.iter().enumerate() {
@@ -811,6 +805,8 @@ impl Renderer {
             put_data_into_texture(&self.gl, texture, &float32_array_from_vec(data))?;
         }
 
+        timer.end();
+        debug_memory("update_tex_end");
         Ok(())
     }
 }
@@ -924,12 +920,20 @@ fn put_data_into_texture(
     // We add Texture_width -1 so that we always do a ceiling division
     let height = (number_of_values + TEXTURE_WIDTH - 1) / TEXTURE_WIDTH; // Assuming 3 components (RGB) per pixel
 
-    // resize data array to match the texture size
-    // TODO: don't duplicat the array here, make sure arrays are the right size before passing into here
-    let resized_data_array =
-        Float32Array::new_with_length((TEXTURE_WIDTH * height * 3).try_into().unwrap());
-    for i in 0..number_of_values {
-        resized_data_array.set_index(i as u32, data_array.get_index(i as u32));
+    // If the provided data already exactly matches the expected texture size we can avoid allocating
+    // and copying into a new array. This is the common case for large models, preventing a big
+    // temporary allocation that could exhaust memory.
+    let required_len = (TEXTURE_WIDTH * height * 3) as u32;
+
+    let resized_view: Float32Array;
+    if data_array.length() == required_len {
+        // Use the existing view directly – **no copy**.
+        resized_view = data_array.clone();
+    } else {
+        // Otherwise allocate once and copy (still necessary for the final, padded part).
+        let tmp = Float32Array::new_with_length(required_len);
+        tmp.set(data_array, 0);
+        resized_view = tmp;
     }
 
     let border = 0;
@@ -949,7 +953,7 @@ fn put_data_into_texture(
         border,
         format,
         type_,
-        Some(&resized_data_array),
+        Some(&resized_view),
     )?;
     Ok(())
 }
