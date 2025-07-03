@@ -630,6 +630,20 @@
 			showInstructions();
 			// Start in loading state
 			setInstructionsLoading(true, 'Loading model...');
+			
+			// Set blending checkbox based on current URL immediately
+			const urlParams = new URLSearchParams(window.location.search);
+			const currentUrl = urlParams.get('url');
+			const blendingParam = urlParams.get('blending');
+			
+			if (blendingParam !== null) {
+				const blendingCheckbox = document.getElementById('do-blending-checkbox');
+				if (blendingCheckbox) {
+					blendingCheckbox.checked = blendingParam === 'true';
+				}
+			} else if (currentUrl) {
+				setBlendingBasedOnModel(currentUrl);
+			}
 
 			// Handle instruction buttons
 			document.getElementById('start-exploring').addEventListener('click', function () {
@@ -752,7 +766,7 @@
 		</div>
 		<div class="checkbox-container">
 			<label for="checkbox" class="checkbox-label">Do Blending </label>
-			<input type="checkbox" class="checkbox" id="do-blending-checkbox" checked>
+			<input type="checkbox" class="checkbox" id="do-blending-checkbox">
 		</div>
 		<div class="checkbox-container" style="display: none;">
 			<label for="checkbox" class="checkbox-label">Move Down </label>
@@ -819,11 +833,27 @@
 				cameraParam = `&camera=${encodeURIComponent(JSON.stringify(selectedModel.camera))}`;
 			}
 
-			window.location.href = baseUrl + "?url=" + url + cameraParam;
+			// Add blending parameter based on model type
+			const isFruitModel = url.includes('%') || url.includes('/ninja/');
+			const blendingParam = `&blending=${!isFruitModel}`;
+
+			window.location.href = baseUrl + "?url=" + url + cameraParam + blendingParam;
 		}
 
 		// Global variable to track AbortController for cancelling requests
 		let currentLoadController = null;
+
+		// Function to set blending checkbox based on model type
+		function setBlendingBasedOnModel(modelUrl) {
+			const blendingCheckbox = document.getElementById('do-blending-checkbox');
+			if (!blendingCheckbox) return;
+			
+			// Check if the model is a fruit model (contains % or is in ninja/ folder)
+			const isFruitModel = modelUrl.includes('%') || modelUrl.includes('/ninja/');
+			
+			// Set blending: OFF for fruit models, ON for others
+			blendingCheckbox.checked = !isFruitModel;
+		}
 
 		function switchModelFromInstructions(url) {
 			if (!url) return; // Don't switch if no model selected
@@ -971,6 +1001,7 @@
 
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
+			const blendingParam = urlParams.get('blending');
 			const modelSelect = document.getElementById('model-switcher');
 			const instructionModelSelect = document.getElementById('instruction-model-switcher');
 			// const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
@@ -983,6 +1014,16 @@
 				// Try to select the matching option in both dropdowns
 				modelSelect.value = currentUrl;
 				instructionModelSelect.value = currentUrl;
+				
+				// Set blending checkbox based on URL parameter or model type
+				if (blendingParam !== null) {
+					const blendingCheckbox = document.getElementById('do-blending-checkbox');
+					if (blendingCheckbox) {
+						blendingCheckbox.checked = blendingParam === 'true';
+					}
+				} else {
+					setBlendingBasedOnModel(currentUrl);
+				}
 			} else {
 				// If no URL parameter, load the default model
 				const shahanModel = MODEL_PATHS.find(model => model.display === "Cake 50%");
@@ -993,15 +1034,20 @@
 
 					modelSelect.value = fullPath;
 					instructionModelSelect.value = fullPath;
+					
+					// Set blending checkbox based on model type
+					setBlendingBasedOnModel(fullPath);
 
 					// Redirect to include the URL parameter
 					const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "./";
 					const cameraParam = shahanModel.camera ?
 						`&camera=${encodeURIComponent(JSON.stringify(shahanModel.camera))}` : "";
+					const isFruitModel = fullPath.includes('%') || fullPath.includes('/ninja/');
+					const blendingParam = `&blending=${!isFruitModel}`;
 
 					// Only redirect if we're not already on the right URL
 					if (!currentUrl) {
-						window.location.href = baseUrl + "?url=" + fullPath + cameraParam;
+						window.location.href = baseUrl + "?url=" + fullPath + cameraParam + blendingParam;
 					}
 				}
 			}
