@@ -1,6 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export const start: () => void;
+export const __wbg_intounderlyingsink_free: (a: number, b: number) => void;
+export const intounderlyingsink_write: (a: number, b: any) => any;
+export const intounderlyingsink_close: (a: number) => any;
+export const intounderlyingsink_abort: (a: number, b: any) => any;
 export const __wbg_intounderlyingsource_free: (a: number, b: number) => void;
 export const intounderlyingsource_pull: (a: number, b: any) => any;
 export const intounderlyingsource_cancel: (a: number) => void;
@@ -10,10 +14,6 @@ export const intounderlyingbytesource_autoAllocateChunkSize: (a: number) => numb
 export const intounderlyingbytesource_start: (a: number, b: any) => void;
 export const intounderlyingbytesource_pull: (a: number, b: any) => any;
 export const intounderlyingbytesource_cancel: (a: number) => void;
-export const __wbg_intounderlyingsink_free: (a: number, b: number) => void;
-export const intounderlyingsink_write: (a: number, b: any) => any;
-export const intounderlyingsink_close: (a: number) => any;
-export const intounderlyingsink_abort: (a: number, b: any) => any;
 export const __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
 export const wbg_rayon_poolbuilder_mainJS: (a: number) => any;
 export const wbg_rayon_poolbuilder_numThreads: (a: number) => number;
@@ -29,12 +29,12 @@ export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_export_7: WebAssembly.Table;
-export const closure73_externref_shim: (a: number, b: number, c: any) => void;
-export const closure71_externref_shim: (a: number, b: number, c: any) => void;
-export const closure479_externref_shim: (a: number, b: number, c: any) => void;
-export const _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h7ebd27c90ff2af20: (a: number, b: number) => void;
-export const closure492_externref_shim: (a: number, b: number, c: any) => void;
-export const closure490_externref_shim: (a: number, b: number, c: any) => void;
-export const closure532_externref_shim: (a: number, b: number, c: any, d: any) => void;
+export const closure145_externref_shim: (a: number, b: number, c: any) => void;
+export const closure143_externref_shim: (a: number, b: number, c: any) => void;
+export const closure385_externref_shim: (a: number, b: number, c: any) => void;
+export const _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h17607a832dd5700f: (a: number, b: number) => void;
+export const closure394_externref_shim: (a: number, b: number, c: any) => void;
+export const closure396_externref_shim: (a: number, b: number, c: any) => void;
+export const closure437_externref_shim: (a: number, b: number, c: any, d: any) => void;
 export const __wbindgen_thread_destroy: (a?: number, b?: number, c?: number) => void;
 export const __wbindgen_start: (a: number) => void;

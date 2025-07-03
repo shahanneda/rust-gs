@@ -51,6 +51,12 @@ extern "C" {
     #[wasm_bindgen(js_name = "hideSliceLine")]
     fn hide_slice_line();
 
+    #[wasm_bindgen(js_name = "showDeleteMode")]
+    fn show_delete_mode();
+
+    #[wasm_bindgen(js_name = "hideDeleteMode")]
+    fn hide_delete_mode();
+
     #[wasm_bindgen(js_name = "showLoadingOverlay")]
     fn show_loading_overlay(message: &str);
 
@@ -96,13 +102,11 @@ fn handle_splat_delete_click(
     width: i32,
     height: i32,
     camera: &Camera,
-    scene: &mut Scene,
-    renderer: &renderer::Renderer,
+    scene: Rc<RefCell<Scene>>,
+    renderer: Rc<RefCell<renderer::Renderer>>,
     keys_pressed: &std::collections::HashSet<String>,
-    settings: &Settings,
+    settings: Rc<RefCell<Settings>>,
 ) {
-    let mut overall_timer = Timer::new("handle_splat_delete_click");
-
     let ndc_x = (state.x as f32 / width as f32) * 2.0 - 1.0;
     let ndc_y = 1.0 - (state.y as f32 / height as f32) * 2.0;
     if !keys_pressed.contains("Alt") {
@@ -112,149 +116,93 @@ fn handle_splat_delete_click(
     let (ray_origin, ray_direction) =
         camera.get_ray_origin_and_direction(width, height, ndc_x, ndc_y);
 
-    log!("Click detected at x: {}, y: {}", state.x, state.y);
-    log!("Unprojected: x: {}, y: {}", state.x, state.y);
-    log!("Ray origin: {:?}", ray_origin);
-    log!("Ray direction: {:?}", ray_direction);
-
-    let mut ray_casting_timer = Timer::new("ray_casting");
     let mut splat_pos = vec3(0.0, 0.0, 0.0);
     let mut found = false;
-    for t in 0..100 {
-        let t = t as f32 / 10.0;
-        let pos = ray_origin + ray_direction * t;
+    
+    {
+        let mut scene_mut = scene.borrow_mut();
+        let settings_borrow = settings.borrow();
+        
+        // Find splat position
+        for t in 0..100 {
+            let t = t as f32 / 10.0;
+            let pos = ray_origin + ray_direction * t;
 
-        if settings.use_octtree_for_splat_removal {
-            let oct_tree = &mut scene.oct_tree;
-            log!("finding splats in radius {:?}", pos);
-
-            let mut octree_search_timer = Timer::new("octree_search_single_point");
-            let octree_found_splats = oct_tree.find_splats_in_radius(pos, 0.05);
-            octree_search_timer.end();
-
-            for splat in octree_found_splats {
-                // log!("octree found splat {:?}", splat.opacity);
-                if splat.opacity >= 0.5 {
-                    splat_pos = vec3(splat.x, splat.y, splat.z);
-                    log!("found splat {:?}!! ### EXiting", splat_pos);
-                    found = true;
-
-                    let mut redraw_timer = Timer::new("redraw_from_oct_tree");
-                    scene.redraw_from_oct_tree(settings.only_show_clicks);
-                    redraw_timer.end();
-
-                    break;
-                }
-            }
-        } else {
-            let mut linear_search_timer = Timer::new("linear_search_single_point");
-            for splat in scene.splat_data.splats.iter_mut() {
-                if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.05
-                    && splat.opacity >= 0.5
-                {
-                    splat_pos = vec3(splat.x, splat.y, splat.z);
-                    found = true;
-                    break;
-                }
-            }
-            linear_search_timer.end();
-        }
-
-        if found {
-            break;
-        }
-    }
-    ray_casting_timer.end();
-
-    let mut deletion_timer = Timer::new("splat_deletion");
-    if settings.use_octtree_for_splat_removal {
-        let oct_tree = &mut scene.oct_tree;
-
-        let mut radius_search_timer = Timer::new("octree_radius_search");
-        let splats_near = oct_tree.find_splats_in_radius(splat_pos, 0.5);
-        radius_search_timer.end();
-
-        log!(
-            "about to loop through {:?} splats to set opacity to 0.0",
-            splats_near.len()
-        );
-
-        // First collect all indices to modify
-        let mut indices_timer = Timer::new("collect_indices");
-        let indices: Vec<usize> = splats_near.iter().map(|splat| splat.index).collect();
-        indices_timer.end();
-
-        // For very small collections, use sequential processing for efficiency
-        if indices.len() < 100 {
-            let mut sequential_update_timer = Timer::new("sequential_update");
-            for &index in &indices {
-                scene.splat_data.splats[index].opacity = 0.0;
-            }
-            sequential_update_timer.end();
-        } else {
-            // For larger collections, mark the splats to be updated, then process in parallel
-            let mut parallel_update_timer = Timer::new("parallel_update");
-
-            // Step 1: Create a bitset/mask to mark which splats need updating
-            let mut mark_timer = Timer::new("mark_splats_to_update");
-            let mut to_update = vec![false; scene.splat_data.splats.len()];
-
-            // Step 2: Mark indices that need updating
-            for &index in &indices {
-                if index < to_update.len() {
-                    to_update[index] = true;
-                }
-            }
-            mark_timer.end();
-
-            // Step 3: Use par_iter_mut to safely process all splats in parallel
-            let mut par_iter_timer = Timer::new("parallel_iter_update");
-            scene
-                .splat_data
-                .splats
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(i, splat)| {
-                    // Check if this splat is marked for update
-                    if i < to_update.len() && to_update[i] {
-                        splat.opacity = 0.0;
+            if settings_borrow.use_octtree_for_splat_removal {
+                let octree_found_splats = scene_mut.oct_tree.find_splats_in_radius(pos, 0.05);
+                for splat in octree_found_splats {
+                    if splat.opacity >= 0.5 {
+                        splat_pos = vec3(splat.x, splat.y, splat.z);
+                        found = true;
+                        scene_mut.redraw_from_oct_tree(settings_borrow.only_show_clicks);
+                        break;
                     }
-                });
-            par_iter_timer.end();
-
-            parallel_update_timer.end();
-
-            log!(
-                "Processed {} splats in parallel using marking approach",
-                indices.len()
-            );
-        }
-    } else {
-        // For this case, we can use par_iter_mut directly since we're modifying the splats collection itself
-        let mut direct_par_update_timer = Timer::new("direct_parallel_update");
-        scene.splat_data.splats.par_iter_mut().for_each(|splat| {
-            if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
-                splat.opacity = 0.0;
+                }
+            } else {
+                for splat in scene_mut.splat_data.splats.iter_mut() {
+                    if glm::distance(&vec3(splat.x, splat.y, splat.z), &pos) < 0.05
+                        && splat.opacity >= 0.5
+                    {
+                        splat_pos = vec3(splat.x, splat.y, splat.z);
+                        found = true;
+                        break;
+                    }
+                }
             }
-        });
-        direct_par_update_timer.end();
+
+            if found {
+                break;
+            }
+        }
+
+        if !found {
+            return;
+        }
+
+        // Delete splats instantly
+        if settings_borrow.use_octtree_for_splat_removal {
+            let splats_near = scene_mut.oct_tree.find_splats_in_radius(splat_pos, 0.5);
+            let indices: Vec<usize> = splats_near.iter().map(|splat| splat.index).collect();
+
+            if indices.len() < 100 {
+                for &index in &indices {
+                    scene_mut.splat_data.splats[index].opacity = 0.0;
+                }
+            } else {
+                let mut to_update = vec![false; scene_mut.splat_data.splats.len()];
+                for &index in &indices {
+                    if index < to_update.len() {
+                        to_update[index] = true;
+                    }
+                }
+                scene_mut
+                    .splat_data
+                    .splats
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(i, splat)| {
+                        if i < to_update.len() && to_update[i] {
+                            splat.opacity = 0.0;
+                        }
+                    });
+            }
+        } else {
+            scene_mut.splat_data.splats.par_iter_mut().for_each(|splat| {
+                if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
+                    splat.opacity = 0.0;
+                }
+            });
+        }
     }
-    deletion_timer.end();
 
-    let mut update_textures_timer = Timer::new("update_webgl_textures");
-    renderer
-        .update_webgl_textures(&scene, 0)
-        .expect("failed to update webgl textures when editing");
-    update_textures_timer.end();
-
-    match state.button {
-        0 => log!("Left click"),
-        1 => log!("Middle click"),
-        2 => log!("Right click"),
-        _ => log!("Unknown button"),
+    // Update textures instantly
+    {
+        let scene_borrow = scene.borrow();
+        let renderer_borrow = renderer.borrow();
+        renderer_borrow
+            .update_webgl_textures(&scene_borrow, 0)
+            .expect("failed to update webgl textures when editing");
     }
-
-    overall_timer.end();
 }
 
 #[allow(non_snake_case)]
@@ -810,6 +758,19 @@ pub async fn start() -> Result<(), JsValue> {
             }
         }
 
+        // Handle delete mode UI updates
+        static mut DELETE_MODE_ACTIVE: bool = false;
+        let alt_key_pressed = keys_pressed.borrow().contains("Alt");
+        unsafe {
+            if alt_key_pressed && !DELETE_MODE_ACTIVE {
+                show_delete_mode();
+                DELETE_MODE_ACTIVE = true;
+            } else if !alt_key_pressed && DELETE_MODE_ACTIVE {
+                hide_delete_mode();
+                DELETE_MODE_ACTIVE = false;
+            }
+        }
+
         // Update camera position display if it exists
         if let Some(pos_div) = document_for_loop.get_element_by_id("camera-position") {
             if let Ok(pos_div) = pos_div.dyn_into::<HtmlElement>() {
@@ -833,10 +794,10 @@ pub async fn start() -> Result<(), JsValue> {
                 width,
                 height,
                 &cam_mut,
-                &mut scene.borrow_mut(),
-                &renderer.borrow(),
+                scene.clone(),
+                renderer.clone(),
                 &keys_pressed.borrow(),
-                &settings.borrow(),
+                settings.clone(),
             );
 
             if !click_state.borrow().dragging {

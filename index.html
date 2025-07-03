@@ -84,26 +84,33 @@
 
 	/* To remove the scrollbars */
 
-	/* Slicing mode styles */
-	.slice-mode-border {
+	/* Mode overlay styles */
+	.mode-border {
 		position: fixed;
 		top: 0;
 		left: 0;
 		right: 0;
 		bottom: 0;
 		pointer-events: none;
-		border: 4px solid #ff0000;
-		box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.3);
 		z-index: 1000;
 		transition: opacity 0.2s ease;
 	}
 
-	.slice-instructions {
+	.slice-mode-border {
+		border: 4px solid #ff0000;
+		box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.3);
+	}
+
+	.delete-mode-border {
+		border: 4px solid #ffaa00;
+		box-shadow: inset 0 0 20px rgba(255, 170, 0, 0.3);
+	}
+
+	.mode-instructions {
 		position: fixed;
 		top: 50px;
 		left: 50%;
 		transform: translateX(-50%);
-		background: rgba(255, 0, 0, 0.9);
 		color: white;
 		padding: 15px 25px;
 		border-radius: 8px;
@@ -114,6 +121,14 @@
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 		z-index: 1001;
 		animation: pulse 1.5s infinite;
+	}
+
+	.slice-instructions {
+		background: rgba(255, 0, 0, 0.9);
+	}
+
+	.delete-instructions {
+		background: rgba(255, 170, 0, 0.9);
 	}
 
 	@keyframes pulse {
@@ -449,19 +464,48 @@
 			console.log("this is a test function!")
 		}
 
-		// Slicing UI control functions
+		// Mode management functions
 		let sliceStartPos = null;
 		let sliceEndPos = null;
+		let currentMode = null;
 
+		function showMode(mode) {
+			hideAllModes(); // Hide any existing mode first
+			currentMode = mode;
+
+			if (mode === 'slice') {
+				document.getElementById('slice-mode-border').style.display = 'block';
+				document.getElementById('slice-instructions').style.display = 'block';
+			} else if (mode === 'delete') {
+				document.getElementById('delete-mode-border').style.display = 'block';
+				document.getElementById('delete-instructions').style.display = 'block';
+			}
+		}
+
+		function hideAllModes() {
+			document.getElementById('slice-mode-border').style.display = 'none';
+			document.getElementById('slice-instructions').style.display = 'none';
+			document.getElementById('delete-mode-border').style.display = 'none';
+			document.getElementById('delete-instructions').style.display = 'none';
+			hideSliceLine();
+			currentMode = null;
+		}
+
+		// Legacy functions for backward compatibility
 		function showSliceMode() {
-			document.getElementById('slice-mode-border').style.display = 'block';
-			document.getElementById('slice-instructions').style.display = 'block';
+			showMode('slice');
 		}
 
 		function hideSliceMode() {
-			document.getElementById('slice-mode-border').style.display = 'none';
-			document.getElementById('slice-instructions').style.display = 'none';
-			hideSliceLine();
+			hideAllModes();
+		}
+
+		function showDeleteMode() {
+			showMode('delete');
+		}
+
+		function hideDeleteMode() {
+			hideAllModes();
 		}
 
 		function showSliceLine(startX, startY, endX, endY) {
@@ -621,12 +665,17 @@
 		</div>
 	</div>
 
-	<!-- Slicing mode UI elements -->
-	<div id="slice-mode-border" class="slice-mode-border" style="display: none;"></div>
-	<div id="slice-instructions" class="slice-instructions" style="display: none;">
+	<!-- Mode UI elements -->
+	<div id="slice-mode-border" class="mode-border slice-mode-border" style="display: none;"></div>
+	<div id="slice-instructions" class="mode-instructions slice-instructions" style="display: none;">
 		Click and drag to define a slice line
 	</div>
 	<div id="slice-line" class="slice-line" style="display: none;"></div>
+
+	<div id="delete-mode-border" class="mode-border delete-mode-border" style="display: none;"></div>
+	<div id="delete-instructions" class="mode-instructions delete-instructions" style="display: none;">
+		Click to delete splats
+	</div>
 
 	<!-- Loading overlay -->
 	<div id="loading-overlay" class="loading-overlay" style="display: none;">
