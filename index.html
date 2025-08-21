@@ -312,7 +312,7 @@
 		/* font-weight: bold; */
 		margin-bottom: 30px;
 		color: #ff4444;
-		text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+		/* text-shadow: 0 0 10px rgba(255, 68, 68, 0.5); */
 	}
 
 	.instructions-list {
@@ -366,7 +366,7 @@
 	}
 
 	.instructions-buttons {
-		margin-top: 30px;
+		margin-top: 0px;
 		display: flex;
 		gap: 15px;
 		justify-content: center;
@@ -527,6 +527,67 @@
 		border: 1px solid #333;
 		border-radius: 4px;
 		padding: 4px 8px;
+	}
+
+	/* Constrained paragraph for GUI so it wraps without resizing the panel */
+	.gui-description {
+		color: #dddddd;
+		font-size: 15px;
+		line-height: 1.4;
+		margin: 6px 0 12px 0;
+		max-width: 240px;
+		text-align: center;
+		white-space: normal;
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+
+	.github-link {
+		display: inline-flex;
+		align-items: center;
+		color: white;
+		text-decoration: none;
+		padding: 8px 16px;
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 4px;
+		margin: 10px 0;
+		transition: background 0.2s ease;
+		font-size: 14px;
+	}
+
+	.github-link:hover {
+		background: rgba(255, 255, 255, 0.2);
+	}
+
+	.github-link svg {
+		transition: transform 0.2s ease;
+	}
+
+	.github-link:hover svg {
+		transform: scale(1.1);
+	}
+
+	/* Group the intro paragraph and GitHub link visually */
+	.gui-intro {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		margin: 6px 0 16px 0;
+		padding: 10px 12px;
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 8px;
+		max-width: 260px;
+	}
+
+	.gui-intro .gui-description {
+		margin: 0;
+	}
+
+	.gui-intro .github-link {
+		margin: 0;
 	}
 </style>
 
@@ -716,17 +777,17 @@
 	<!-- Instructions overlay -->
 	<div id="instructions-overlay" class="instructions-overlay">
 		<div class="instructions-content">
-			<h2 class="instructions-title">Fruit Ninja GSplat</h2>
-			<p style="margin: 20px 0; color: #ccc; font-style: italic;">
+			<h2 class="instructions-title">Rust GSplat Viewer</h2>
+			<!-- <p style="margin: 20px 0; color: #ccc; font-style: italic;">
 				Gaussian Splatting Viewer written from scratch in WebGL & Rust.
-			</p>
+			</p> -->
 			<div id="instruction-loading" class="instruction-loading" style="display: none;">
 				<span>Loading scene...</span>
 				<div class="instruction-loading-bar">
 					<div class="instruction-loading-progress"></div>
 				</div>
 			</div>
-			<div style="margin: 20px 0;">
+			<div style="margin:0;">
 				<label for="instruction-model-switcher"
 					style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch
 					Model:</label>
@@ -786,7 +847,18 @@
 	</div>
 
 	<div id="gui">
-		<h1>Fruit Ninja GSplat</h1>
+		<h1>Rust GSplat Viewer</h1>
+		<div class="gui-intro">
+			<p class="gui-description">Gaussian Splatting Viewer written from scratch in WebGL & Rust.</p>
+			<a href="https://github.com/shahanneda/rust-gs" target="_blank" class="github-link">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+					style="vertical-align: middle; margin-right: 8px;">
+					<path
+						d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+				</svg>
+				View on GitHub
+			</a>
+		</div>
 		<!-- <button onclick="">Testing</button> -->
 		<div class="checkbox-container">
 			<label for="checkbox" class="checkbox-label">Show Octtree</label>

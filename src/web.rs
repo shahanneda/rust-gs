@@ -75,7 +75,6 @@ extern "C" {
     fn set_timeout(closure: &Closure<dyn FnMut()>, delay: i32) -> i32;
 }
 
-
 #[derive(Default)]
 struct ClickState {
     clicked: bool,
@@ -118,11 +117,11 @@ fn handle_splat_delete_click(
 
     let mut splat_pos = vec3(0.0, 0.0, 0.0);
     let mut found = false;
-    
+
     {
         let mut scene_mut = scene.borrow_mut();
         let settings_borrow = settings.borrow();
-        
+
         // Find splat position
         for t in 0..100 {
             let t = t as f32 / 10.0;
@@ -187,11 +186,15 @@ fn handle_splat_delete_click(
                     });
             }
         } else {
-            scene_mut.splat_data.splats.par_iter_mut().for_each(|splat| {
-                if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
-                    splat.opacity = 0.0;
-                }
-            });
+            scene_mut
+                .splat_data
+                .splats
+                .par_iter_mut()
+                .for_each(|splat| {
+                    if glm::distance(&vec3(splat.x, splat.y, splat.z), &splat_pos) < 0.5 {
+                        splat.opacity = 0.0;
+                    }
+                });
         }
     }
 
@@ -289,6 +292,10 @@ pub async fn start() -> Result<(), JsValue> {
         restrict_gizmo_movement: false,
         selected_object: None,
     };
+    let blending_param = params.get("blending");
+    if let Some(blending_param) = blending_param {
+        settings.do_blending = blending_param == "true";
+    }
     let settings_ref = Rc::new(RefCell::new(settings));
     scene
         .borrow_mut()
@@ -499,7 +506,7 @@ pub async fn start() -> Result<(), JsValue> {
         let mut state = click_state_up.borrow_mut();
         state.dragging = false;
         scene_clone.borrow_mut().end_gizmo_drag();
-        
+
         // Hide slice line when mouse is released
         hide_slice_line();
 
@@ -541,36 +548,37 @@ pub async fn start() -> Result<(), JsValue> {
                 // Normalise and ensure it isn't the zero vector.
                 if glm::length(&plane_normal) > 1e-5 {
                     let plane_normal = glm::normalize(&plane_normal);
-                    
+
                     // Show loading overlay immediately
                     show_loading_overlay("Processing slice...");
-                    
+
                     // Break operations into separate steps with timeouts
                     let scene_step1 = scene_clone.clone();
                     let renderer_step1 = renderer_clone_up.clone();
                     let settings_step1 = settings_clone_for_split.clone();
-                    
+
                     // Step 1: Perform the slice operation
                     let slice_operation = Closure::wrap(Box::new(move || {
                         let mut scene_mut = scene_step1.borrow_mut();
-                        
+
                         // Always split the first object (index 0) as before
-                        let slice_result = scene_mut
-                            .splat_data
-                            .split_object_along_plane(0, p1, plane_normal, 0.5);
-                        
+                        let slice_result =
+                            scene_mut
+                                .splat_data
+                                .split_object_along_plane(0, p1, plane_normal, 0.5);
+
                         if slice_result.is_some() {
                             // Update loading message and continue to next step
                             update_loading_message("Recalculating octree...");
-                            
+
                             // Step 2: Octree recalculation
                             let scene_step2 = scene_step1.clone();
                             let renderer_step2 = renderer_step1.clone();
                             let settings_step2 = settings_step1.clone();
-                            
+
                             let octree_operation = Closure::wrap(Box::new(move || {
                                 let mut scene_mut = scene_step2.borrow_mut();
-                                
+
                                 if scene_mut.splat_data.splats.len() < 5_000_000 {
                                     scene_mut.recalculate_octtree();
                                 } else {
@@ -579,27 +587,27 @@ pub async fn start() -> Result<(), JsValue> {
                                         scene_mut.splat_data.splats.len()
                                     );
                                 }
-                                
+
                                 update_loading_message("Updating scene...");
-                                
+
                                 // Step 3: Scene update
                                 let scene_step3 = scene_step2.clone();
                                 let renderer_step3 = renderer_step2.clone();
                                 let settings_step3 = settings_step2.clone();
-                                
+
                                 let scene_operation = Closure::wrap(Box::new(move || {
                                     let mut scene_mut = scene_step3.borrow_mut();
                                     let settings = settings_step3.borrow();
-                                    
+
                                     scene_mut.redraw_from_oct_tree(settings.only_show_clicks);
                                     debug_memory("pre_upload");
-                                    
+
                                     update_loading_message("Uploading to GPU...");
-                                    
+
                                     // Step 4: GPU upload
                                     let scene_step4 = scene_step3.clone();
                                     let renderer_step4 = renderer_step3.clone();
-                                    
+
                                     let gpu_operation = Closure::wrap(Box::new(move || {
                                         let scene_mut = scene_step4.borrow();
                                         renderer_step4
@@ -607,19 +615,22 @@ pub async fn start() -> Result<(), JsValue> {
                                             .update_webgl_textures(&scene_mut, 0)
                                             .unwrap();
                                         debug_memory("post_upload");
-                                        
+
                                         // Hide loading overlay
                                         hide_loading_overlay();
-                                    }) as Box<dyn FnMut()>);
-                                    
+                                    })
+                                        as Box<dyn FnMut()>);
+
                                     set_timeout(&gpu_operation, 50);
                                     gpu_operation.forget();
-                                }) as Box<dyn FnMut()>);
-                                
+                                })
+                                    as Box<dyn FnMut()>);
+
                                 set_timeout(&scene_operation, 50);
                                 scene_operation.forget();
-                            }) as Box<dyn FnMut()>);
-                            
+                            })
+                                as Box<dyn FnMut()>);
+
                             set_timeout(&octree_operation, 50);
                             octree_operation.forget();
                         } else {
@@ -627,7 +638,7 @@ pub async fn start() -> Result<(), JsValue> {
                             hide_loading_overlay();
                         }
                     }) as Box<dyn FnMut()>);
-                    
+
                     set_timeout(&slice_operation, 100);
                     slice_operation.forget();
                 } else {
@@ -1005,6 +1016,7 @@ fn setup_button_callbacks(
     let settings_clone = settings.clone();
     let camera_clone = camera.clone();
     let add_shahan_callback = Closure::wrap(Box::new(move || {
+        log!("adding shahan!");
         let renderer: &Renderer = &*renderer_clone.borrow();
         let settings = settings_clone.borrow();
         let mut scene = scene_clone.borrow_mut();
@@ -1025,8 +1037,12 @@ fn setup_button_callbacks(
             //     &vec3(0.0, 1.0, 0.0),
             // ),
         );
+
+        let (vm, vpm) = camera.get_vm_and_vpm(width, height);
         scene.recalculate_octtree();
         scene.redraw_from_oct_tree(settings.only_show_clicks);
+        let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
+        renderer.update_splat_indices(&splat_indices);
         renderer.update_webgl_textures(&scene, 0).unwrap();
     }) as Box<dyn FnMut()>);
     add_shahan_btn.set_onclick(Some(add_shahan_callback.as_ref().unchecked_ref()));
