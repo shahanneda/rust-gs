@@ -76,6 +76,7 @@
 
 	.checkbox-label {
 		margin-right: 10px;
+		color: white;
 	}
 
 	.checkbox {
@@ -251,6 +252,8 @@
 		z-index: 3000;
 		color: white;
 		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		overflow: hidden;
+		height: 100vh;
 	}
 
 	.instructions-content {
@@ -262,11 +265,51 @@
 		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
 		text-align: center;
 		position: relative;
+		overflow: scroll;
+		height: 100%;
+	}
+
+	/* Themed scrollbars for instruction panel */
+	.instructions-content::-webkit-scrollbar {
+		-webkit-appearance: none;
+		width: 10px;
+		height: 10px;
+	}
+
+	.instructions-content::-webkit-scrollbar-track {
+		background: rgba(255, 255, 255, 0.06);
+		border-radius: 10px;
+	}
+
+	.instructions-content::-webkit-scrollbar-thumb {
+		border-radius: 10px;
+		background: linear-gradient(135deg, #ff4444, #cc3333);
+		border: 2px solid rgba(0, 0, 0, 0.35);
+		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(255, 68, 68, 0.25);
+		min-height: 40px;
+	}
+
+	.instructions-content::-webkit-scrollbar-thumb:hover {
+		background: linear-gradient(135deg, #ff6666, #ff4444);
+	}
+
+	.instructions-content::-webkit-scrollbar-thumb:active {
+		background: linear-gradient(135deg, #ff3333, #aa2222);
+	}
+
+	.instructions-content::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+
+	/* Firefox */
+	.instructions-content {
+		scrollbar-width: thin;
+		scrollbar-color: #ff4444 rgba(255, 255, 255, 0.06);
 	}
 
 	.instructions-title {
 		font-size: 32px;
-		font-weight: bold;
+		/* font-weight: bold; */
 		margin-bottom: 30px;
 		color: #ff4444;
 		text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
@@ -448,6 +491,7 @@
 		margin: 8px 0;
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		transition: all 0.2s ease;
+		color: white;
 	}
 
 	.checkbox-container:hover {
@@ -630,12 +674,12 @@
 			showInstructions();
 			// Start in loading state
 			setInstructionsLoading(true, 'Loading model...');
-			
+
 			// Set blending checkbox based on current URL immediately
 			const urlParams = new URLSearchParams(window.location.search);
 			const currentUrl = urlParams.get('url');
 			const blendingParam = urlParams.get('blending');
-			
+
 			if (blendingParam !== null) {
 				const blendingCheckbox = document.getElementById('do-blending-checkbox');
 				if (blendingCheckbox) {
@@ -672,7 +716,29 @@
 	<!-- Instructions overlay -->
 	<div id="instructions-overlay" class="instructions-overlay">
 		<div class="instructions-content">
-			<h2 class="instructions-title">🍎 Fruit Ninja GSplat 🗡️</h2>
+			<h2 class="instructions-title">Fruit Ninja GSplat</h2>
+			<p style="margin: 20px 0; color: #ccc; font-style: italic;">
+				Gaussian Splatting Viewer written from scratch in WebGL & Rust.
+			</p>
+			<div id="instruction-loading" class="instruction-loading" style="display: none;">
+				<span>Loading scene...</span>
+				<div class="instruction-loading-bar">
+					<div class="instruction-loading-progress"></div>
+				</div>
+			</div>
+			<div style="margin: 20px 0;">
+				<label for="instruction-model-switcher"
+					style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch
+					Model:</label>
+				<select id="instruction-model-switcher"
+					onchange="switchModelFromInstructions(this.value)"
+					class="model-select-instructions">
+					<option value="">Select a model...</option>
+				</select>
+			</div>
+			<div class="instructions-buttons">
+				<button id="start-exploring" class="instruction-button">Start Exploring!</button>
+			</div>
 			<div class="instructions-list">
 				<div class="instruction-item">
 					<span class="instruction-key">WASD</span>Move around the scene
@@ -695,28 +761,6 @@
 				<div class="instruction-item">
 					<span class="instruction-key">O</span>Toggle octree visualization
 				</div>
-			</div>
-			<p style="margin: 20px 0; color: #ccc; font-style: italic;">
-				Explore the 3D scene and slice through objects!
-			</p>
-			<div id="instruction-loading" class="instruction-loading" style="display: none;">
-				<span>Loading scene...</span>
-				<div class="instruction-loading-bar">
-					<div class="instruction-loading-progress"></div>
-				</div>
-			</div>
-			<div style="margin: 20px 0;">
-				<label for="instruction-model-switcher"
-					style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch
-					Model:</label>
-				<select id="instruction-model-switcher"
-					onchange="switchModelFromInstructions(this.value)"
-					class="model-select-instructions">
-					<option value="">Select a model...</option>
-				</select>
-			</div>
-			<div class="instructions-buttons">
-				<button id="start-exploring" class="instruction-button">Start Exploring!</button>
 			</div>
 		</div>
 	</div>
@@ -783,7 +827,7 @@
 			<button id="recalculate-octtree-btn">Recalculate Octtree</button>
 
 		</div>
-		<div style="margin: 10px 0px; display: none;">
+		<div style="margin: 10px 0px;">
 			<button id="add-shahan-btn">Add Shahan</button>
 		</div>
 		<div style="margin: 10px 0px; display:none;">
@@ -807,7 +851,7 @@
 	</div>
 	</div>
 	<script>
-		const USE_LOCAL = false; // Set this to true to use local URLs, false for remote S3 URLs
+		const USE_LOCAL = true; // Set this to true to use local URLs, false for remote S3 URLs
 		const BASE_LOCAL_URL = "http://127.0.0.1:5503/";
 		const BASE_REMOTE_URL = "https://zimpmodels.s3.us-east-2.amazonaws.com/";
 
@@ -847,10 +891,10 @@
 		function setBlendingBasedOnModel(modelUrl) {
 			const blendingCheckbox = document.getElementById('do-blending-checkbox');
 			if (!blendingCheckbox) return;
-			
+
 			// Check if the model is a fruit model (contains % or is in ninja/ folder)
 			const isFruitModel = modelUrl.includes('%') || modelUrl.includes('/ninja/');
-			
+
 			// Set blending: OFF for fruit models, ON for others
 			blendingCheckbox.checked = !isFruitModel;
 		}
@@ -1014,7 +1058,7 @@
 				// Try to select the matching option in both dropdowns
 				modelSelect.value = currentUrl;
 				instructionModelSelect.value = currentUrl;
-				
+
 				// Set blending checkbox based on URL parameter or model type
 				if (blendingParam !== null) {
 					const blendingCheckbox = document.getElementById('do-blending-checkbox');
@@ -1034,7 +1078,7 @@
 
 					modelSelect.value = fullPath;
 					instructionModelSelect.value = fullPath;
-					
+
 					// Set blending checkbox based on model type
 					setBlendingBasedOnModel(fullPath);
 
