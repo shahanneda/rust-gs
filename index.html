@@ -1,1358 +1,2120 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-	<meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
-</head>
+	<meta charset="utf-8" />
+	<meta name="viewport"
+		content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+	<title>rust-gs · Gaussian Splat Viewer</title>
+	<meta name="description" content="A Gaussian Splatting viewer & editor written from scratch in Rust + WebGL2." />
+	<link rel="icon"
+		href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌀</text></svg>" />
 
-<style>
-	* {
-		margin: 0;
-		padding: 0;
-	}
-
-	/* to remove the top and left whitespace */
-
-	html,
-	body {
-		width: 100%;
-		height: 100%;
-		background-color: white;
-		overflow: hidden;
-		/* Prevent scrollbars */
-	}
-
-	/* just to be sure these are full screen*/
-
-	canvas {
-		display: block;
-		height: 100vh;
-		width: 100%;
-		/* Changed from 100vw to 100% */
-	}
-
-	#gui {
-		position: absolute;
-		top: 0;
-		left: 0;
-		background-color: rgba(0, 0, 0, 0.5);
-		/* border: 1px solid black; */
-		/* border-radius: 1px; */
-		/* padding: 100px; */
-		display: flex;
-		text-align: center;
-		flex-direction: column;
-		justify-content: start;
-		align-items: center;
-		font-family: sans-serif;
-		color: white;
-		min-width: 250px;
-		min-height: 500px;
-	}
-
-	/* button {
-		background-color: white;
-		color: black;
-		border: 1px solid black;
-		border-radius: 5px;
-		padding: 5px;
-		font-size: 16px;
-	} */
-
-	button:hover {
-		background-color: lightgray;
-		color: white;
-	}
-
-	button:active {
-		background-color: black;
-		color: white;
-	}
-
-	.checkbox-container {
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-	}
-
-	.checkbox-label {
-		margin-right: 10px;
-		color: white;
-	}
-
-	.checkbox {
-		margin-right: 10px;
-	}
-
-	/* To remove the scrollbars */
-
-	/* Mode overlay styles */
-	.mode-border {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		pointer-events: none;
-		z-index: 1000;
-		transition: opacity 0.2s ease;
-	}
-
-	.slice-mode-border {
-		border: 4px solid #ff0000;
-		box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.3);
-	}
-
-	.delete-mode-border {
-		border: 4px solid #ffaa00;
-		box-shadow: inset 0 0 20px rgba(255, 170, 0, 0.3);
-	}
-
-	.mode-instructions {
-		position: fixed;
-		top: 50px;
-		left: 50%;
-		transform: translateX(-50%);
-		color: white;
-		padding: 15px 25px;
-		border-radius: 8px;
-		font-family: sans-serif;
-		font-size: 16px;
-		font-weight: bold;
-		text-align: center;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-		z-index: 1001;
-		animation: pulse 1.5s infinite;
-	}
-
-	.slice-instructions {
-		background: rgba(255, 0, 0, 0.9);
-	}
-
-	.delete-instructions {
-		background: rgba(255, 170, 0, 0.9);
-	}
-
-	.model-select-instructions {
-		width: 100%;
-		padding: 12px 16px;
-		border-radius: 8px;
-		border: 2px solid #444;
-		background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-		color: white;
-		font-size: 14px;
-		font-family: sans-serif;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-		transition: all 0.3s ease;
-		cursor: pointer;
-	}
-
-	.model-select-instructions:hover {
-		border-color: #666;
-		background: linear-gradient(135deg, #333, #222);
-		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-	}
-
-	.model-select-instructions:focus {
-		outline: none;
-		border-color: #ff6600;
-		box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.2);
-	}
-
-	.model-select-instructions option {
-		background: #222;
-		color: white;
-		padding: 8px;
-	}
-
-	@keyframes pulse {
-
-		0%,
-		100% {
-			opacity: 0.9;
+	<style>
+		/* ============================================================
+		   Design tokens
+		   ============================================================ */
+		:root {
+			--bg: #0a0c11;
+			--panel: rgba(18, 21, 30, 0.86);
+			--panel-solid: #141824;
+			--border: rgba(255, 255, 255, 0.09);
+			--border-strong: rgba(255, 255, 255, 0.16);
+			--text: #eef1f7;
+			--text-dim: #9aa3b5;
+			--accent: #5b9dff;
+			--accent-2: #a78bfa;
+			--accent-grad: linear-gradient(135deg, #5b9dff, #a78bfa);
+			--danger: #ff5d5d;
+			--warning: #ffb020;
+			--radius: 14px;
+			--radius-sm: 10px;
+			--shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+			--blur: blur(18px) saturate(140%);
+			--sat: env(safe-area-inset-top, 0px);
+			--sab: env(safe-area-inset-bottom, 0px);
+			--sal: env(safe-area-inset-left, 0px);
+			--sar: env(safe-area-inset-right, 0px);
 		}
 
-		50% {
-			opacity: 1.0;
-		}
-	}
-
-	.slice-line {
-		position: fixed;
-		background: #ff0000;
-		height: 3px;
-		z-index: 1002;
-		pointer-events: none;
-		box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
-	}
-
-	.loading-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.8);
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		z-index: 2000;
-		color: white;
-		font-family: sans-serif;
-	}
-
-	.loading-text {
-		font-size: 18px;
-		font-weight: bold;
-		text-align: center;
-		margin-top: 10px;
-	}
-
-	.loading-progress {
-		width: 300px;
-		height: 6px;
-		background: rgba(255, 255, 255, 0.2);
-		border-radius: 3px;
-		margin-top: 15px;
-		overflow: hidden;
-	}
-
-	.loading-progress-bar {
-		height: 100%;
-		background: linear-gradient(90deg, #ff0000, #ff6600);
-		border-radius: 3px;
-		animation: loadingProgress 2s ease-in-out infinite;
-	}
-
-	@keyframes loadingProgress {
-		0% {
-			width: 0%;
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+			-webkit-tap-highlight-color: transparent;
 		}
 
-		50% {
-			width: 70%;
-		}
-
-		100% {
+		html,
+		body {
 			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			background: var(--bg);
+			color: var(--text);
+			font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			overscroll-behavior: none;
 		}
-	}
 
-	/* Instructions overlay */
-	.instructions-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.9);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 3000;
-		color: white;
-		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-		overflow: hidden;
-		height: 100vh;
-	}
+		button {
+			font: inherit;
+			color: inherit;
+			background: none;
+			border: none;
+			cursor: pointer;
+		}
 
-	.instructions-content {
-		background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-		border: 2px solid #ff4444;
-		border-radius: 15px;
-		padding: 40px;
-		max-width: 600px;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
-		text-align: center;
-		position: relative;
-		overflow: scroll;
-		height: 100%;
-	}
+		canvas#canvas {
+			display: block;
+			width: 100%;
+			height: 100dvh;
+			touch-action: none;
+			background: var(--bg);
+		}
 
-	/* Themed scrollbars for instruction panel */
-	.instructions-content::-webkit-scrollbar {
-		-webkit-appearance: none;
-		width: 10px;
-		height: 10px;
-	}
+		/* Hide the download progress box the Rust loader injects (we render our own) */
+		#loading-container {
+			display: none !important;
+		}
 
-	.instructions-content::-webkit-scrollbar-track {
-		background: rgba(255, 255, 255, 0.06);
-		border-radius: 10px;
-	}
+		/* ============================================================
+		   Shared bits
+		   ============================================================ */
+		.glass {
+			background: var(--panel);
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			backdrop-filter: var(--blur);
+			-webkit-backdrop-filter: var(--blur);
+			box-shadow: var(--shadow);
+		}
 
-	.instructions-content::-webkit-scrollbar-thumb {
-		border-radius: 10px;
-		background: linear-gradient(135deg, #ff4444, #cc3333);
-		border: 2px solid rgba(0, 0, 0, 0.35);
-		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(255, 68, 68, 0.25);
-		min-height: 40px;
-	}
+		.icon-btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 7px;
+			height: 40px;
+			min-width: 40px;
+			padding: 0 12px;
+			border-radius: 11px;
+			border: 1px solid var(--border);
+			background: rgba(255, 255, 255, 0.04);
+			color: var(--text);
+			font-size: 13.5px;
+			font-weight: 600;
+			transition: background .15s, border-color .15s, transform .1s;
+			white-space: nowrap;
+		}
 
-	.instructions-content::-webkit-scrollbar-thumb:hover {
-		background: linear-gradient(135deg, #ff6666, #ff4444);
-	}
+		.icon-btn:hover {
+			background: rgba(255, 255, 255, 0.09);
+			border-color: var(--border-strong);
+		}
 
-	.instructions-content::-webkit-scrollbar-thumb:active {
-		background: linear-gradient(135deg, #ff3333, #aa2222);
-	}
+		.icon-btn:active {
+			transform: scale(0.96);
+		}
 
-	.instructions-content::-webkit-scrollbar-corner {
-		background: transparent;
-	}
+		.icon-btn svg {
+			width: 17px;
+			height: 17px;
+			flex: none;
+		}
 
-	/* Firefox */
-	.instructions-content {
-		scrollbar-width: thin;
-		scrollbar-color: #ff4444 rgba(255, 255, 255, 0.06);
-	}
+		.primary-btn {
+			background: var(--accent-grad);
+			border: none;
+			color: white;
+			font-weight: 700;
+			border-radius: 11px;
+			padding: 11px 22px;
+			font-size: 14.5px;
+			box-shadow: 0 6px 20px rgba(91, 157, 255, 0.35);
+			transition: filter .15s, transform .1s;
+		}
 
-	.instructions-title {
-		font-size: 32px;
-		/* font-weight: bold; */
-		margin-bottom: 30px;
-		color: #ff4444;
-		/* text-shadow: 0 0 10px rgba(255, 68, 68, 0.5); */
-	}
+		.primary-btn:hover {
+			filter: brightness(1.1);
+		}
 
-	.instructions-list {
-		text-align: left;
-		margin: 30px 0;
-		font-size: 18px;
-		line-height: 2.2;
-	}
+		.primary-btn:active {
+			transform: scale(0.97);
+		}
 
-	.instruction-item {
-		margin: 20px 0;
-		padding: 15px 20px;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 10px;
-		border-left: 4px solid #ff4444;
-		display: flex;
-		align-items: center;
-		font-weight: 500;
-	}
+		/* ============================================================
+		   Scene picker
+		   ============================================================ */
+		#scene-picker {
+			position: fixed;
+			inset: 0;
+			z-index: 4000;
+			display: none;
+			flex-direction: column;
+			background:
+				radial-gradient(1200px 600px at 20% -10%, rgba(91, 157, 255, 0.14), transparent 60%),
+				radial-gradient(1000px 600px at 90% 110%, rgba(167, 139, 250, 0.12), transparent 60%),
+				var(--bg);
+			overflow-y: auto;
+			-webkit-overflow-scrolling: touch;
+			padding: calc(28px + var(--sat)) calc(20px + var(--sar)) calc(40px + var(--sab)) calc(20px + var(--sal));
+		}
 
-	.instruction-key {
-		font-weight: bold;
-		color: #fff;
-		font-family: 'Courier New', monospace;
-		background: linear-gradient(135deg, #333, #555);
-		padding: 8px 12px;
-		border-radius: 8px;
-		margin-right: 12px;
-		border: 2px solid #666;
-		box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-		font-size: 14px;
-		letter-spacing: 1px;
-		min-width: 60px;
-		text-align: center;
-		display: inline-block;
-		position: relative;
-		top: -1px;
-	}
+		#scene-picker.open {
+			display: flex;
+		}
 
-	.instruction-key:before {
-		content: '';
-		position: absolute;
-		top: -2px;
-		left: -2px;
-		right: -2px;
-		bottom: -2px;
-		background: linear-gradient(135deg, #ff4444, #cc3333);
-		border-radius: 10px;
-		z-index: -1;
-		opacity: 0.3;
-	}
+		.picker-inner {
+			width: 100%;
+			max-width: 1060px;
+			margin: 0 auto;
+		}
 
-	.instructions-buttons {
-		margin-top: 0px;
-		display: flex;
-		gap: 15px;
-		justify-content: center;
-	}
+		.picker-head {
+			display: flex;
+			align-items: flex-start;
+			justify-content: space-between;
+			gap: 16px;
+			margin-bottom: 6px;
+		}
 
-	.instruction-button {
-		background: linear-gradient(135deg, #ff4444, #cc3333);
-		color: white;
-		border: none;
-		padding: 12px 24px;
-		border-radius: 8px;
-		font-size: 16px;
-		font-weight: bold;
-		cursor: pointer;
-		transition: all 0.3s ease;
-		box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
-	}
+		.picker-title {
+			font-size: clamp(26px, 4.5vw, 38px);
+			font-weight: 800;
+			letter-spacing: -0.02em;
+			background: linear-gradient(90deg, #ffffff, #b9c8ff 60%, #d4c5ff);
+			-webkit-background-clip: text;
+			background-clip: text;
+			color: transparent;
+			line-height: 1.12;
+		}
 
-	.instruction-button:hover:not(:disabled) {
-		background: linear-gradient(135deg, #ff6666, #ff4444);
-		transform: translateY(-2px);
-		box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
-	}
+		.picker-sub {
+			margin-top: 8px;
+			color: var(--text-dim);
+			font-size: 15px;
+			max-width: 560px;
+			line-height: 1.5;
+		}
 
-	.instruction-button:disabled {
-		background: linear-gradient(135deg, #666, #444);
-		color: #999;
-		cursor: not-allowed;
-		opacity: 0.6;
-	}
+		.picker-sub a {
+			color: var(--accent);
+			text-decoration: none;
+			font-weight: 600;
+		}
 
-	.instruction-loading {
-		margin-top: 20px;
-		font-size: 14px;
-		color: #ccc;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 10px;
-	}
+		.picker-sub a:hover {
+			text-decoration: underline;
+		}
 
-	.instruction-loading-bar {
-		width: 200px;
-		height: 4px;
-		background: rgba(255, 255, 255, 0.2);
-		border-radius: 2px;
-		overflow: hidden;
-		margin-top: 10px;
-		margin-left: auto;
-		margin-right: auto;
-	}
+		#picker-close {
+			display: none;
+			flex: none;
+		}
 
-	.instruction-loading-progress {
-		height: 100%;
-		background: linear-gradient(90deg, #ff4444, #ff6600);
-		border-radius: 2px;
-		width: 0%;
-		transition: width 0.3s ease;
-	}
+		#scene-picker.closable #picker-close {
+			display: inline-flex;
+		}
 
-	.instruction-button.secondary {
-		background: linear-gradient(135deg, #666, #444);
-		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-	}
+		.group-label {
+			margin: 30px 0 4px;
+			font-size: 13px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.12em;
+			color: var(--text-dim);
+		}
 
-	.instruction-button.secondary:hover {
-		background: linear-gradient(135deg, #888, #666);
-		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-	}
+		.group-hint {
+			font-size: 13.5px;
+			color: var(--text-dim);
+			opacity: .8;
+			margin-bottom: 14px;
+		}
 
-	/* Help button */
-	.help-button {
-		position: fixed;
-		top: 20px;
-		right: 20px;
-		background: linear-gradient(135deg, #ff4444, #cc3333);
-		color: white;
-		border: none;
-		padding: 12px 16px;
-		border-radius: 50%;
-		font-size: 18px;
-		font-weight: bold;
-		cursor: pointer;
-		z-index: 1500;
-		box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
-		transition: all 0.3s ease;
-		width: 50px;
-		height: 50px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
+		.scene-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+			gap: 16px;
+		}
 
-	.help-button:hover {
-		background: linear-gradient(135deg, #ff6666, #ff4444);
-		transform: scale(1.1);
-		box-shadow: 0 6px 20px rgba(255, 68, 68, 0.5);
-	}
+		.scene-card {
+			position: relative;
+			border-radius: var(--radius);
+			border: 1px solid var(--border);
+			background: var(--panel-solid);
+			overflow: hidden;
+			cursor: pointer;
+			transition: transform .18s ease, border-color .18s, box-shadow .18s;
+			text-align: left;
+			display: flex;
+			flex-direction: column;
+		}
 
-	/* Updated GUI styling */
-	#gui {
-		background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 20, 0.9));
-		border: 1px solid #333;
-		border-radius: 12px;
-		backdrop-filter: blur(10px);
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-		padding: 20px;
-	}
+		.scene-card:hover {
+			transform: translateY(-3px);
+			border-color: rgba(91, 157, 255, 0.55);
+			box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+		}
 
-	#gui h1 {
-		color: #ff4444;
-		text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
-		margin-bottom: 20px;
-		font-size: 24px;
-	}
+		.scene-card:active {
+			transform: scale(0.98);
+		}
 
-	.checkbox-container {
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 6px;
-		padding: 8px 12px;
-		margin: 8px 0;
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		transition: all 0.2s ease;
-		color: white;
-	}
+		.scene-card.current {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 1px var(--accent), 0 14px 34px rgba(0, 0, 0, 0.5);
+		}
 
-	.checkbox-container:hover {
-		background: rgba(255, 255, 255, 0.08);
-		border-color: rgba(255, 68, 68, 0.3);
-	}
+		.card-thumb {
+			position: relative;
+			aspect-ratio: 16 / 10;
+			background: linear-gradient(145deg, #1b2233, #12151f);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			overflow: hidden;
+		}
 
-	input[type="checkbox"] {
-		accent-color: #ff4444;
-	}
+		.card-thumb img {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			transition: transform .3s ease;
+		}
 
-	button {
-		background: linear-gradient(135deg, #ff4444, #cc3333);
-		color: white;
-		border: none;
-		padding: 10px 16px;
-		border-radius: 6px;
-		font-weight: bold;
-		cursor: pointer;
-		transition: all 0.3s ease;
-		box-shadow: 0 2px 10px rgba(255, 68, 68, 0.2);
-	}
+		.scene-card:hover .card-thumb img {
+			transform: scale(1.05);
+		}
 
-	button:hover {
-		background: linear-gradient(135deg, #ff6666, #ff4444);
-		transform: translateY(-1px);
-		box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
-	}
+		.card-emoji {
+			font-size: 44px;
+			filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+		}
 
-	select {
-		background: rgba(0, 0, 0, 0.7);
-		color: white;
-		border: 1px solid #333;
-		border-radius: 4px;
-		padding: 4px 8px;
-	}
+		.card-badge {
+			position: absolute;
+			top: 8px;
+			right: 8px;
+			font-size: 11px;
+			font-weight: 700;
+			padding: 3px 8px;
+			border-radius: 999px;
+			background: rgba(0, 0, 0, 0.55);
+			border: 1px solid rgba(255, 255, 255, 0.14);
+			color: #dfe6f5;
+			backdrop-filter: blur(6px);
+			-webkit-backdrop-filter: blur(6px);
+		}
 
-	/* Constrained paragraph for GUI so it wraps without resizing the panel */
-	.gui-description {
-		color: #dddddd;
-		font-size: 15px;
-		line-height: 1.4;
-		margin: 6px 0 12px 0;
-		max-width: 240px;
-		text-align: center;
-		white-space: normal;
-		word-break: break-word;
-		overflow-wrap: anywhere;
-	}
+		.card-now {
+			position: absolute;
+			top: 8px;
+			left: 8px;
+			font-size: 11px;
+			font-weight: 700;
+			padding: 3px 8px;
+			border-radius: 999px;
+			background: var(--accent-grad);
+			color: #fff;
+			display: none;
+		}
 
-	.github-link {
-		display: inline-flex;
-		align-items: center;
-		color: white;
-		text-decoration: none;
-		padding: 8px 16px;
-		background: rgba(255, 255, 255, 0.1);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		border-radius: 4px;
-		margin: 10px 0;
-		transition: background 0.2s ease;
-		font-size: 14px;
-	}
+		.scene-card.current .card-now {
+			display: block;
+		}
 
-	.github-link:hover {
-		background: rgba(255, 255, 255, 0.2);
-	}
+		.card-body {
+			padding: 12px 14px 13px;
+			display: flex;
+			flex-direction: column;
+			gap: 7px;
+			flex: 1;
+		}
 
-	.github-link svg {
-		transition: transform 0.2s ease;
-	}
+		.card-name {
+			font-size: 15.5px;
+			font-weight: 700;
+			letter-spacing: -0.01em;
+		}
 
-	.github-link:hover svg {
-		transform: scale(1.1);
-	}
+		.card-desc {
+			font-size: 12.5px;
+			color: var(--text-dim);
+			line-height: 1.35;
+		}
 
-	/* Group the intro paragraph and GitHub link visually */
-	.gui-intro {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 8px;
-		margin: 6px 0 16px 0;
-		padding: 10px 12px;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 8px;
-		max-width: 260px;
-	}
+		.card-variants {
+			display: flex;
+			gap: 6px;
+			margin-top: 3px;
+			flex-wrap: wrap;
+		}
 
-	.gui-intro .gui-description {
-		margin: 0;
-	}
+		.variant-chip {
+			font-size: 11.5px;
+			font-weight: 700;
+			padding: 4px 9px;
+			border-radius: 999px;
+			border: 1px solid var(--border);
+			background: rgba(255, 255, 255, 0.04);
+			color: var(--text-dim);
+			transition: all .12s;
+		}
 
-	.gui-intro .github-link {
-		margin: 0;
-	}
-</style>
+		.variant-chip:hover {
+			color: var(--text);
+			border-color: var(--accent);
+			background: rgba(91, 157, 255, 0.12);
+		}
 
+		.variant-chip.active {
+			color: #fff;
+			background: var(--accent-grad);
+			border-color: transparent;
+		}
+
+		/* ============================================================
+		   HUD: top bar
+		   ============================================================ */
+		#hud {
+			display: none;
+		}
+
+		body.viewer #hud {
+			display: block;
+		}
+
+		#topbar {
+			position: fixed;
+			top: calc(12px + var(--sat));
+			left: calc(12px + var(--sal));
+			right: calc(12px + var(--sar));
+			z-index: 1500;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px;
+			pointer-events: none;
+		}
+
+		#topbar>* {
+			pointer-events: auto;
+		}
+
+		#scene-chip {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 7px 8px 7px 14px;
+			max-width: 62vw;
+		}
+
+		#scene-chip .logo {
+			font-size: 17px;
+		}
+
+		#scene-chip .scene-name {
+			font-weight: 700;
+			font-size: 14px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		#scene-chip .divider {
+			width: 1px;
+			height: 18px;
+			background: var(--border-strong);
+			flex: none;
+		}
+
+		#topbar-right {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+		}
+
+		/* ============================================================
+		   HUD: toolbar
+		   ============================================================ */
+		#toolbar {
+			position: fixed;
+			bottom: calc(16px + var(--sab));
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 1500;
+			display: flex;
+			gap: 4px;
+			padding: 5px;
+		}
+
+		.tool-btn {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 3px;
+			width: 74px;
+			height: 56px;
+			border-radius: 11px;
+			color: var(--text-dim);
+			font-size: 11px;
+			font-weight: 700;
+			transition: background .15s, color .15s;
+		}
+
+		.tool-btn svg {
+			width: 21px;
+			height: 21px;
+		}
+
+		.tool-btn:hover {
+			background: rgba(255, 255, 255, 0.07);
+			color: var(--text);
+		}
+
+		.tool-btn.active {
+			background: var(--accent-grad);
+			color: #fff;
+			box-shadow: 0 4px 16px rgba(91, 157, 255, 0.4);
+		}
+
+		.tool-btn.active[data-tool="erase"] {
+			background: linear-gradient(135deg, #ff9f43, #ff5d5d);
+			box-shadow: 0 4px 16px rgba(255, 120, 80, 0.4);
+		}
+
+		.tool-btn.active[data-tool="slice"] {
+			background: linear-gradient(135deg, #ff5d7d, #d93636);
+			box-shadow: 0 4px 16px rgba(255, 80, 100, 0.4);
+		}
+
+		/* ============================================================
+		   Mode indication (border glow + banner)
+		   ============================================================ */
+		#mode-border {
+			position: fixed;
+			inset: 0;
+			pointer-events: none;
+			z-index: 1000;
+			display: none;
+			border-radius: 0;
+		}
+
+		#mode-border.erase {
+			display: block;
+			box-shadow: inset 0 0 0 3px rgba(255, 130, 70, 0.8), inset 0 0 60px rgba(255, 120, 60, 0.18);
+		}
+
+		#mode-border.slice {
+			display: block;
+			box-shadow: inset 0 0 0 3px rgba(255, 70, 90, 0.8), inset 0 0 60px rgba(255, 60, 80, 0.18);
+		}
+
+		#mode-banner {
+			position: fixed;
+			top: calc(66px + var(--sat));
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 1400;
+			display: none;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 16px;
+			border-radius: 999px;
+			font-size: 13px;
+			font-weight: 600;
+			color: #fff;
+			pointer-events: none;
+			max-width: 92vw;
+			text-align: center;
+			animation: bannerIn .25s ease;
+		}
+
+		@keyframes bannerIn {
+			from {
+				opacity: 0;
+				transform: translate(-50%, -6px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translate(-50%, 0);
+			}
+		}
+
+		#mode-banner.show {
+			display: flex;
+		}
+
+		#mode-banner.erase {
+			background: linear-gradient(135deg, rgba(255, 159, 67, .95), rgba(255, 93, 93, .95));
+		}
+
+		#mode-banner.slice {
+			background: linear-gradient(135deg, rgba(255, 93, 125, .95), rgba(217, 54, 54, .95));
+		}
+
+		#slice-line {
+			position: fixed;
+			display: none;
+			height: 3px;
+			background: linear-gradient(90deg, #ff5d7d, #ff8f5d);
+			box-shadow: 0 0 10px rgba(255, 80, 100, 0.8);
+			border-radius: 2px;
+			z-index: 1450;
+			pointer-events: none;
+			transform-origin: 0 50%;
+		}
+
+		/* ============================================================
+		   Mobile controls
+		   ============================================================ */
+		#touch-controls {
+			display: none;
+		}
+
+		body.viewer.touch #touch-controls {
+			display: block;
+		}
+
+		#joystick {
+			position: fixed;
+			left: calc(22px + var(--sal));
+			bottom: calc(86px + var(--sab));
+			width: 116px;
+			height: 116px;
+			border-radius: 50%;
+			background: rgba(18, 21, 30, 0.5);
+			border: 1.5px solid var(--border-strong);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			z-index: 1500;
+			touch-action: none;
+		}
+
+		#joystick-knob {
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			width: 52px;
+			height: 52px;
+			border-radius: 50%;
+			background: var(--accent-grad);
+			box-shadow: 0 4px 14px rgba(91, 157, 255, 0.5);
+			transform: translate(-50%, -50%);
+			pointer-events: none;
+			transition: transform .08s;
+		}
+
+		#elev-controls {
+			position: fixed;
+			right: calc(22px + var(--sar));
+			bottom: calc(86px + var(--sab));
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			z-index: 1500;
+		}
+
+		.elev-btn {
+			width: 54px;
+			height: 54px;
+			border-radius: 50%;
+			background: rgba(18, 21, 30, 0.55);
+			border: 1.5px solid var(--border-strong);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			color: var(--text);
+			font-size: 21px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			touch-action: none;
+			user-select: none;
+			-webkit-user-select: none;
+		}
+
+		.elev-btn.pressed {
+			background: var(--accent-grad);
+			border-color: transparent;
+		}
+
+		/* ============================================================
+		   Settings drawer
+		   ============================================================ */
+		#settings-backdrop {
+			position: fixed;
+			inset: 0;
+			z-index: 2400;
+			background: rgba(0, 0, 0, 0.45);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity .2s;
+		}
+
+		#settings-panel {
+			position: fixed;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			width: min(340px, 92vw);
+			z-index: 2500;
+			background: var(--panel-solid);
+			border-left: 1px solid var(--border);
+			transform: translateX(105%);
+			transition: transform .25s cubic-bezier(.2, .8, .25, 1);
+			display: flex;
+			flex-direction: column;
+			padding: calc(16px + var(--sat)) 0 calc(16px + var(--sab));
+		}
+
+		body.settings-open #settings-panel {
+			transform: translateX(0);
+		}
+
+		body.settings-open #settings-backdrop {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.settings-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 4px 18px 14px;
+			border-bottom: 1px solid var(--border);
+		}
+
+		.settings-head h2 {
+			font-size: 16px;
+			font-weight: 800;
+		}
+
+		.settings-body {
+			overflow-y: auto;
+			padding: 6px 18px 20px;
+			flex: 1;
+		}
+
+		.settings-section {
+			margin-top: 18px;
+		}
+
+		.settings-section>h3 {
+			font-size: 11.5px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.1em;
+			color: var(--text-dim);
+			margin-bottom: 10px;
+		}
+
+		.setting-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 9px 0;
+		}
+
+		.setting-label {
+			font-size: 14px;
+			font-weight: 550;
+		}
+
+		.setting-sub {
+			display: block;
+			font-size: 12px;
+			color: var(--text-dim);
+			margin-top: 2px;
+			line-height: 1.35;
+		}
+
+		.kbd {
+			display: inline-block;
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 11px;
+			font-weight: 700;
+			padding: 2px 6px;
+			border-radius: 5px;
+			border: 1px solid var(--border-strong);
+			background: rgba(255, 255, 255, 0.05);
+			color: var(--text-dim);
+			margin-left: 6px;
+			vertical-align: 1px;
+		}
+
+		/* Toggle switch (styles native checkbox) */
+		.switch {
+			position: relative;
+			width: 42px;
+			height: 24px;
+			flex: none;
+		}
+
+		.switch input {
+			position: absolute;
+			inset: 0;
+			opacity: 0;
+			cursor: pointer;
+			z-index: 2;
+			margin: 0;
+		}
+
+		.switch .track {
+			position: absolute;
+			inset: 0;
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.12);
+			border: 1px solid var(--border);
+			transition: background .18s;
+		}
+
+		.switch .thumb {
+			position: absolute;
+			top: 3px;
+			left: 3px;
+			width: 18px;
+			height: 18px;
+			border-radius: 50%;
+			background: #cfd6e4;
+			transition: transform .18s, background .18s;
+		}
+
+		.switch input:checked~.track {
+			background: var(--accent-grad);
+			border-color: transparent;
+		}
+
+		.switch input:checked~.thumb {
+			transform: translateX(18px);
+			background: #fff;
+		}
+
+		.settings-actions {
+			display: flex;
+			flex-direction: column;
+			gap: 9px;
+		}
+
+		.action-btn {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			width: 100%;
+			padding: 11px 13px;
+			border-radius: var(--radius-sm);
+			border: 1px solid var(--border);
+			background: rgba(255, 255, 255, 0.04);
+			font-size: 13.5px;
+			font-weight: 600;
+			transition: background .15s, border-color .15s;
+			text-align: left;
+		}
+
+		.action-btn:hover {
+			background: rgba(255, 255, 255, 0.08);
+			border-color: var(--border-strong);
+		}
+
+		.action-btn .emoji {
+			font-size: 16px;
+		}
+
+		#camera-position {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 11px;
+			color: var(--text-dim);
+			word-break: break-all;
+			line-height: 1.5;
+			padding: 9px 11px;
+			background: rgba(0, 0, 0, 0.3);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			margin-bottom: 8px;
+			min-height: 38px;
+		}
+
+		details.dev-tools summary {
+			cursor: pointer;
+			font-size: 12px;
+			font-weight: 700;
+			color: var(--text-dim);
+			text-transform: uppercase;
+			letter-spacing: .1em;
+			padding: 8px 0;
+			list-style: none;
+		}
+
+		details.dev-tools summary::-webkit-details-marker {
+			display: none;
+		}
+
+		details.dev-tools summary::after {
+			content: "▸";
+			margin-left: 6px;
+			display: inline-block;
+			transition: transform .15s;
+		}
+
+		details.dev-tools[open] summary::after {
+			transform: rotate(90deg);
+		}
+
+		/* ============================================================
+		   Modals (help), loading, toasts
+		   ============================================================ */
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			z-index: 3000;
+			background: rgba(5, 7, 11, 0.72);
+			backdrop-filter: blur(6px);
+			-webkit-backdrop-filter: blur(6px);
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 20px;
+		}
+
+		.modal-backdrop.open {
+			display: flex;
+		}
+
+		.modal {
+			width: 100%;
+			max-width: 640px;
+			max-height: min(84dvh, 700px);
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+			animation: modalIn .22s ease;
+		}
+
+		@keyframes modalIn {
+			from {
+				opacity: 0;
+				transform: translateY(10px) scale(.98);
+			}
+
+			to {
+				opacity: 1;
+				transform: none;
+			}
+		}
+
+		.modal-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 18px 20px 12px;
+		}
+
+		.modal-head h2 {
+			font-size: 18px;
+			font-weight: 800;
+			letter-spacing: -0.01em;
+		}
+
+		.modal-body {
+			padding: 4px 20px 20px;
+			overflow-y: auto;
+		}
+
+		.controls-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 22px;
+		}
+
+		@media (max-width: 560px) {
+			.controls-grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		.controls-col h3 {
+			font-size: 12px;
+			text-transform: uppercase;
+			letter-spacing: .1em;
+			color: var(--text-dim);
+			margin-bottom: 10px;
+		}
+
+		.control-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 6px 0;
+			font-size: 13.5px;
+			color: #d6dcea;
+		}
+
+		.control-row .keys {
+			flex: none;
+			min-width: 92px;
+			display: flex;
+			gap: 4px;
+			flex-wrap: wrap;
+		}
+
+		.key {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 11px;
+			font-weight: 700;
+			padding: 3px 7px;
+			border-radius: 6px;
+			background: linear-gradient(180deg, #262c3c, #1a1f2c);
+			border: 1px solid var(--border-strong);
+			box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+			color: #e8ecf5;
+			white-space: nowrap;
+		}
+
+		/* Scene loading screen */
+		#scene-loading {
+			position: fixed;
+			inset: 0;
+			z-index: 3500;
+			background: var(--bg);
+			display: none;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+			gap: 0;
+		}
+
+		#scene-loading.open {
+			display: flex;
+		}
+
+		.loading-card {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 14px;
+			padding: 20px;
+			max-width: 420px;
+			width: 90%;
+			text-align: center;
+		}
+
+		.loading-emoji {
+			font-size: 46px;
+			animation: floaty 2.2s ease-in-out infinite;
+		}
+
+		@keyframes floaty {
+
+			0%,
+			100% {
+				transform: translateY(0);
+			}
+
+			50% {
+				transform: translateY(-7px);
+			}
+		}
+
+		.loading-title {
+			font-size: 19px;
+			font-weight: 800;
+			letter-spacing: -0.01em;
+		}
+
+		.loading-msg {
+			font-size: 13px;
+			color: var(--text-dim);
+			min-height: 18px;
+		}
+
+		.progress-track {
+			width: 100%;
+			height: 7px;
+			border-radius: 99px;
+			background: rgba(255, 255, 255, 0.08);
+			overflow: hidden;
+		}
+
+		.progress-fill {
+			height: 100%;
+			width: 0%;
+			border-radius: 99px;
+			background: var(--accent-grad);
+			transition: width .25s ease;
+		}
+
+		.progress-track.indeterminate .progress-fill {
+			width: 40%;
+			animation: indet 1.2s ease-in-out infinite;
+		}
+
+		@keyframes indet {
+			0% {
+				margin-left: -40%;
+			}
+
+			100% {
+				margin-left: 100%;
+			}
+		}
+
+		/* Busy overlay (slice processing etc.) */
+		#busy-overlay {
+			position: fixed;
+			inset: 0;
+			z-index: 3200;
+			background: rgba(5, 7, 11, 0.6);
+			backdrop-filter: blur(4px);
+			-webkit-backdrop-filter: blur(4px);
+			display: none;
+			align-items: center;
+			justify-content: center;
+		}
+
+		#busy-overlay.open {
+			display: flex;
+		}
+
+		.busy-card {
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			padding: 18px 24px;
+		}
+
+		.spinner {
+			width: 22px;
+			height: 22px;
+			border-radius: 50%;
+			border: 3px solid rgba(255, 255, 255, 0.15);
+			border-top-color: var(--accent);
+			animation: spin .8s linear infinite;
+			flex: none;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		#busy-text {
+			font-size: 14px;
+			font-weight: 600;
+		}
+
+		/* Toast */
+		#toast {
+			position: fixed;
+			bottom: calc(86px + var(--sab));
+			left: 50%;
+			transform: translate(-50%, 20px);
+			z-index: 3600;
+			padding: 10px 18px;
+			border-radius: 999px;
+			font-size: 13.5px;
+			font-weight: 600;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity .2s, transform .2s;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			max-width: 92vw;
+		}
+
+		#toast.show {
+			opacity: 1;
+			transform: translate(-50%, 0);
+			pointer-events: auto;
+		}
+
+		#toast button {
+			color: var(--accent);
+			font-weight: 700;
+			font-size: 13.5px;
+		}
+
+		/* ============================================================
+		   Responsive tweaks
+		   ============================================================ */
+		@media (max-width: 640px) {
+			.tool-btn {
+				width: 58px;
+				height: 52px;
+			}
+
+			.tool-btn span {
+				font-size: 10px;
+			}
+
+			#scene-chip .scene-name {
+				max-width: 32vw;
+			}
+
+			.icon-btn {
+				padding: 0 10px;
+			}
+
+			.icon-btn .btn-label {
+				display: none;
+			}
+
+			.scene-grid {
+				grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+				gap: 11px;
+			}
+
+			.card-emoji {
+				font-size: 34px;
+			}
+
+			.card-body {
+				padding: 10px 11px 11px;
+			}
+
+			.card-desc {
+				display: none;
+			}
+		}
+
+		/* When touch controls shown, lift the toolbar so it doesn't collide */
+		body.touch #toolbar {
+			bottom: calc(16px + var(--sab));
+		}
+	</style>
+</head>
 
 <body>
 	<script src="webgl-debug.js"></script>
-	<script>
-		Error.stackTraceLimit = Infinity;
 
-		function test() {
-			console.log("this is a test function!")
-		}
-
-		// Mode management functions
-		let sliceStartPos = null;
-		let sliceEndPos = null;
-		let currentMode = null;
-
-		function showMode(mode) {
-			hideAllModes(); // Hide any existing mode first
-			currentMode = mode;
-
-			if (mode === 'slice') {
-				document.getElementById('slice-mode-border').style.display = 'block';
-				document.getElementById('slice-instructions').style.display = 'block';
-			} else if (mode === 'delete') {
-				document.getElementById('delete-mode-border').style.display = 'block';
-				document.getElementById('delete-instructions').style.display = 'block';
-			}
-		}
-
-		function hideAllModes() {
-			document.getElementById('slice-mode-border').style.display = 'none';
-			document.getElementById('slice-instructions').style.display = 'none';
-			document.getElementById('delete-mode-border').style.display = 'none';
-			document.getElementById('delete-instructions').style.display = 'none';
-			hideSliceLine();
-			currentMode = null;
-		}
-
-		// Legacy functions for backward compatibility
-		function showSliceMode() {
-			showMode('slice');
-		}
-
-		function hideSliceMode() {
-			hideAllModes();
-		}
-
-		function showDeleteMode() {
-			showMode('delete');
-		}
-
-		function hideDeleteMode() {
-			hideAllModes();
-		}
-
-		function showSliceLine(startX, startY, endX, endY) {
-			const sliceLine = document.getElementById('slice-line');
-
-			// Calculate line position and rotation
-			const dx = endX - startX;
-			const dy = endY - startY;
-			const length = Math.sqrt(dx * dx + dy * dy);
-			const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-			// Position the line
-			sliceLine.style.left = startX + 'px';
-			sliceLine.style.top = startY + 'px';
-			sliceLine.style.width = length + 'px';
-			sliceLine.style.transform = `rotate(${angle}deg)`;
-			sliceLine.style.transformOrigin = '0 50%';
-			sliceLine.style.display = 'block';
-		}
-
-		function hideSliceLine() {
-			document.getElementById('slice-line').style.display = 'none';
-		}
-
-		function showLoadingOverlay(message = 'Processing slice...') {
-			document.getElementById('loading-text').textContent = message;
-			document.getElementById('loading-overlay').style.display = 'flex';
-		}
-
-		function hideLoadingOverlay() {
-			document.getElementById('loading-overlay').style.display = 'none';
-		}
-
-		function updateLoadingMessage(message) {
-			document.getElementById('loading-text').textContent = message;
-		}
-
-		// Instructions overlay management
-		function showInstructions() {
-			document.getElementById('instructions-overlay').style.display = 'flex';
-		}
-
-		function hideInstructions() {
-			document.getElementById('instructions-overlay').style.display = 'none';
-		}
-
-		function setInstructionsLoading(isLoading, message = 'Loading scene...') {
-			const loadingElement = document.getElementById('instruction-loading');
-			const startButton = document.getElementById('start-exploring');
-			const progressBar = document.querySelector('.instruction-loading-progress');
-
-			if (isLoading) {
-				loadingElement.style.display = 'block';
-				loadingElement.querySelector('span').textContent = message;
-				startButton.disabled = true;
-				startButton.textContent = 'Loading...';
-
-				// Extract percentage from message if present
-				const percentMatch = message.match(/(\d+)%/);
-				if (percentMatch) {
-					const percentage = parseInt(percentMatch[1]);
-					if (progressBar) {
-						progressBar.style.width = percentage + '%';
-					}
-				} else {
-					// No percentage, start at 0%
-					if (progressBar) {
-						progressBar.style.width = '0%';
-					}
-				}
-			} else {
-				loadingElement.style.display = 'none';
-				startButton.disabled = false;
-				startButton.textContent = 'Start Exploring!';
-				if (progressBar) {
-					progressBar.style.width = '0%';
-				}
-			}
-		}
-
-		function setModelLoading(isLoading, message = 'Loading model...') {
-			if (document.getElementById('instructions-overlay').style.display === 'flex') {
-				setInstructionsLoading(isLoading, message);
-			}
-		}
-
-		// Initialize instructions on page load
-		document.addEventListener('DOMContentLoaded', function () {
-			// Show instructions on every page load/refresh
-			showInstructions();
-			// Start in loading state
-			setInstructionsLoading(true, 'Loading model...');
-
-			// Set blending checkbox based on current URL immediately
-			const urlParams = new URLSearchParams(window.location.search);
-			const currentUrl = urlParams.get('url');
-			const blendingParam = urlParams.get('blending');
-
-			if (blendingParam !== null) {
-				const blendingCheckbox = document.getElementById('do-blending-checkbox');
-				if (blendingCheckbox) {
-					blendingCheckbox.checked = blendingParam === 'true';
-				}
-			} else if (currentUrl) {
-				setBlendingBasedOnModel(currentUrl);
-			}
-
-			// Handle instruction buttons
-			document.getElementById('start-exploring').addEventListener('click', function () {
-				hideInstructions();
-			});
-
-			// Handle help button
-			document.getElementById('help-button').addEventListener('click', function () {
-				showInstructions();
-			});
-
-			// Close instructions with Escape key
-			document.addEventListener('keydown', function (e) {
-				if (e.key === 'Escape' && document.getElementById('instructions-overlay').style.display === 'flex') {
-					hideInstructions();
-				}
-			});
-		});
-
-	</script>
 	<canvas id="canvas"></canvas>
 
-	<!-- Help button -->
-	<button id="help-button" class="help-button">?</button>
+	<!-- ================= Scene picker ================= -->
+	<div id="scene-picker">
+		<div class="picker-inner">
+			<div class="picker-head">
+				<div>
+					<div class="picker-title">Gaussian Splat Studio</div>
+					<p class="picker-sub">
+						A 3D Gaussian Splatting viewer &amp; editor written from scratch in Rust + WebGL2.
+						Pick a scene to fly through it, erase splats, slice objects apart and move the pieces.
+						<a href="https://github.com/shahanneda/rust-gs" target="_blank" rel="noopener">View on GitHub ↗</a>
+					</p>
+				</div>
+				<button id="picker-close" class="icon-btn" title="Back to viewer">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+						<path d="M6 6l12 12M18 6L6 18" />
+					</svg>
+				</button>
+			</div>
+			<div id="picker-groups"></div>
+		</div>
+	</div>
 
-	<!-- Instructions overlay -->
-	<div id="instructions-overlay" class="instructions-overlay">
-		<div class="instructions-content">
-			<h2 class="instructions-title">Rust GSplat Viewer</h2>
-			<!-- <p style="margin: 20px 0; color: #ccc; font-style: italic;">
-				Gaussian Splatting Viewer written from scratch in WebGL & Rust.
-			</p> -->
-			<div id="instruction-loading" class="instruction-loading" style="display: none;">
-				<span>Loading scene...</span>
-				<div class="instruction-loading-bar">
-					<div class="instruction-loading-progress"></div>
+	<!-- ================= Viewer HUD ================= -->
+	<div id="hud">
+		<div id="topbar">
+			<div id="scene-chip" class="glass">
+				<span class="logo">🌀</span>
+				<span class="scene-name" id="current-scene-name">Scene</span>
+				<span class="divider"></span>
+				<button class="icon-btn" id="open-picker-btn" style="border:none;background:none;height:32px;">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+						stroke-linejoin="round">
+						<rect x="3" y="3" width="7" height="7" rx="1.5" />
+						<rect x="14" y="3" width="7" height="7" rx="1.5" />
+						<rect x="3" y="14" width="7" height="7" rx="1.5" />
+						<rect x="14" y="14" width="7" height="7" rx="1.5" />
+					</svg>
+					<span class="btn-label">Scenes</span>
+				</button>
+			</div>
+			<div id="topbar-right">
+				<button class="icon-btn glass" id="fullscreen-btn" title="Fullscreen">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+						stroke-linejoin="round">
+						<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+					</svg>
+				</button>
+				<button class="icon-btn glass" id="help-btn" title="Controls & help">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+						stroke-linejoin="round">
+						<circle cx="12" cy="12" r="9" />
+						<path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.8.44-1.2 1-1.2 1.8v.5" />
+						<circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
+					</svg>
+					<span class="btn-label">Help</span>
+				</button>
+				<button class="icon-btn glass" id="settings-btn" title="Settings">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+						stroke-linejoin="round">
+						<circle cx="12" cy="12" r="3" />
+						<path
+							d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
+					</svg>
+					<span class="btn-label">Settings</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Tools -->
+		<div id="toolbar" class="glass">
+			<button class="tool-btn active" data-tool="explore" title="Explore — drag to look, WASD / joystick to move">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+					stroke-linejoin="round">
+					<circle cx="12" cy="12" r="9" />
+					<path d="M15.5 8.5l-2 5-5 2 2-5z" fill="currentColor" stroke="none" />
+				</svg>
+				<span>Explore</span>
+			</button>
+			<button class="tool-btn" data-tool="erase" title="Erase — click or tap splats to remove them">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+					stroke-linejoin="round">
+					<path d="M19 20H9L4 15a2 2 0 0 1 0-2.8l7.2-7.2a2 2 0 0 1 2.8 0l6 6a2 2 0 0 1 0 2.8L15 19" />
+					<path d="M8.5 10.5l6 6" />
+				</svg>
+				<span>Erase</span>
+			</button>
+			<button class="tool-btn" data-tool="slice" title="Slice — drag a line across an object to cut it in two">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+					stroke-linejoin="round">
+					<path d="M3 17l13-13 2.5 2.5L7 18l-4 1z" />
+					<path d="M14.5 6.5l3 3" />
+				</svg>
+				<span>Slice</span>
+			</button>
+		</div>
+
+		<!-- Touch controls -->
+		<div id="touch-controls">
+			<div id="joystick">
+				<div id="joystick-knob"></div>
+			</div>
+			<div id="elev-controls">
+				<button class="elev-btn" id="elev-up" title="Move up">▲</button>
+				<button class="elev-btn" id="elev-down" title="Move down">▼</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Mode indication -->
+	<div id="mode-border"></div>
+	<div id="mode-banner" class="glass"></div>
+	<div id="slice-line"></div>
+
+	<!-- ================= Settings drawer ================= -->
+	<div id="settings-backdrop"></div>
+	<aside id="settings-panel">
+		<div class="settings-head">
+			<h2>Settings</h2>
+			<button class="icon-btn" id="settings-close">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+					<path d="M6 6l12 12M18 6L6 18" />
+				</svg>
+			</button>
+		</div>
+		<div class="settings-body">
+			<div class="settings-section">
+				<h3>Rendering</h3>
+				<div class="setting-row">
+					<div>
+						<span class="setting-label">Depth sorting<span class="kbd">M</span></span>
+						<span class="setting-sub">Sort splats back-to-front for correct transparency</span>
+					</div>
+					<label class="switch"><input type="checkbox" id="do-sorting-checkbox" checked><span
+							class="track"></span><span class="thumb"></span></label>
+				</div>
+				<div class="setting-row">
+					<div>
+						<span class="setting-label">Alpha blending<span class="kbd">B</span></span>
+						<span class="setting-sub">Soft blended splats (off = crisper solids)</span>
+					</div>
+					<label class="switch"><input type="checkbox" id="do-blending-checkbox"><span class="track"></span><span
+							class="thumb"></span></label>
+				</div>
+				<div class="setting-row">
+					<div>
+						<span class="setting-label">Individual splats<span class="kbd">V</span></span>
+						<span class="setting-sub">Debug view: draw each splat as a small disc</span>
+					</div>
+					<label class="switch"><input type="checkbox" id="view-individual-splats-checkbox"><span
+							class="track"></span><span class="thumb"></span></label>
+				</div>
+				<div class="setting-row">
+					<div>
+						<span class="setting-label">Show octree<span class="kbd">O</span></span>
+						<span class="setting-sub">Visualize the spatial index used for editing</span>
+					</div>
+					<label class="switch"><input type="checkbox" id="show-octtree-checkbox"><span class="track"></span><span
+							class="thumb"></span></label>
 				</div>
 			</div>
-			<div style="margin:0;">
-				<label for="instruction-model-switcher"
-					style="color: #ccc; display: block; margin-bottom: 10px; font-weight: 500;">Switch
-					Model:</label>
-				<select id="instruction-model-switcher"
-					onchange="switchModelFromInstructions(this.value)"
-					class="model-select-instructions">
-					<option value="">Select a model...</option>
+
+			<div class="settings-section">
+				<h3>Editing</h3>
+				<div class="setting-row">
+					<div>
+						<span class="setting-label">Gizmo collisions<span class="kbd">R</span></span>
+						<span class="setting-sub">Stop objects when they collide while dragging</span>
+					</div>
+					<label class="switch"><input type="checkbox" id="restrict-gizmo-movement-checkbox"><span
+							class="track"></span><span class="thumb"></span></label>
+				</div>
+			</div>
+
+			<div class="settings-section">
+				<h3>Actions</h3>
+				<div class="settings-actions">
+					<button class="action-btn" id="recalculate-octtree-btn"><span class="emoji">🧮</span> Recalculate
+						octree</button>
+					<button class="action-btn" id="add-shahan-btn"><span class="emoji">🧍</span> Add a Shahan to the
+						scene</button>
+				</div>
+			</div>
+
+			<div class="settings-section">
+				<details class="dev-tools">
+					<summary>Developer</summary>
+					<div id="camera-position"></div>
+					<button class="action-btn" id="copy-camera-btn"><span class="emoji">📋</span> Copy camera pose</button>
+				</details>
+			</div>
+
+			<!-- Legacy / hidden controls the engine still binds to -->
+			<div style="display:none" aria-hidden="true">
+				<input type="checkbox" id="only-show-clicks-checkbox">
+				<input type="checkbox" id="use-octtree-for-editing-checkbox" checked>
+				<input type="checkbox" id="move-down-checkbox">
+				<button id="calculate-shadows-btn"></button>
+				<button id="add-teapot-btn"></button>
+				<button id="split-object-btn"></button>
+				<select id="split-direction">
+					<option value="vertical">Vertical Split (X-axis)</option>
+					<option value="horizontal">Horizontal Split (Y-axis)</option>
+					<option value="depth">Depth Split (Z-axis)</option>
 				</select>
 			</div>
-			<div class="instructions-buttons">
-				<button id="start-exploring" class="instruction-button">Start Exploring!</button>
+		</div>
+	</aside>
+
+	<!-- ================= Help modal ================= -->
+	<div class="modal-backdrop" id="help-modal">
+		<div class="modal glass">
+			<div class="modal-head">
+				<h2>How to use</h2>
+				<button class="icon-btn" id="help-close">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+						<path d="M6 6l12 12M18 6L6 18" />
+					</svg>
+				</button>
 			</div>
-			<div class="instructions-list">
-				<div class="instruction-item">
-					<span class="instruction-key">WASD</span>Move around the scene
+			<div class="modal-body">
+				<div class="controls-grid">
+					<div class="controls-col">
+						<h3>🖥️ Desktop</h3>
+						<div class="control-row"><span class="keys"><span class="key">Drag</span></span>Look around</div>
+						<div class="control-row"><span class="keys"><span class="key">W</span><span class="key">A</span><span
+									class="key">S</span><span class="key">D</span></span>Move around</div>
+						<div class="control-row"><span class="keys"><span class="key">Space</span><span
+									class="key">Shift</span></span>Move up / down</div>
+						<div class="control-row"><span class="keys"><span class="key">Alt</span>+<span
+									class="key">Click</span></span>Erase splats (or use the Erase tool)</div>
+						<div class="control-row"><span class="keys"><span class="key">P</span>+<span
+									class="key">Drag</span></span>Slice an object in two (or use the Slice tool)</div>
+						<div class="control-row"><span class="keys"><span class="key">Click</span></span>Select a piece — drag the
+							gizmo arrows to move it</div>
+						<div class="control-row"><span class="keys"><span class="key">O</span></span>Toggle octree view</div>
+					</div>
+					<div class="controls-col">
+						<h3>📱 Touch</h3>
+						<div class="control-row"><span class="keys"><span class="key">1 finger</span></span>Drag to look around
+						</div>
+						<div class="control-row"><span class="keys"><span class="key">Joystick</span></span>Move around the scene
+						</div>
+						<div class="control-row"><span class="keys"><span class="key">Pinch</span></span>Move forward / backward
+						</div>
+						<div class="control-row"><span class="keys"><span class="key">▲</span><span class="key">▼</span></span>Move
+							up / down</div>
+						<div class="control-row"><span class="keys"><span class="key">Erase</span></span>Pick the Erase tool, then
+							tap or drag on the model</div>
+						<div class="control-row"><span class="keys"><span class="key">Slice</span></span>Pick the Slice tool, then
+							drag a line across an object</div>
+						<div class="control-row"><span class="keys"><span class="key">Tap</span></span>Select a piece — drag the
+							gizmo arrows to move it</div>
+					</div>
 				</div>
-				<div class="instruction-item">
-					<span class="instruction-key">Mouse Drag</span>Look around / rotate camera
-				</div>
-				<div class="instruction-item">
-					<span class="instruction-key">Alt + Click</span>Take a bite / delete splats
-				</div>
-				<div class="instruction-item">
-					<span class="instruction-key">Space</span>Move up
-				</div>
-				<div class="instruction-item">
-					<span class="instruction-key">Shift</span>Move down
-				</div>
-				<div class="instruction-item">
-					<span class="instruction-key">P + Drag</span>Hold P and drag to slice objects
-				</div>
-				<div class="instruction-item">
-					<span class="instruction-key">O</span>Toggle octree visualization
+				<div style="margin-top:18px; text-align:center;">
+					<button class="primary-btn" id="help-done">Got it</button>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<!-- Mode UI elements -->
-	<div id="slice-mode-border" class="mode-border slice-mode-border" style="display: none;"></div>
-	<div id="slice-instructions" class="mode-instructions slice-instructions" style="display: none;">
-		Click and drag to define a slice line
-	</div>
-	<div id="slice-line" class="slice-line" style="display: none;"></div>
-
-	<div id="delete-mode-border" class="mode-border delete-mode-border" style="display: none;"></div>
-	<div id="delete-instructions" class="mode-instructions delete-instructions" style="display: none;">
-		Click to delete splats
-	</div>
-
-	<!-- Loading overlay -->
-	<div id="loading-overlay" class="loading-overlay" style="display: none;">
-		<div id="loading-text" class="loading-text">Processing slice...</div>
-		<div class="loading-progress">
-			<div class="loading-progress-bar"></div>
+	<!-- ================= Loading screens ================= -->
+	<div id="scene-loading">
+		<div class="loading-card glass">
+			<div class="loading-emoji" id="loading-emoji">🌀</div>
+			<div class="loading-title" id="loading-scene-name">Loading scene</div>
+			<div class="progress-track indeterminate" id="scene-progress-track">
+				<div class="progress-fill" id="scene-progress-fill"></div>
+			</div>
+			<div class="loading-msg" id="scene-loading-msg">Preparing…</div>
 		</div>
 	</div>
 
-	<div id="gui">
-		<h1>Rust GSplat Viewer</h1>
-		<div class="gui-intro">
-			<p class="gui-description">Gaussian Splatting Viewer written from scratch in WebGL & Rust.</p>
-			<a href="https://github.com/shahanneda/rust-gs" target="_blank" class="github-link">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
-					style="vertical-align: middle; margin-right: 8px;">
-					<path
-						d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-				</svg>
-				View on GitHub
-			</a>
+	<div id="busy-overlay">
+		<div class="busy-card glass">
+			<div class="spinner"></div>
+			<div id="busy-text">Working…</div>
 		</div>
-		<!-- <button onclick="">Testing</button> -->
-		<div class="checkbox-container">
-			<label for="checkbox" class="checkbox-label">Show Octtree</label>
-			<input type="checkbox" class="checkbox" id="show-octtree-checkbox">
-		</div>
-		<div class="checkbox-container" style="display: none;">
-			<label for="checkbox" class="checkbox-label">Only Show Octree at Click </label>
-			<input type="checkbox" class="checkbox" id="only-show-clicks-checkbox">
-		</div>
-		<div class="checkbox-container" style="display: none;">
-			<label for="checkbox" class="checkbox-label">Use OctTree for Editing </label>
-			<input type="checkbox" class="checkbox" id="use-octtree-for-editing-checkbox" checked>
-		</div>
-		<div class="checkbox-container">
-			<label for="checkbox" class="checkbox-label">View Individual Splats </label>
-			<input type="checkbox" class="checkbox" id="view-individual-splats-checkbox">
-		</div>
-		<div class="checkbox-container">
-			<label for="checkbox" class="checkbox-label">Do Sorting </label>
-			<input type="checkbox" class="checkbox" id="do-sorting-checkbox" checked>
-		</div>
-		<div class="checkbox-container">
-			<label for="checkbox" class="checkbox-label">Do Blending </label>
-			<input type="checkbox" class="checkbox" id="do-blending-checkbox">
-		</div>
-		<div class="checkbox-container" style="display: none;">
-			<label for="checkbox" class="checkbox-label">Move Down </label>
-			<input type="checkbox" class="checkbox" id="move-down-checkbox">
-		</div>
-		<div class="checkbox-container">
-			<label for="checkbox" class="checkbox-label">Detect Collisions With Gizmo</label>
-			<input type="checkbox" class="checkbox" id="restrict-gizmo-movement-checkbox">
-		</div>
-		<div style="margin: 10px 0px; display: none;">
-			<button id="calculate-shadows-btn">Calculate Shadows</button>
-		</div>
-		<div style="margin: 10px 0px;">
-			<button id="recalculate-octtree-btn">Recalculate Octtree</button>
+	</div>
 
-		</div>
-		<div style="margin: 10px 0px;">
-			<button id="add-shahan-btn">Add Shahan</button>
-		</div>
-		<div style="margin: 10px 0px; display:none;">
-			<button id="add-teapot-btn">Add Teapot</button>
-		</div>
-		<div style="margin: 10px 0px; display: none;">
-			<button id="split-object-btn">Split Object</button>
-			<select id="split-direction" style="width: 150px; margin-left: 5px;">
-				<option value="vertical">Vertical Split (X-axis)</option>
-				<option value="horizontal">Horizontal Split (Y-axis)</option>
-				<option value="depth">Depth Split (Z-axis)</option>
-			</select>
-		</div>
-		<div style="margin: 10px 0px;">
-			<span id="collision-detected-span" style="color: rgb(255, 50, 50);"></span>
-		</div>
-		<div style="margin: 10px 0px;">
-			<label for="model-switcher" style="color: white;">Switch Model:</label>
-			<select id="model-switcher" onchange="switchModel(this.value)"></select>
-		</div>
-	</div>
-	</div>
+	<div id="toast" class="glass"><span id="toast-text"></span></div>
+
 	<script>
-		// Serve splats from the local dev server when the page itself is served
-		// locally; use the remote S3 bucket everywhere else.
+		"use strict";
+		Error.stackTraceLimit = Infinity;
+
+		/* ============================================================
+		   Scene catalogue
+		   ============================================================ */
 		const USE_LOCAL = ["127.0.0.1", "localhost"].includes(window.location.hostname);
 		const BASE_LOCAL_URL = "http://127.0.0.1:5503/";
 		const BASE_REMOTE_URL = "https://zimpmodels.s3.us-east-2.amazonaws.com/";
+		const THUMB_BASE = USE_LOCAL ? "./splats/thumbs/" : BASE_REMOTE_URL + "splats/thumbs/";
 
-		function getWebGLContext() {
-			ctx = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"));
-			return ctx;
-		}
-		function setCollisionDetected() {
-			document.getElementById("collision-detected-span").innerText = "Collision Detected";
-			setTimeout(() => {
-				document.getElementById("collision-detected-span").innerText = "";
-			}, 1000);
-		}
-		function switchModel(url) {
-			const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "./";
+		// Fruit scans ("ninja" models) look best without alpha blending.
+		const isFruitFile = (f) => f.includes("/ninja/");
 
-			// Find the model's camera configuration
-			const MODEL_LIST = getModelList();
-			const selectedModel = MODEL_LIST.find(model => model.file === url);
-			let cameraParam = "";
+		const DEFAULT_CAM = { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] };
 
-			if (selectedModel && selectedModel.camera) {
-				cameraParam = `&camera=${encodeURIComponent(JSON.stringify(selectedModel.camera))}`;
-			}
-
-			// Add blending parameter based on model type
-			const isFruitModel = url.includes('%') || url.includes('/ninja/');
-			const blendingParam = `&blending=${!isFruitModel}`;
-
-			window.location.href = baseUrl + "?url=" + url + cameraParam + blendingParam;
-		}
-
-		// Global variable to track AbortController for cancelling requests
-		let currentLoadController = null;
-
-		// Function to set blending checkbox based on model type
-		function setBlendingBasedOnModel(modelUrl) {
-			const blendingCheckbox = document.getElementById('do-blending-checkbox');
-			if (!blendingCheckbox) return;
-
-			// Check if the model is a fruit model (contains % or is in ninja/ folder)
-			const isFruitModel = modelUrl.includes('%') || modelUrl.includes('/ninja/');
-
-			// Set blending: OFF for fruit models, ON for others
-			blendingCheckbox.checked = !isFruitModel;
-		}
-
-		function switchModelFromInstructions(url) {
-			if (!url) return; // Don't switch if no model selected
-
-			// Immediately show switching state
-			setInstructionsLoading(true, 'Switching model...');
-
-			// Try to stop everything immediately
-			try {
-				// Cancel any ongoing loading
-				if (currentLoadController) {
-					currentLoadController.abort();
-					currentLoadController = null;
-				}
-
-				// Cancel workers and timers
-				if (worker) {
-					worker.terminate();
-					worker = null;
-				}
-
-				// Clear all timeouts aggressively
-				for (let i = 0; i < 10000; i++) {
-					clearTimeout(i);
-					clearInterval(i);
-				}
-
-				// Try to stop any ongoing fetch requests (if any globals exist)
-				if (window.stop) {
-					window.stop();
-				}
-
-			} catch (e) {
-				console.log("Error during cancellation:", e);
-			}
-
-			// Force immediate redirect
-			switchModel(url);
-		}
-
-
-		// FILES=(
-		//     "apple_rotate.ply"
-		//     "bread.ply"
-		//     "cake.ply"
-		//     "orange.ply"
-		//     "watermelon.ply"
-		// )
-		// Define model paths that are the same for both local and remote
-		const MODEL_PATHS = [
-			// { display: "Cake 100%", file: "/ninja/cake_rotate.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Cake 90%", file: "/ninja/cake_rotate_9.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Cake 100%", file: "/ninja/cake_rotate.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Apple 100%", file: "/ninja/apple_rotate.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Bread 100%", file: "/ninja/bread.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Orange 100%", file: "/ninja/orange.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Watermelon 100%", file: "/ninja/watermelon.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-
-			{ display: "Cake 80%", file: "/v2/ninja/cake_rotate_8.gsz", camera: { pos: [-6.679095, 1.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Orange 80%", file: "/ninja/orange_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Apple 80%", file: "/ninja/apple_rotate_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Watermelon 80%", file: "/ninja/watermelon_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Bread 80%", file: "/ninja/bread_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Orange 50%", file: "/v2/ninja/orange_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Apple 50%", file: "/v2/ninja/apple_rotate_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Cake 50%", file: "/v2/ninja/cake_rotate_5.gsz", camera: { pos: [-5.679095, 2.14607938, 0.32618168], rot: [-0.28400005, -1.5560011] } },
-			// { display: "Watermelon 50%", file: "/ninja/watermelon_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Bread 50%", file: "/v2/ninja/bread_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-
-			{ display: "Orange 30%", file: "/v2/ninja/orange_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Apple 30%", file: "/v2/ninja/apple_rotate_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Cake 30%", file: "/v2/ninja/cake_rotate_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Watermelon 30%", file: "/ninja/watermelon_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Bread 30%", file: "/v2/ninja/bread_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Watermelon 10%", file: "/v2/ninja/watermelon_1.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-
-
-			// { display: "Orange Fuller", file: "/ninja/orange_fuller.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Orange Extra Full", file: "/ninja/orange_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// // { display: "Apple ", file: "/ninja/apple_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Apple 50%", file: "/v2/ninja/apple_rotate_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Apple 80%", file: "/ninja/apple_rotate_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Bread Extra Full", file: "/ninja/bread_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Cake Extra Full", file: "/ninja/cake_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Watermelon Extra Full", file: "/ninja/watermelon_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] }
-			{ display: "House", file: "/v2/soc_01_polycam.gsz", camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] } },
-
-			{ display: "E7 Outdoor", file: "/v2/E7_01_id01-30000.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "E7 Indoor", file: "/v2/Shahan_03_id01-30000.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Grass", file: "/v2/socratica_01_edited.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-
-
-			{ display: "Sci", file: "/v2/sci_01_edited.gsz", camera: { pos: [-1.103975, 0.375719, -0.574351], rot: [-0.23, -0.987] } },
-
-			{ display: "Shahan", file: "/v2/Shahan_03_id01-30000.cleaned.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-
-
-			// camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] }
-			{ display: "The Rec", file: "/v2/rec_cleaned_2.gsz", camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] } },
-
-			{ display: "Neo Dinner", file: "/v2/neo_splat.gsz", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
-
-			// camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] }
-			{ display: "Afterparty", file: "/v2/afterparty.gsz", camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] } },
-
+		const SCENES = [
+			{
+				id: "cake", name: "Cake", emoji: "🍰", group: "objects",
+				desc: "A scanned cake — slice it, take bites out of it.",
+				variants: [
+					{ label: "30%", file: "/v2/ninja/cake_rotate_3.gsz", mb: 20, camera: DEFAULT_CAM },
+					{ label: "50%", file: "/v2/ninja/cake_rotate_5.gsz", mb: 33, camera: { pos: [-5.679095, 2.14607938, 0.32618168], rot: [-0.28400005, -1.5560011] }, default: true },
+					{ label: "80%", file: "/v2/ninja/cake_rotate_8.gsz", mb: 53, camera: { pos: [-6.679095, 1.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+				],
+			},
+			{
+				id: "apple", name: "Apple", emoji: "🍎", group: "objects",
+				desc: "Crisp apple scan, great for the slice tool.",
+				variants: [
+					{ label: "30%", file: "/v2/ninja/apple_rotate_3.gsz", mb: 34, camera: DEFAULT_CAM },
+					{ label: "50%", file: "/v2/ninja/apple_rotate_5.gsz", mb: 56, camera: DEFAULT_CAM, default: true },
+				],
+			},
+			{
+				id: "orange", name: "Orange", emoji: "🍊", group: "objects",
+				desc: "An orange, ready to be cut in half.",
+				variants: [
+					{ label: "30%", file: "/v2/ninja/orange_3.gsz", mb: 31, camera: DEFAULT_CAM },
+					{ label: "50%", file: "/v2/ninja/orange_5.gsz", mb: 51, camera: DEFAULT_CAM, default: true },
+				],
+			},
+			{
+				id: "bread", name: "Bread", emoji: "🍞", group: "objects",
+				desc: "A loaf of bread — erase a bite out of it.",
+				variants: [
+					{ label: "30%", file: "/v2/ninja/bread_3.gsz", mb: 23, camera: DEFAULT_CAM },
+					{ label: "50%", file: "/v2/ninja/bread_5.gsz", mb: 39, camera: DEFAULT_CAM, default: true },
+				],
+			},
+			{
+				id: "watermelon", name: "Watermelon", emoji: "🍉", group: "objects",
+				desc: "A watermelon scan (light version).",
+				variants: [
+					{ label: "10%", file: "/v2/ninja/watermelon_1.gsz", mb: 21, camera: DEFAULT_CAM, default: true },
+				],
+			},
+			{
+				id: "house", name: "House", emoji: "🏠", group: "scenes",
+				desc: "A cozy interior captured with Polycam.",
+				variants: [{ label: "", file: "/v2/soc_01_polycam.gsz", mb: 16, camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] }, default: true }],
+			},
+			{
+				id: "e7-outdoor", name: "E7 Outdoor", emoji: "🏢", group: "scenes",
+				desc: "Outside the E7 engineering building at Waterloo.",
+				variants: [{ label: "", file: "/v2/E7_01_id01-30000.gsz", mb: 62, camera: DEFAULT_CAM, default: true }],
+			},
+			{
+				id: "e7-indoor", name: "E7 Indoor", emoji: "🛋️", group: "scenes",
+				desc: "Inside E7 — a full indoor capture.",
+				variants: [{ label: "", file: "/v2/Shahan_03_id01-30000.gsz", mb: 28, camera: DEFAULT_CAM, default: true }],
+			},
+			{
+				id: "grass", name: "Grass", emoji: "🌿", group: "scenes",
+				desc: "A grassy outdoor capture.",
+				variants: [{ label: "", file: "/v2/socratica_01_edited.gsz", mb: 5, camera: DEFAULT_CAM, default: true }],
+			},
+			{
+				id: "sci", name: "Sci", emoji: "🔬", group: "scenes",
+				desc: "The Sci capture.",
+				variants: [{ label: "", file: "/v2/sci_01_edited.gsz", mb: 5, camera: { pos: [-1.103975, 0.375719, -0.574351], rot: [-0.23, -0.987] }, default: true }],
+			},
+			{
+				id: "shahan", name: "Shahan", emoji: "🧍", group: "scenes",
+				desc: "A splat of Shahan himself. Small & fast to load.",
+				variants: [{ label: "", file: "/v2/Shahan_03_id01-30000.cleaned.gsz", mb: 2, camera: DEFAULT_CAM, default: true }],
+			},
+			{
+				id: "rec", name: "The Rec", emoji: "🏸", group: "scenes",
+				desc: "The rec centre.",
+				variants: [{ label: "", file: "/v2/rec_cleaned_2.gsz", mb: 8, camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] }, default: true }],
+			},
+			{
+				id: "neo", name: "Neo Dinner", emoji: "🍽️", group: "scenes",
+				desc: "Dinner at Neo.",
+				variants: [{ label: "", file: "/v2/neo_splat.gsz", mb: 12, camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] }, default: true }],
+			},
+			{
+				id: "afterparty", name: "Afterparty", emoji: "🎉", group: "scenes",
+				desc: "The afterparty, frozen in time.",
+				variants: [{ label: "", file: "/v2/afterparty.gsz", mb: 10, camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] }, default: true }],
+			},
 		];
-		// camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] }
 
-		// Function to get the full model list with appropriate URLs
-		function getModelList() {
-			console.log("USE_LOCAL", USE_LOCAL);
-			return MODEL_PATHS.map(model => ({
-				display: model.display,
-				file: USE_LOCAL ?
-					BASE_LOCAL_URL + "splats" + model.file :
-					BASE_REMOTE_URL + "splats" + model.file,
-				camera: model.camera
+		const GROUPS = [
+			{ id: "objects", label: "Sliceable objects", hint: "Food scans that are fun to slice apart and erase — try the Slice and Erase tools." },
+			{ id: "scenes", label: "Captured scenes", hint: "Real places captured as Gaussian splats — fly around and explore." },
+		];
+
+		function splatUrl(file) {
+			return (USE_LOCAL ? BASE_LOCAL_URL : BASE_REMOTE_URL) + "splats" + file;
+		}
+
+		function sceneHref(variant) {
+			const cameraParam = variant.camera ? "&camera=" + encodeURIComponent(JSON.stringify(variant.camera)) : "";
+			const blendingParam = "&blending=" + !isFruitFile(variant.file);
+			return "./?url=" + encodeURIComponent(splatUrl(variant.file)) + cameraParam + blendingParam;
+		}
+
+		const urlParams = new URLSearchParams(window.location.search);
+		const CURRENT_URL = urlParams.get("url");
+		const HAS_SCENE = !!CURRENT_URL;
+
+		function findCurrent() {
+			if (!CURRENT_URL) return null;
+			for (const s of SCENES) {
+				for (const v of s.variants) {
+					if (CURRENT_URL.endsWith(v.file) || CURRENT_URL.includes(v.file)) return { scene: s, variant: v };
+				}
+			}
+			return null;
+		}
+		const CURRENT = findCurrent();
+
+		/* ============================================================
+		   Scene picker rendering
+		   ============================================================ */
+		function buildPicker() {
+			const root = document.getElementById("picker-groups");
+			root.innerHTML = "";
+			for (const g of GROUPS) {
+				const label = document.createElement("div");
+				label.className = "group-label";
+				label.textContent = g.label;
+				const hint = document.createElement("div");
+				hint.className = "group-hint";
+				hint.textContent = g.hint;
+				const grid = document.createElement("div");
+				grid.className = "scene-grid";
+
+				for (const s of SCENES.filter(x => x.group === g.id)) {
+					const def = s.variants.find(v => v.default) || s.variants[0];
+					const card = document.createElement("div");
+					card.className = "scene-card";
+					card.setAttribute("role", "button");
+					card.tabIndex = 0;
+					if (CURRENT && CURRENT.scene.id === s.id) card.classList.add("current");
+
+					const thumb = document.createElement("div");
+					thumb.className = "card-thumb";
+					const emoji = document.createElement("div");
+					emoji.className = "card-emoji";
+					emoji.textContent = s.emoji;
+					thumb.appendChild(emoji);
+					const img = document.createElement("img");
+					img.loading = "lazy";
+					img.alt = s.name;
+					if (!USE_LOCAL) img.crossOrigin = "anonymous";
+					img.src = THUMB_BASE + s.id + ".jpg";
+					img.onerror = () => img.remove();
+					thumb.appendChild(img);
+
+					const badge = document.createElement("div");
+					badge.className = "card-badge";
+					badge.textContent = "~" + def.mb + " MB";
+					thumb.appendChild(badge);
+
+					const now = document.createElement("div");
+					now.className = "card-now";
+					now.textContent = "Viewing";
+					thumb.appendChild(now);
+
+					const body = document.createElement("div");
+					body.className = "card-body";
+					const name = document.createElement("div");
+					name.className = "card-name";
+					name.textContent = s.name;
+					const desc = document.createElement("div");
+					desc.className = "card-desc";
+					desc.textContent = s.desc;
+					body.appendChild(name);
+					body.appendChild(desc);
+
+					if (s.variants.length > 1) {
+						const vc = document.createElement("div");
+						vc.className = "card-variants";
+						const lbl = document.createElement("span");
+						lbl.style.cssText = "font-size:11px;color:var(--text-dim);align-self:center;margin-right:2px;";
+						lbl.textContent = "Detail:";
+						vc.appendChild(lbl);
+						for (const v of s.variants) {
+							const chip = document.createElement("button");
+							chip.className = "variant-chip" + ((CURRENT && CURRENT.variant === v) || (!CURRENT && v.default) ? " active" : "");
+							chip.textContent = v.label;
+							chip.title = "~" + v.mb + " MB";
+							chip.addEventListener("click", (e) => {
+								e.stopPropagation();
+								window.location.href = sceneHref(v);
+							});
+							vc.appendChild(chip);
+						}
+						body.appendChild(vc);
+					}
+
+					card.appendChild(thumb);
+					card.appendChild(body);
+					const go = () => { window.location.href = sceneHref((CURRENT && CURRENT.scene.id === s.id) ? CURRENT.variant : def); };
+					card.addEventListener("click", go);
+					card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+					grid.appendChild(card);
+				}
+
+				root.appendChild(label);
+				root.appendChild(hint);
+				root.appendChild(grid);
+			}
+		}
+
+		function openPicker() { document.getElementById("scene-picker").classList.add("open"); }
+		function closePicker() { document.getElementById("scene-picker").classList.remove("open"); }
+
+		/* ============================================================
+		   Globals the WASM engine binds to (must exist before init)
+		   ============================================================ */
+		function getWebGLContext() {
+			const canvas = document.getElementById("canvas");
+			const attrs = urlParams.has("shot") ? { preserveDrawingBuffer: true } : undefined;
+			const gl = canvas.getContext("webgl2", attrs);
+			// The debug wrapper checks every GL call — useful, but slow. Opt in with ?debug=1.
+			if (urlParams.has("debug") && window.WebGLDebugUtils) {
+				return WebGLDebugUtils.makeDebugContext(gl);
+			}
+			return gl;
+		}
+
+		function test() { console.log("test bridge function called"); }
+
+		// --- Mode banners (called from Rust based on held keys) ---
+		const modeBorder = document.getElementById("mode-border");
+		const modeBanner = document.getElementById("mode-banner");
+
+		function setModeUI(mode) {
+			modeBorder.className = mode || "";
+			modeBanner.className = "glass" + (mode ? " show " + mode : "");
+			if (mode === "erase") modeBanner.textContent = "🧽 Erase mode — click or drag on the model to erase splats";
+			if (mode === "slice") modeBanner.textContent = "🔪 Slice mode — drag a line across an object to cut it";
+			document.querySelectorAll(".tool-btn").forEach(b =>
+				b.classList.toggle("active", (mode || "explore") === b.dataset.tool ||
+					(!mode && b.dataset.tool === "explore")));
+		}
+
+		function showSliceMode() { setModeUI("slice"); }
+		function hideSliceMode() { setModeUI(null); hideSliceLine(); }
+		function showDeleteMode() { setModeUI("erase"); }
+		function hideDeleteMode() { setModeUI(null); }
+
+		function showSliceLine(startX, startY, endX, endY) {
+			const line = document.getElementById("slice-line");
+			const dx = endX - startX, dy = endY - startY;
+			const length = Math.sqrt(dx * dx + dy * dy);
+			const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+			line.style.left = startX + "px";
+			line.style.top = startY + "px";
+			line.style.width = length + "px";
+			line.style.transform = `rotate(${angle}deg)`;
+			line.style.display = "block";
+		}
+		function hideSliceLine() { document.getElementById("slice-line").style.display = "none"; }
+
+		// --- Busy overlay (slicing / adding models) ---
+		function showLoadingOverlay(message = "Working…") {
+			document.getElementById("busy-text").textContent = message;
+			document.getElementById("busy-overlay").classList.add("open");
+		}
+		function hideLoadingOverlay() { document.getElementById("busy-overlay").classList.remove("open"); }
+		function updateLoadingMessage(message) { document.getElementById("busy-text").textContent = message; }
+
+		// --- Scene loading progress (called from the Rust model loader) ---
+		window.__modelReady = false;
+		function setModelLoading(isLoading, message = "") {
+			const overlay = document.getElementById("scene-loading");
+			if (isLoading) {
+				overlay.classList.add("open");
+				const msgEl = document.getElementById("scene-loading-msg");
+				const track = document.getElementById("scene-progress-track");
+				const fill = document.getElementById("scene-progress-fill");
+				const m = message.match(/(\d+)%/);
+				if (m) {
+					track.classList.remove("indeterminate");
+					fill.style.width = m[1] + "%";
+					msgEl.textContent = "Downloading… " + m[1] + "%";
+				} else {
+					track.classList.add("indeterminate");
+					msgEl.textContent = message || "Preparing…";
+				}
+			} else {
+				overlay.classList.remove("open");
+				if (!window.__modelReady) {
+					window.__modelReady = true;
+					onModelReady();
+				}
+			}
+		}
+
+		// --- Collision toast ---
+		let toastTimer = null;
+		function showToast(html, ms = 1600) {
+			const toast = document.getElementById("toast");
+			document.getElementById("toast-text").innerHTML = html;
+			toast.classList.add("show");
+			clearTimeout(toastTimer);
+			if (ms > 0) toastTimer = setTimeout(() => toast.classList.remove("show"), ms);
+		}
+		function setCollisionDetected() { showToast("💥 Collision detected"); }
+
+		/* ============================================================
+		   Input layer — tools, touch → engine event synthesis
+		   ============================================================ */
+		const canvas = document.getElementById("canvas");
+		const heldKeys = new Set();
+		let currentTool = "explore";   // explore | erase | slice
+		let rerouteDrag = false;       // real-mouse drag being rewritten with altKey
+
+		function synthKey(type, key) {
+			document.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true }));
+		}
+		function holdKey(key) { if (!heldKeys.has(key)) { heldKeys.add(key); synthKey("keydown", key); } }
+		function releaseKey(key) { if (heldKeys.delete(key)) synthKey("keyup", key); }
+
+		function setTool(tool) {
+			if (tool === currentTool) tool = "explore"; // tapping the active tool toggles back
+			releaseKey("Alt");
+			releaseKey("p");
+			currentTool = tool;
+			if (tool === "erase") holdKey("Alt");
+			if (tool === "slice") holdKey("p");
+			if (tool === "explore") setModeUI(null);
+		}
+
+		document.querySelectorAll(".tool-btn").forEach(btn => {
+			btn.addEventListener("click", () => setTool(btn.dataset.tool));
+		});
+
+		// Escape: back to explore + close overlays
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "Escape") {
+				setTool("explore");
+				closeHelp();
+				closeSettings();
+				if (HAS_SCENE) closePicker();
+			}
+		});
+
+		function synthMouse(type, x, y) {
+			canvas.dispatchEvent(new MouseEvent(type, {
+				clientX: x, clientY: y, button: 0,
+				buttons: type === "mouseup" ? 0 : 1,
+				bubbles: true, cancelable: true, view: window,
+				altKey: currentTool === "erase",
 			}));
 		}
 
-		// Function to populate the dropdowns
-		function populateModelSelector() {
-			const modelSelect = document.getElementById('model-switcher');
-			const instructionModelSelect = document.getElementById('instruction-model-switcher');
-			const MODEL_LIST = getModelList();
+		// When the Erase tool was picked from the toolbar, real mouse drags on the
+		// canvas must carry altKey=true (the engine keys erase vs. camera-look off
+		// it). Intercept trusted mouse events and re-dispatch patched clones.
+		["mousedown", "mousemove", "mouseup"].forEach(type => {
+			window.addEventListener(type, (e) => {
+				if (!e.isTrusted || currentTool !== "erase") return;
+				const relevant = (type === "mousedown") ? e.target === canvas : rerouteDrag;
+				if (!relevant) return;
+				if (type === "mousedown") rerouteDrag = true;
+				if (type === "mouseup") rerouteDrag = false;
+				e.stopImmediatePropagation();
+				canvas.dispatchEvent(new MouseEvent(type, {
+					clientX: e.clientX, clientY: e.clientY, button: e.button,
+					buttons: e.buttons, bubbles: true, cancelable: true, view: window,
+					altKey: true,
+				}));
+			}, true);
+		});
 
+		// ---------------- Touch: look / pinch / erase / slice ----------------
+		// Touch input is translated into the synthetic mouse + keyboard events the
+		// engine already understands, so all desktop features work on mobile.
+		const LOOK_GAIN = 3;           // touch-look speed multiplier
+		const activeTouches = new Map();
+		let lookPointer = null;        // { id, lastX, lastY, virtX, virtY }
+		let pinch = null;              // { dist }
+		let pinchIdleTimer = null;
 
-			MODEL_LIST.forEach(model => {
-				// Populate main dropdown
-				const option = document.createElement('option');
-				option.value = model.file;
-				option.textContent = model.display;
-				modelSelect.appendChild(option);
-
-				// Populate instruction dropdown
-				const instructionOption = document.createElement('option');
-				instructionOption.value = model.file;
-				instructionOption.textContent = model.display;
-				instructionModelSelect.appendChild(instructionOption);
-			});
+		function touchDist() {
+			const pts = [...activeTouches.values()];
+			return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
 		}
 
-		// Modified window.onload to include populating the dropdown
-		window.addEventListener('load', function () {
-			populateModelSelector();
+		canvas.addEventListener("pointerdown", (e) => {
+			if (e.pointerType === "mouse") return;
+			e.preventDefault();
+			canvas.setPointerCapture(e.pointerId);
+			activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-			const urlParams = new URLSearchParams(window.location.search);
-			const currentUrl = urlParams.get('url');
-			const blendingParam = urlParams.get('blending');
-			const modelSelect = document.getElementById('model-switcher');
-			const instructionModelSelect = document.getElementById('instruction-model-switcher');
-			// const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
-			const defaultModel = "v2/ninja/cake_rotate_5.gsz";
-			const defaultFullPath = USE_LOCAL ?
-				BASE_LOCAL_URL + "splats" + defaultModel :
-				BASE_REMOTE_URL + "splats" + defaultModel;
-
-			if (currentUrl) {
-				// Try to select the matching option in both dropdowns
-				modelSelect.value = currentUrl;
-				instructionModelSelect.value = currentUrl;
-
-				// Set blending checkbox based on URL parameter or model type
-				if (blendingParam !== null) {
-					const blendingCheckbox = document.getElementById('do-blending-checkbox');
-					if (blendingCheckbox) {
-						blendingCheckbox.checked = blendingParam === 'true';
-					}
-				} else {
-					setBlendingBasedOnModel(currentUrl);
-				}
-			} else {
-				// If no URL parameter, load the default model
-				const shahanModel = MODEL_PATHS.find(model => model.display === "Cake 50%");
-				if (shahanModel) {
-					const fullPath = USE_LOCAL ?
-						BASE_LOCAL_URL + "splats" + shahanModel.file :
-						BASE_REMOTE_URL + "splats" + shahanModel.file;
-
-					modelSelect.value = fullPath;
-					instructionModelSelect.value = fullPath;
-
-					// Set blending checkbox based on model type
-					setBlendingBasedOnModel(fullPath);
-
-					// Redirect to include the URL parameter
-					const baseUrl = USE_LOCAL ? BASE_LOCAL_URL : "./";
-					const cameraParam = shahanModel.camera ?
-						`&camera=${encodeURIComponent(JSON.stringify(shahanModel.camera))}` : "";
-					const isFruitModel = fullPath.includes('%') || fullPath.includes('/ninja/');
-					const blendingParam = `&blending=${!isFruitModel}`;
-
-					// Only redirect if we're not already on the right URL
-					if (!currentUrl) {
-						window.location.href = baseUrl + "?url=" + fullPath + cameraParam + blendingParam;
-					}
-				}
+			if (activeTouches.size === 1) {
+				lookPointer = { id: e.pointerId, lastX: e.clientX, lastY: e.clientY, virtX: e.clientX, virtY: e.clientY };
+				synthMouse("mousedown", e.clientX, e.clientY);
+			} else if (activeTouches.size === 2) {
+				// Second finger: end the look-drag, start a pinch (forward/back).
+				if (lookPointer) { synthMouse("mouseup", lookPointer.virtX, lookPointer.virtY); lookPointer = null; }
+				pinch = { dist: touchDist() };
 			}
 		});
+
+		canvas.addEventListener("pointermove", (e) => {
+			if (e.pointerType === "mouse" || !activeTouches.has(e.pointerId)) return;
+			e.preventDefault();
+			activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (pinch && activeTouches.size >= 2) {
+				const d = touchDist();
+				const delta = d - pinch.dist;
+				if (Math.abs(delta) > 3) {
+					if (delta > 0) { holdKey("w"); releaseKey("s"); }
+					else { holdKey("s"); releaseKey("w"); }
+					pinch.dist = d;
+					clearTimeout(pinchIdleTimer);
+					pinchIdleTimer = setTimeout(() => { releaseKey("w"); releaseKey("s"); }, 140);
+				}
+			} else if (lookPointer && e.pointerId === lookPointer.id) {
+				// In explore mode amplify the drag so a screen swipe turns further;
+				// in erase/slice mode coordinates must stay truthful for aiming.
+				const gain = currentTool === "explore" ? LOOK_GAIN : 1;
+				lookPointer.virtX += (e.clientX - lookPointer.lastX) * gain;
+				lookPointer.virtY += (e.clientY - lookPointer.lastY) * gain;
+				lookPointer.lastX = e.clientX;
+				lookPointer.lastY = e.clientY;
+				synthMouse("mousemove", lookPointer.virtX, lookPointer.virtY);
+			}
+		});
+
+		function touchEnd(e) {
+			if (e.pointerType === "mouse" || !activeTouches.has(e.pointerId)) return;
+			e.preventDefault();
+			activeTouches.delete(e.pointerId);
+
+			if (lookPointer && e.pointerId === lookPointer.id) {
+				synthMouse("mouseup", lookPointer.virtX, lookPointer.virtY);
+				lookPointer = null;
+			}
+			if (pinch && activeTouches.size < 2) {
+				pinch = null;
+				releaseKey("w");
+				releaseKey("s");
+			}
+			// One finger left: let it take over the look-drag.
+			if (activeTouches.size === 1 && !lookPointer && !pinch) {
+				const [id, p] = [...activeTouches.entries()][0];
+				lookPointer = { id, lastX: p.x, lastY: p.y, virtX: p.x, virtY: p.y };
+				synthMouse("mousedown", p.x, p.y);
+			}
+		}
+		canvas.addEventListener("pointerup", touchEnd);
+		canvas.addEventListener("pointercancel", touchEnd);
+
+		// ---------------- Virtual joystick ----------------
+		(function setupJoystick() {
+			const stick = document.getElementById("joystick");
+			const knob = document.getElementById("joystick-knob");
+			let pid = null;
+			const R = 58;
+
+			function setKeysFromVector(nx, ny) {
+				(ny < -0.32 ? holdKey : releaseKey)("w");
+				(ny > 0.32 ? holdKey : releaseKey)("s");
+				(nx < -0.32 ? holdKey : releaseKey)("a");
+				(nx > 0.32 ? holdKey : releaseKey)("d");
+			}
+
+			stick.addEventListener("pointerdown", (e) => {
+				pid = e.pointerId;
+				stick.setPointerCapture(pid);
+				e.preventDefault();
+			});
+			stick.addEventListener("pointermove", (e) => {
+				if (e.pointerId !== pid) return;
+				const rect = stick.getBoundingClientRect();
+				const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+				let dx = e.clientX - cx, dy = e.clientY - cy;
+				const len = Math.hypot, mag = Math.hypot(dx, dy);
+				if (mag > R) { dx = dx / mag * R; dy = dy / mag * R; }
+				knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+				setKeysFromVector(dx / R, dy / R);
+			});
+			function end(e) {
+				if (e.pointerId !== pid) return;
+				pid = null;
+				knob.style.transform = "translate(-50%, -50%)";
+				["w", "a", "s", "d"].forEach(releaseKey);
+			}
+			stick.addEventListener("pointerup", end);
+			stick.addEventListener("pointercancel", end);
+		})();
+
+		// ---------------- Elevation buttons ----------------
+		[["elev-up", " "], ["elev-down", "Shift"]].forEach(([id, key]) => {
+			const btn = document.getElementById(id);
+			btn.addEventListener("pointerdown", (e) => {
+				e.preventDefault();
+				btn.setPointerCapture(e.pointerId);
+				btn.classList.add("pressed");
+				holdKey(key);
+			});
+			const stop = () => { btn.classList.remove("pressed"); releaseKey(key); };
+			btn.addEventListener("pointerup", stop);
+			btn.addEventListener("pointercancel", stop);
+		});
+
+		/* ============================================================
+		   HUD wiring
+		   ============================================================ */
+		function openSettings() { document.body.classList.add("settings-open"); }
+		function closeSettings() { document.body.classList.remove("settings-open"); }
+		function openHelp() { document.getElementById("help-modal").classList.add("open"); }
+		function closeHelp() { document.getElementById("help-modal").classList.remove("open"); }
+
+		document.getElementById("settings-btn").addEventListener("click", openSettings);
+		document.getElementById("settings-close").addEventListener("click", closeSettings);
+		document.getElementById("settings-backdrop").addEventListener("click", closeSettings);
+		document.getElementById("help-btn").addEventListener("click", openHelp);
+		document.getElementById("help-close").addEventListener("click", closeHelp);
+		document.getElementById("help-done").addEventListener("click", closeHelp);
+		document.getElementById("help-modal").addEventListener("click", (e) => {
+			if (e.target === e.currentTarget) closeHelp();
+		});
+		document.getElementById("open-picker-btn").addEventListener("click", openPicker);
+		document.getElementById("picker-close").addEventListener("click", closePicker);
+		document.getElementById("add-shahan-btn").addEventListener("click", closeSettings);
+		document.getElementById("recalculate-octtree-btn").addEventListener("click", closeSettings);
+
+		// Fullscreen
+		const fsBtn = document.getElementById("fullscreen-btn");
+		if (document.documentElement.requestFullscreen) {
+			fsBtn.addEventListener("click", () => {
+				if (document.fullscreenElement) document.exitFullscreen();
+				else document.documentElement.requestFullscreen();
+			});
+		} else {
+			fsBtn.style.display = "none";
+		}
+
+		// Copy camera pose
+		document.getElementById("copy-camera-btn").addEventListener("click", () => {
+			const text = document.getElementById("camera-position").textContent;
+			if (text) navigator.clipboard.writeText(text).then(() => showToast("📋 Camera pose copied"));
+		});
+
+		// Orientation change: the engine locks its render size at startup, so
+		// offer a quick reload instead of rendering stretched.
+		let startOrientation = window.matchMedia("(orientation: portrait)").matches;
+		window.addEventListener("orientationchange", () => {
+			setTimeout(() => {
+				const nowPortrait = window.matchMedia("(orientation: portrait)").matches;
+				if (nowPortrait !== startOrientation && window.__modelReady) {
+					showToast('🔄 Orientation changed <button onclick="location.reload()">Reload view</button>', 6000);
+				}
+			}, 350);
+		});
+
+		function onModelReady() {
+			// First visit: show the controls once.
+			if (!localStorage.getItem("rgs_seen_help")) {
+				localStorage.setItem("rgs_seen_help", "1");
+				setTimeout(openHelp, 450);
+			}
+		}
+
+		/* ============================================================
+		   Boot
+		   ============================================================ */
+		const IS_TOUCH = window.matchMedia("(any-pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+
+		buildPicker();
+
+		if (HAS_SCENE) {
+			document.body.classList.add("viewer");
+			if (IS_TOUCH) document.body.classList.add("touch");
+			document.getElementById("scene-picker").classList.add("closable");
+
+			const name = CURRENT ? (CURRENT.scene.name + (CURRENT.variant.label ? " · " + CURRENT.variant.label : ""))
+				: decodeURIComponent(CURRENT_URL.split("/").pop() || "Custom scene");
+			document.getElementById("current-scene-name").textContent = name;
+			document.getElementById("loading-scene-name").textContent = "Loading " + (CURRENT ? CURRENT.scene.name : "scene");
+			if (CURRENT) document.getElementById("loading-emoji").textContent = CURRENT.scene.emoji;
+
+			// Match the blending checkbox to the URL before the engine reads anything.
+			const blendingParam = urlParams.get("blending");
+			document.getElementById("do-blending-checkbox").checked =
+				blendingParam !== null ? blendingParam === "true" : !isFruitFile(CURRENT_URL);
+
+			document.getElementById("scene-loading").classList.add("open");
+		} else {
+			openPicker();
+		}
 	</script>
+
 	<script type="module">
+		// Only boot the engine when a scene was chosen — the landing page is just the picker.
+		const hasScene = new URLSearchParams(window.location.search).has("url");
+		if (hasScene) {
+			const canvas = document.getElementById("canvas");
+			canvas.width = canvas.clientWidth;
+			canvas.height = canvas.clientHeight;
 
-		const look_speed = 0.05;
-		const move_speed = 1;
-
-		function resizeCanvasToDisplaySize(canvas) {
-			// https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
-			// Lookup the size the browser is displaying the canvas in CSS pixels.
-			const displayWidth = canvas.clientWidth;
-			const displayHeight = canvas.clientHeight;
-
-			// Check if the canvas is not the same size.
-			const needResize = canvas.width !== displayWidth ||
-				canvas.height !== displayHeight;
-
-			if (needResize) {
-				// Make the canvas the same size
-				canvas.width = displayWidth;
-				canvas.height = displayHeight;
-			}
-			return needResize;
-		}
-		let canvas = document.getElementById("canvas");
-		resizeCanvasToDisplaySize(canvas);
-
-		// Hide the initialization button - user doesn't want to see WebAssembly initialization
-		const initButton = document.createElement('button');
-		initButton.style.display = 'none'; // Hide completely
-		document.body.appendChild(initButton);
-
-		// Hide the WebAssembly status messages - user doesn't want to see them
-		const statusMessage = document.createElement('div');
-		statusMessage.style.display = 'none'; // Hide completely
-		document.body.appendChild(statusMessage);
-
-		// Use ES module import syntax to import functionality from the module
-		// that we have compiled.
-		//
-		// Note that the `default` import is an initialization function which
-		// will "boot" the module and make it ready to use. Currently browsers
-		// don't support natively imported WebAssembly as an ES module, but
-		// eventually the manual initialization won't be required!
-		import init, { initThreadPool } from './pkg/gs_rust.js';
-
-		// Function to update status message
-		function updateStatus(message, isError = false) {
-			// Hide WebAssembly initialization messages - user doesn't want to see them
-			console.log("Status update:", message); // Still log to console for debugging
-
-			// Only show model loading messages in the instructions overlay
-			if (document.getElementById('instructions-overlay').style.display === 'flex') {
-				if (isError) {
-					// Only show actual errors, not warnings about browser features
-					if (!message.includes('Multithreading not supported')) {
-						setInstructionsLoading(true, 'Error loading scene');
-					}
-				} else if (message.includes('ready') || message.includes('Ready') || message.includes('Successfully') || message.includes('success')) {
-					// WebAssembly finished - but don't hide loading until model is done
-					console.log("WebAssembly ready, but waiting for model completion");
-				}
-				// Don't show WebAssembly initialization messages in UI
-			}
-		}
-
-		// Worker reference
-		let worker = null;
-
-		// Function to initialize WebAssembly
-		async function initializeWasm() {
+			const { default: init, initThreadPool } = await import("./pkg/gs_rust.js");
 			try {
-				updateStatus("Starting WebAssembly initialization...");
-
-				// Disable the button during initialization
-				initButton.disabled = true;
-				initButton.textContent = 'Initializing...';
-
-				// Initialize the WebAssembly module on the main thread
-				// This is needed to load the module initially
-				updateStatus("Loading WebAssembly module on main thread...");
 				await init();
-				updateStatus("WebAssembly module loaded successfully on main thread");
-
-				// Check for multithreading support
-				const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
-				const hasAtomics = typeof Atomics !== 'undefined';
-				const multithreadingSupported = hasSharedArrayBuffer && hasAtomics;
-
-				if (!multithreadingSupported) {
-					updateStatus("Note: Multithreading not supported in this browser (SharedArrayBuffer or Atomics missing)", false);
-					console.warn("Multithreading not supported: SharedArrayBuffer or Atomics not available");
-				} else {
-					// Initialize the rayon thread pool on the main wasm instance.
-					// wasm-bindgen-rayon spawns its own helper workers that share
-					// this instance's memory, so parallel code in the app
-					// (e.g. splat deletion) actually runs in parallel.
+				const supported = typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined";
+				if (supported) {
 					const numThreads = Math.min(navigator.hardwareConcurrency || 4, 8);
-					updateStatus("Detected " + navigator.hardwareConcurrency + " CPU cores, using " + numThreads + " threads");
 					await initThreadPool(numThreads);
-					updateStatus("Thread pool initialized successfully");
+					console.log("Thread pool initialized with", numThreads, "threads");
+				} else {
+					console.warn("SharedArrayBuffer unavailable — running single-threaded");
 				}
-				initButton.textContent = 'Initialized Successfully';
-				initButton.style.backgroundColor = 'green';
-			} catch (error) {
-				console.error("Error during initialization:", error);
-				// Display error to user
-				initButton.textContent = 'Initialization Failed - Try Again';
-				initButton.disabled = false;
-				initButton.style.backgroundColor = 'red';
-
-				updateStatus("Error: " + error.message, true);
+			} catch (err) {
+				console.error("Engine initialization failed:", err);
+				const msg = document.getElementById("scene-loading-msg");
+				if (msg) msg.textContent = "Failed to start: " + err.message;
 			}
 		}
-
-		// Add click event listener to the initialization button
-		// initButton.addEventListener('click', initializeWasm);
-		initializeWasm();
-
-		// Don't automatically initialize - wait for user to click the button
-		console.log("WebAssembly initialization deferred. Click the 'Initialize WebAssembly' button to start.");
-	</script>
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-
-	<!-- Add button to print current camera position -->
-	<script>
-		document.addEventListener('DOMContentLoaded', function () {
-			const gui = document.getElementById('gui');
-
-			// Create button for printing camera position
-			const printCameraBtn = document.createElement('button');
-			printCameraBtn.id = 'print-camera-btn';
-			printCameraBtn.textContent = 'Print Camera Position';
-			printCameraBtn.style.margin = '10px 0px';
-
-			// Create div to display camera position
-			const cameraPositionDiv = document.createElement('div');
-			cameraPositionDiv.id = 'camera-position';
-			cameraPositionDiv.style.margin = '10px 0px';
-			cameraPositionDiv.style.color = 'white';
-			cameraPositionDiv.style.fontSize = '10px';
-			cameraPositionDiv.style.maxWidth = '250px';
-			cameraPositionDiv.style.wordWrap = 'break-word';
-
-			// Create copy to clipboard button
-			const copyBtn = document.createElement('button');
-			copyBtn.id = 'copy-camera-btn';
-			copyBtn.textContent = 'Copy to Clipboard';
-			copyBtn.style.margin = '10px 0px';
-			copyBtn.style.fontSize = '12px';
-			copyBtn.addEventListener('click', function () {
-				const cameraPosText = document.getElementById('camera-position').textContent;
-				if (cameraPosText) {
-					navigator.clipboard.writeText(cameraPosText)
-						.then(() => {
-							// Change button text temporarily to indicate success
-							const originalText = copyBtn.textContent;
-							copyBtn.textContent = 'Copied!';
-							setTimeout(() => {
-								copyBtn.textContent = originalText;
-							}, 1500);
-						})
-						.catch(err => {
-							console.error('Could not copy text: ', err);
-							copyBtn.textContent = 'Copy failed';
-							setTimeout(() => {
-								copyBtn.textContent = 'Copy to Clipboard';
-							}, 1500);
-						});
-				}
-			});
-
-			// Add elements to GUI
-			gui.appendChild(printCameraBtn);
-			gui.appendChild(cameraPositionDiv);
-			gui.appendChild(copyBtn);
-			// make these display none:
-			printCameraBtn.style = "display: none;"
-			cameraPositionDiv.style = "display: none;"
-			copyBtn.style = "display: none;"
-
-		});
 	</script>
 </body>
 
