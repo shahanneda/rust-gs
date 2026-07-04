@@ -923,7 +923,9 @@
 	</div>
 	</div>
 	<script>
-		const USE_LOCAL = false; // Set this to true to use local URLs, false for remote S3 URLs
+		// Serve splats from the local dev server when the page itself is served
+		// locally; use the remote S3 bucket everywhere else.
+		const USE_LOCAL = ["127.0.0.1", "localhost"].includes(window.location.hostname);
 		const BASE_LOCAL_URL = "http://127.0.0.1:5503/";
 		const BASE_REMOTE_URL = "https://zimpmodels.s3.us-east-2.amazonaws.com/";
 
@@ -1028,59 +1030,60 @@
 			// { display: "Orange 100%", file: "/ninja/orange.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Watermelon 100%", file: "/ninja/watermelon.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 
-			{ display: "Cake 80%", file: "/ninja/cake_rotate_8.rkyv", camera: { pos: [-6.679095, 1.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Cake 80%", file: "/v2/ninja/cake_rotate_8.gsz", camera: { pos: [-6.679095, 1.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Orange 80%", file: "/ninja/orange_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Apple 80%", file: "/ninja/apple_rotate_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Watermelon 80%", file: "/ninja/watermelon_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Bread 80%", file: "/ninja/bread_8.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Orange 50%", file: "/ninja/orange_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Apple 50%", file: "/ninja/apple_rotate_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Cake 50%", file: "/ninja/cake_rotate_5.rkyv", camera: { pos: [-5.679095, 2.14607938, 0.32618168], rot: [-0.28400005, -1.5560011] } },
+			{ display: "Orange 50%", file: "/v2/ninja/orange_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Apple 50%", file: "/v2/ninja/apple_rotate_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Cake 50%", file: "/v2/ninja/cake_rotate_5.gsz", camera: { pos: [-5.679095, 2.14607938, 0.32618168], rot: [-0.28400005, -1.5560011] } },
 			// { display: "Watermelon 50%", file: "/ninja/watermelon_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Bread 50%", file: "/ninja/bread_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Bread 50%", file: "/v2/ninja/bread_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 
-			{ display: "Orange 30%", file: "/ninja/orange_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Apple 30%", file: "/ninja/apple_rotate_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Cake 30%", file: "/ninja/cake_rotate_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Orange 30%", file: "/v2/ninja/orange_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Apple 30%", file: "/v2/ninja/apple_rotate_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Cake 30%", file: "/v2/ninja/cake_rotate_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Watermelon 30%", file: "/ninja/watermelon_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Bread 30%", file: "/ninja/bread_3.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Watermelon 10%", file: "/ninja/watermelon_1.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Bread 30%", file: "/v2/ninja/bread_3.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Watermelon 10%", file: "/v2/ninja/watermelon_1.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 
 
 			// { display: "Orange Fuller", file: "/ninja/orange_fuller.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Orange Extra Full", file: "/ninja/orange_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// // { display: "Apple ", file: "/ninja/apple_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			// { display: "Apple 50%", file: "/ninja/apple_rotate_5.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			// { display: "Apple 50%", file: "/v2/ninja/apple_rotate_5.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Apple 80%", file: "/ninja/apple_rotate_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Bread Extra Full", file: "/ninja/bread_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Cake Extra Full", file: "/ninja/cake_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// { display: "Watermelon Extra Full", file: "/ninja/watermelon_extra_full.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 			// camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] }
-			{ display: "House", file: "/soc_01_polycam.rkyv", camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] } },
+			{ display: "House", file: "/v2/soc_01_polycam.gsz", camera: { pos: [-0.121334, 1.292581, 2.461792], rot: [-0.019000, 3.261999] } },
 
-			{ display: "E7 Outdoor", file: "/E7_01_id01-30000.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "E7 Indoor", file: "/Shahan_03_id01-30000.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
-			{ display: "Grass", file: "/socratica_01_edited.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "E7 Outdoor", file: "/v2/E7_01_id01-30000.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "E7 Indoor", file: "/v2/Shahan_03_id01-30000.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Grass", file: "/v2/socratica_01_edited.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 
 
-			{ display: "Sci", file: "/sci_01_edited.rkyv", camera: { pos: [-1.103975, 0.375719, -0.574351], rot: [-0.23, -0.987] } },
+			{ display: "Sci", file: "/v2/sci_01_edited.gsz", camera: { pos: [-1.103975, 0.375719, -0.574351], rot: [-0.23, -0.987] } },
 
-			{ display: "Shahan", file: "/Shahan_03_id01-30000.cleaned.rkyv", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
+			{ display: "Shahan", file: "/v2/Shahan_03_id01-30000.cleaned.gsz", camera: { pos: [-6.679095, 0.14607938, -0.32618168], rot: [-0.13400005, -1.5560011] } },
 
 
 			// camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] }
-			{ display: "The Rec", file: "/rec_cleaned_2.rkyv", camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] } },
+			{ display: "The Rec", file: "/v2/rec_cleaned_2.gsz", camera: { pos: [0.538205, 0.053799, -0.950825], rot: [-0.115000, 0.740999] } },
 
-			{ display: "Neo Dinner", file: "/neo_splat.rkyv", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
+			{ display: "Neo Dinner", file: "/v2/neo_splat.gsz", camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] } },
 
 			// camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] }
-			{ display: "Afterparty", file: "/afterparty.rkyv", camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] } },
+			{ display: "Afterparty", file: "/v2/afterparty.gsz", camera: { pos: [-0.082226, -0.036270, 5.421075], rot: [-0.136000, -3.400000] } },
 
 		];
 		// camera: { pos: [-1.007118, 0.862803, 2.109383], rot: [-0.107000, -2.353001] }
 
 		// Function to get the full model list with appropriate URLs
 		function getModelList() {
+			console.log("USE_LOCAL", USE_LOCAL);
 			return MODEL_PATHS.map(model => ({
 				display: model.display,
 				file: USE_LOCAL ?
@@ -1095,6 +1098,7 @@
 			const modelSelect = document.getElementById('model-switcher');
 			const instructionModelSelect = document.getElementById('instruction-model-switcher');
 			const MODEL_LIST = getModelList();
+
 
 			MODEL_LIST.forEach(model => {
 				// Populate main dropdown
@@ -1121,7 +1125,7 @@
 			const modelSelect = document.getElementById('model-switcher');
 			const instructionModelSelect = document.getElementById('instruction-model-switcher');
 			// const defaultModel = "Shahan_03_id01-30000.cleaned.rkyv";
-			const defaultModel = "cake_rotate_5.rkyv";
+			const defaultModel = "v2/ninja/cake_rotate_5.gsz";
 			const defaultFullPath = USE_LOCAL ?
 				BASE_LOCAL_URL + "splats" + defaultModel :
 				BASE_REMOTE_URL + "splats" + defaultModel;
@@ -1211,7 +1215,7 @@
 		// will "boot" the module and make it ready to use. Currently browsers
 		// don't support natively imported WebAssembly as an ES module, but
 		// eventually the manual initialization won't be required!
-		import init from './pkg/gs_rust.js';
+		import init, { initThreadPool } from './pkg/gs_rust.js';
 
 		// Function to update status message
 		function updateStatus(message, isError = false) {
@@ -1259,19 +1263,18 @@
 				if (!multithreadingSupported) {
 					updateStatus("Note: Multithreading not supported in this browser (SharedArrayBuffer or Atomics missing)", false);
 					console.warn("Multithreading not supported: SharedArrayBuffer or Atomics not available");
-
-					// Create a worker for single-threaded mode anyway
-					// This avoids Atomics.wait on main thread issues
-					createAndInitializeWorker(1);
 				} else {
-					// Calculate number of threads based on hardware concurrency
-					// Limiting to 2 threads for stability during testing
-					const numThreads = Math.min(navigator.hardwareConcurrency || 4, 2);
+					// Initialize the rayon thread pool on the main wasm instance.
+					// wasm-bindgen-rayon spawns its own helper workers that share
+					// this instance's memory, so parallel code in the app
+					// (e.g. splat deletion) actually runs in parallel.
+					const numThreads = Math.min(navigator.hardwareConcurrency || 4, 8);
 					updateStatus("Detected " + navigator.hardwareConcurrency + " CPU cores, using " + numThreads + " threads");
-
-					// Create and initialize the worker with the thread pool
-					createAndInitializeWorker(numThreads);
+					await initThreadPool(numThreads);
+					updateStatus("Thread pool initialized successfully");
 				}
+				initButton.textContent = 'Initialized Successfully';
+				initButton.style.backgroundColor = 'green';
 			} catch (error) {
 				console.error("Error during initialization:", error);
 				// Display error to user
@@ -1280,81 +1283,6 @@
 				initButton.style.backgroundColor = 'red';
 
 				updateStatus("Error: " + error.message, true);
-			}
-		}
-
-		// Function to create and initialize the worker
-		function createAndInitializeWorker(numThreads) {
-			try {
-				updateStatus("Creating worker for thread pool initialization with " + numThreads + " threads...");
-
-				// Create the worker
-				const workerUrl = USE_LOCAL ? (BASE_LOCAL_URL + '/worker.js') : './worker.js';
-				worker = new Worker(new URL(workerUrl, import.meta.url), { type: 'module' });
-
-				// Set up message handler for the worker
-				worker.onmessage = function (e) {
-					const { status, message, success, threads, stack } = e.data;
-
-					switch (status) {
-						case 'worker_loaded':
-							updateStatus("Worker loaded successfully");
-							// Initialize the worker
-							worker.postMessage({ type: 'init', numThreads });
-							break;
-
-						case 'initializing_wasm':
-							updateStatus("Worker: Initializing WebAssembly module...");
-							break;
-
-						case 'wasm_initialized':
-							updateStatus("Worker: WebAssembly module initialized successfully");
-							break;
-
-						case 'initializing_thread_pool':
-							updateStatus("Worker: Initializing thread pool with " + threads + " threads...");
-							break;
-
-						case 'thread_pool_initialized':
-							updateStatus("Worker: Thread pool initialized successfully!");
-							initButton.textContent = 'Initialized Successfully';
-							initButton.style.backgroundColor = 'green';
-
-							// Tell the worker to execute any initial commands
-							worker.postMessage({ type: 'execute' });
-							break;
-
-						case 'ready_for_commands':
-							updateStatus("Worker: Ready to execute commands");
-							break;
-
-						case 'error':
-							console.error("Worker error:", message, stack);
-							updateStatus("Worker error: " + message, true);
-							initButton.textContent = 'Initialization Failed - Try Again';
-							initButton.disabled = false;
-							initButton.style.backgroundColor = 'red';
-							break;
-
-						default:
-							console.log("Worker message:", e.data);
-					}
-				};
-
-				// Handle worker errors
-				worker.onerror = function (error) {
-					console.error("Worker error:", error);
-					updateStatus("Worker error: " + error.message, true);
-					initButton.textContent = 'Initialization Failed - Try Again';
-					initButton.disabled = false;
-					initButton.style.backgroundColor = 'red';
-				};
-			} catch (error) {
-				console.error("Error creating worker:", error);
-				updateStatus("Error creating worker: " + error.message, true);
-				initButton.textContent = 'Initialization Failed - Try Again';
-				initButton.disabled = false;
-				initButton.style.backgroundColor = 'red';
 			}
 		}
 

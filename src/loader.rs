@@ -174,6 +174,12 @@ pub mod loader {
         return splats;
     }
 
+    /// Parse an in-memory PLY file into splats.
+    pub fn parse_ply(bytes: &Bytes) -> Result<Vec<PlySplat>, String> {
+        let header = read_header(bytes)?;
+        Ok(read_body(bytes, header))
+    }
+
     pub async fn load_ply(url: &str) -> Result<Vec<PlySplat>, String> {
         // return Ok(vec![]);
         // log!("### loading ply!!!");

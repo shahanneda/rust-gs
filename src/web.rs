@@ -128,7 +128,7 @@ fn handle_splat_delete_click(
             let pos = ray_origin + ray_direction * t;
 
             if settings_borrow.use_octtree_for_splat_removal {
-                let octree_found_splats = scene_mut.oct_tree.find_splats_in_radius(pos, 0.05);
+                let octree_found_splats = scene_mut.find_splats_in_radius(pos, 0.05);
                 for splat in octree_found_splats {
                     if splat.opacity >= 0.5 {
                         splat_pos = vec3(splat.x, splat.y, splat.z);
@@ -160,7 +160,7 @@ fn handle_splat_delete_click(
 
         // Delete splats instantly
         if settings_borrow.use_octtree_for_splat_removal {
-            let splats_near = scene_mut.oct_tree.find_splats_in_radius(splat_pos, 0.5);
+            let splats_near = scene_mut.find_splats_in_radius(splat_pos, 0.5);
             let indices: Vec<usize> = splats_near.iter().map(|splat| splat.index).collect();
 
             if indices.len() < 100 {
@@ -198,13 +198,14 @@ fn handle_splat_delete_click(
         }
     }
 
-    // Update textures instantly
+    // Update the GPU instantly — deletion only changes opacity, so only that
+    // texture needs to be re-uploaded.
     {
         let scene_borrow = scene.borrow();
         let renderer_borrow = renderer.borrow();
         renderer_borrow
-            .update_webgl_textures(&scene_borrow, 0)
-            .expect("failed to update webgl textures when editing");
+            .update_opacity_texture(&scene_borrow, 0)
+            .expect("failed to update opacity texture when editing");
     }
 }
 
@@ -232,7 +233,7 @@ pub async fn start() -> Result<(), JsValue> {
     // If there's a url parameter, use that, otherwise use the default
     let scene_url = match params.get("url") {
         Some(url) => url,
-        None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv"),
+        None => String::from("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/v2/Shahan_03_id01-30000.cleaned.gsz"),
         // None => String::from("http://127.0.0.1:5502/splats/soc_01_polycam.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/sci_01_edited.rkyv"),
         // None => String::from("http://127.0.0.1:5502/splats/Shahan_03_id01-30000.cleaned.rkyv"),
@@ -363,23 +364,14 @@ pub async fn start() -> Result<(), JsValue> {
     let camera = Rc::new(RefCell::new(Camera::new(camera_pos, camera_rot)));
     Camera::setup_mouse_events(&camera.clone(), &canvas, &document, &scene)?;
 
-    let shahan_remote_url =
-        "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/Shahan_03_id01-30000.cleaned.rkyv";
-    // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
-    // let shahan_local_url = "http://127.0.0.1:5502/splats/Shahan_03_id01-30000.rkyv";
-    let shahan_splat_data = SplatData::new_from_url(&shahan_remote_url).await;
-
-    let teapot_mesh =
-        obj_reader::read_obj("https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj")
-            .await;
-
+    // The Shahan model and teapot mesh are only needed if their buttons are
+    // clicked, so they are fetched lazily on first use instead of blocking
+    // startup with two extra downloads.
     setup_button_callbacks(
         scene.clone(),
         &renderer.clone(),
         settings_ref.clone(),
         camera.clone(),
-        shahan_splat_data,
-        teapot_mesh,
         width,
         height,
     )?;
@@ -957,8 +949,6 @@ fn setup_button_callbacks(
     renderer: &Rc<RefCell<Renderer>>,
     settings: Rc<RefCell<Settings>>,
     camera: Rc<RefCell<Camera>>,
-    shahan_splat_data: SplatData,
-    teapot_mesh: MeshData,
     width: i32,
     height: i32,
 ) -> Result<(), JsValue> {
@@ -1011,39 +1001,57 @@ fn setup_button_callbacks(
 
     let scene_clone = scene.clone();
     let renderer_clone = renderer.clone();
-    let shahan_splat_data = Rc::new(shahan_splat_data);
-    let shahan_splat_data_clone = shahan_splat_data.clone();
+    // Downloaded on first click and cached for repeat clicks.
+    let shahan_splat_data: Rc<RefCell<Option<Rc<SplatData>>>> = Rc::new(RefCell::new(None));
     let settings_clone = settings.clone();
     let camera_clone = camera.clone();
     let add_shahan_callback = Closure::wrap(Box::new(move || {
         log!("adding shahan!");
-        let renderer: &Renderer = &*renderer_clone.borrow();
-        let settings = settings_clone.borrow();
-        let mut scene = scene_clone.borrow_mut();
-        let camera = camera_clone.borrow();
-        scene
-            .splat_data
-            .merge_with_other_splatdata(&shahan_splat_data_clone); // Clone the data here
-        let num_splats = scene.splat_data.objects.len();
-        let (origin, direction) = camera.get_ray_origin_and_direction(width, height, 0.0, 0.0);
-        let pos = origin + direction * 3.0;
-        scene.splat_data.apply_transformation_to_object(
-            num_splats - 1,
-            glm::translate(&glm::Mat4::identity(), &pos),
-            glm::Mat4::identity(),
-            // glm::rotate(
-            //     &glm::Mat4::identity(),
-            //     glm::radians(&vec1(90.0))[0],
-            //     &vec3(0.0, 1.0, 0.0),
-            // ),
-        );
+        let scene = scene_clone.clone();
+        let renderer = renderer_clone.clone();
+        let settings = settings_clone.clone();
+        let camera = camera_clone.clone();
+        let cache = shahan_splat_data.clone();
 
-        let (vm, vpm) = camera.get_vm_and_vpm(width, height);
-        scene.recalculate_octtree();
-        scene.redraw_from_oct_tree(settings.only_show_clicks);
-        let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
-        renderer.update_splat_indices(&splat_indices);
-        renderer.update_webgl_textures(&scene, 0).unwrap();
+        wasm_bindgen_futures::spawn_local(async move {
+            let cached = cache.borrow().clone();
+            let splat_data = match cached {
+                Some(data) => data,
+                None => {
+                    show_loading_overlay("Downloading Shahan model...");
+                    let url = "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/v2/Shahan_03_id01-30000.cleaned.gsz";
+                    let data = Rc::new(SplatData::new_from_url(url).await);
+                    *cache.borrow_mut() = Some(data.clone());
+                    data
+                }
+            };
+
+            show_loading_overlay("Adding Shahan to scene...");
+            {
+                let renderer: &Renderer = &*renderer.borrow();
+                let settings = settings.borrow();
+                let mut scene = scene.borrow_mut();
+                let camera = camera.borrow();
+                scene.splat_data.merge_with_other_splatdata(&splat_data);
+                let num_splats = scene.splat_data.objects.len();
+                let (origin, direction) =
+                    camera.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+                let pos = origin + direction * 3.0;
+                scene.splat_data.apply_transformation_to_object(
+                    num_splats - 1,
+                    glm::translate(&glm::Mat4::identity(), &pos),
+                    glm::Mat4::identity(),
+                );
+
+                let (vm, vpm) = camera.get_vm_and_vpm(width, height);
+                scene.recalculate_octtree();
+                scene.redraw_from_oct_tree(settings.only_show_clicks);
+                let splat_indices = scene.splat_data.sort_splats_based_on_depth(vpm);
+                renderer.update_splat_indices(&splat_indices);
+                renderer.update_webgl_textures(&scene, 0).unwrap();
+            }
+            hide_loading_overlay();
+        });
     }) as Box<dyn FnMut()>);
     add_shahan_btn.set_onclick(Some(add_shahan_callback.as_ref().unchecked_ref()));
     add_shahan_callback.forget();
@@ -1056,20 +1064,41 @@ fn setup_button_callbacks(
 
     let scene_clone = scene.clone();
     let camera_clone = camera.clone();
-    let teapot_mesh = Rc::new(teapot_mesh);
-    let teapot_mesh_clone = teapot_mesh.clone();
+    // Downloaded on first click and cached for repeat clicks.
+    let teapot_mesh: Rc<RefCell<Option<Rc<MeshData>>>> = Rc::new(RefCell::new(None));
     let add_teapot_callback = Closure::wrap(Box::new(move |_event: web_sys::MouseEvent| {
-        let mut scene = scene_clone.borrow_mut();
-        let camera = camera_clone.borrow();
-        let (origin, direction) = camera.get_ray_origin_and_direction(width, height, 0.0, 0.0);
-        let pos = origin + direction * 3.0;
-        let teapot_object = SceneObject::new(
-            teapot_mesh_clone.as_ref().clone(),
-            pos,
-            vec3(3.14, 0.0, 0.0),
-            vec3(0.01, 0.01, 0.01),
-        );
-        scene.objects.push(teapot_object);
+        let scene = scene_clone.clone();
+        let camera = camera_clone.clone();
+        let cache = teapot_mesh.clone();
+
+        wasm_bindgen_futures::spawn_local(async move {
+            let cached = cache.borrow().clone();
+            let mesh = match cached {
+                Some(mesh) => mesh,
+                None => {
+                    let mesh = Rc::new(
+                        obj_reader::read_obj(
+                            "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj",
+                        )
+                        .await,
+                    );
+                    *cache.borrow_mut() = Some(mesh.clone());
+                    mesh
+                }
+            };
+
+            let mut scene = scene.borrow_mut();
+            let camera = camera.borrow();
+            let (origin, direction) = camera.get_ray_origin_and_direction(width, height, 0.0, 0.0);
+            let pos = origin + direction * 3.0;
+            let teapot_object = SceneObject::new(
+                mesh.as_ref().clone(),
+                pos,
+                vec3(3.14, 0.0, 0.0),
+                vec3(0.01, 0.01, 0.01),
+            );
+            scene.objects.push(teapot_object);
+        });
     }) as Box<dyn FnMut(_)>);
     add_teapot_btn.set_onclick(Some(add_teapot_callback.as_ref().unchecked_ref()));
     add_teapot_callback.forget();

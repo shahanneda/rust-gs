@@ -6,7 +6,8 @@ import sys
 import mimetypes
 from urllib.parse import urlparse
 
-PORT = 5502
+# Port can be overridden on the command line: python3 server.py [port]
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5502
 
 # Ensure proper MIME types are registered
 mimetypes.add_type('application/javascript', '.js')

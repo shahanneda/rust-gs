@@ -110,4 +110,40 @@ impl Splat {
         };
         return splat;
     }
+
+    /// Build a splat from already-decoded values: linear (exp'd) scale, a
+    /// normalized quaternion in the same component order as `rot_0..rot_3`,
+    /// and color/opacity in [0, 1]. Used by the packed GSZ1 loader.
+    pub fn from_decoded(
+        x: f32,
+        y: f32,
+        z: f32,
+        scale: Vec3,
+        rot: Vec4,
+        r: f32,
+        g: f32,
+        b: f32,
+        opacity: f32,
+    ) -> Self {
+        Splat {
+            nx: 0.0,
+            ny: 0.0,
+            nz: 0.0,
+            opacity,
+            rot_0: rot.x,
+            rot_1: rot.y,
+            rot_2: rot.z,
+            rot_3: rot.w,
+            scale_0: scale.x,
+            scale_1: scale.y,
+            scale_2: scale.z,
+            x,
+            y,
+            z,
+            r,
+            g,
+            b,
+            cov3d: Splat::compute_cov3_d(scale, 1.0, rot),
+        }
+    }
 }

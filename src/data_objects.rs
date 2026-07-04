@@ -76,6 +76,7 @@ pub struct SplatData {
 
 impl SplatData {
     pub async fn new_from_url(url: &str) -> Self {
+        log!("Loading model from url: {}", url);
         // Show loading indicator for model download
         set_model_loading(true, "Loading model...");
 
@@ -142,7 +143,8 @@ impl SplatData {
 
         // Stream the response and track download progress
         let mut downloaded: u64 = 0;
-        let mut all_chunks = Vec::new();
+        let mut combined: Vec<u8> = Vec::with_capacity(total_size as usize);
+        let mut last_percentage: u32 = u32::MAX;
 
         let mut stream = res.bytes_stream();
         use futures::StreamExt;
@@ -152,26 +154,33 @@ impl SplatData {
                 Ok(chunk) => {
                     downloaded += chunk.len() as u64;
 
-                    // Only update UI every ~5% or if total size is unknown
+                    // Only touch the DOM when the whole percentage actually changes.
                     if total_size > 0 {
-                        let percentage = (downloaded as f64 / total_size as f64 * 100.0) as u32;
+                        // The response may be served with Content-Encoding (gzip), in
+                        // which case `downloaded` counts decompressed bytes while
+                        // `total_size` is the compressed size — clamp to 100%.
+                        let percentage =
+                            ((downloaded as f64 / total_size as f64 * 100.0) as u32).min(100);
+                        if percentage != last_percentage {
+                            last_percentage = percentage;
 
-                        // Update model loading progress
-                        set_model_loading(true, &format!("Loading model... {}%", percentage));
+                            set_model_loading(true, &format!("Loading model... {}%", percentage));
 
-                        // Update the progress bar
-                        if let Some(progress_bar) = document.get_element_by_id("loading-progress") {
-                            progress_bar.set_attribute("style", &format!("width: {}%; height: 20px; background-color: #4CAF50; border-radius: 3px; transition: width 0.3s;", percentage)).unwrap();
-                        }
+                            if let Some(progress_bar) =
+                                document.get_element_by_id("loading-progress")
+                            {
+                                progress_bar.set_attribute("style", &format!("width: {}%; height: 20px; background-color: #4CAF50; border-radius: 3px; transition: width 0.3s;", percentage)).unwrap();
+                            }
 
-                        // Update progress text
-                        if let Some(progress_text) = document.get_element_by_id("progress-text") {
-                            progress_text.set_text_content(Some(&format!(
-                                "{}% ({}/{} KB)",
-                                percentage,
-                                downloaded / 1024,
-                                total_size / 1024
-                            )));
+                            if let Some(progress_text) = document.get_element_by_id("progress-text")
+                            {
+                                progress_text.set_text_content(Some(&format!(
+                                    "{}% ({}/{} KB)",
+                                    percentage,
+                                    downloaded / 1024,
+                                    total_size / 1024
+                                )));
+                            }
                         }
                     } else {
                         // If we don't know the total size, just show downloaded amount
@@ -183,7 +192,7 @@ impl SplatData {
                         }
                     }
 
-                    all_chunks.push(chunk);
+                    combined.extend_from_slice(&chunk);
                 }
                 Err(e) => {
                     log!("Error downloading chunk: {:?}", e);
@@ -191,9 +200,6 @@ impl SplatData {
                 }
             }
         }
-
-        // Combine all chunks into a single Bytes object
-        let combined = bytes::Bytes::from(all_chunks.concat());
 
         // Remove the loading container when done
         if let Some(container) = document.get_element_by_id("loading-container") {
@@ -204,13 +210,33 @@ impl SplatData {
 
         // Show processing message before parsing
         set_model_loading(true, "Processing model data...");
-        
-        let result = SplatData::new_from_rkyv(&combined);
-        
+
+        let result = SplatData::new_from_bytes(&combined);
+
         // Hide loading indicator when completely done
         set_model_loading(false, "");
-        
+
         return result;
+    }
+
+    /// Parse splat data from raw bytes, auto-detecting the format:
+    /// the compact packed format (GSZ1 magic) or the legacy rkyv format.
+    pub fn new_from_bytes(bytes: &[u8]) -> Self {
+        if crate::packed_format::is_packed_format(bytes) {
+            let splats = crate::packed_format::decode(bytes)
+                .expect("failed to decode packed splat file");
+            log!("loaded {} splats from packed GSZ1 format", splats.len());
+            let end = if splats.is_empty() {
+                0
+            } else {
+                splats.len() as u32 - 1
+            };
+            return SplatData {
+                splats,
+                objects: vec![SplatObject { start: 0, end }],
+            };
+        }
+        SplatData::new_from_rkyv(bytes)
     }
 
     pub fn new_from_rkyv(bytes: &[u8]) -> Self {

@@ -3,6 +3,7 @@ pub mod gizmo;
 pub mod loader;
 pub mod obj_reader;
 pub mod oct_tree;
+pub mod packed_format;
 pub mod ply_splat;
 #[allow(dead_code)]
 pub mod scene;

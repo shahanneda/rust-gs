@@ -765,6 +765,29 @@ impl Renderer {
         );
     }
 
+    /// Re-upload only the opacity texture. Much cheaper than
+    /// `update_webgl_textures` when nothing but opacity changed (e.g. splat
+    /// deletion), since it skips rebuilding/uploading the other four textures.
+    pub fn update_opacity_texture(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
+        let offset = scene_idx * 5;
+        let mut temp = self.temp_texture_data.borrow_mut();
+        let buf = &mut temp[4];
+        buf.clear();
+        buf.reserve(scene.splat_data.splats.len() * 3);
+        for s in &scene.splat_data.splats {
+            buf.extend_from_slice(&[s.opacity, 0.0, 0.0]);
+        }
+
+        self.gl
+            .active_texture(WebGl2RenderingContext::TEXTURE0 + (offset + 4) as u32);
+        put_data_into_texture(
+            &self.gl,
+            &self.splat_textures[scene_idx].opacity_texture,
+            &float32_array_from_vec(buf),
+        )?;
+        Ok(())
+    }
+
     pub fn update_webgl_textures(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
         debug_memory("update_tex_begin");
         let mut timer = Timer::new("update_webgl_textures_inner");

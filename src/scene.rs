@@ -26,7 +26,7 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(splat_data: SplatData) -> Self {
-        let oct_tree = OctTree::new(splat_data.splats.clone());
+        let oct_tree = OctTree::new(&splat_data.splats);
         Self {
             splat_data,
             objects: Vec::new(),
@@ -75,7 +75,13 @@ impl Scene {
     }
 
     pub fn recalculate_octtree(&mut self) {
-        self.oct_tree = OctTree::new(self.splat_data.splats.clone());
+        self.oct_tree = OctTree::new(&self.splat_data.splats);
+    }
+
+    /// Octree radius query against the live splat data.
+    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<OctTreeSplat> {
+        self.oct_tree
+            .find_splats_in_radius(center, radius, &self.splat_data.splats)
     }
 
     pub fn redraw_from_oct_tree(&mut self, only_clicks: bool) {
@@ -254,7 +260,9 @@ impl Scene {
                     let max = object.max;
                     let points_to_check = vec![min, max];
                     for point in points_to_check {
-                        let splats = self.oct_tree.find_splats_in_radius(point, 0.1);
+                        let splats = self
+                            .oct_tree
+                            .find_splats_in_radius(point, 0.1, &self.splat_data.splats);
                         let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
                         let visible_splats_count = visible_splats.count();
                         if visible_splats_count >= 1 {
@@ -280,7 +288,9 @@ impl Scene {
         let points_to_check = vec![min, max];
         let mut collision = false;
         for point in points_to_check {
-            let splats = self.oct_tree.find_splats_in_radius(point, 0.05);
+            let splats = self
+                .oct_tree
+                .find_splats_in_radius(point, 0.05, &self.splat_data.splats);
             let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
             let visible_splats_count = visible_splats.count();
 
@@ -310,7 +320,9 @@ impl Scene {
             let points_to_check = vec![min, max];
             let mut collision = false;
             for point in points_to_check {
-                let splats = self.oct_tree.find_splats_in_radius(point, 0.05);
+                let splats = self
+                    .oct_tree
+                    .find_splats_in_radius(point, 0.05, &self.splat_data.splats);
                 let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
                 let visible_splats_count = visible_splats.count();
 

@@ -8,3 +8,4 @@ wasm-pack.log
 *.splat
 *.json
 *.rkyv
+*.gsz

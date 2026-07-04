@@ -56,12 +56,14 @@ cargo test
 ## Data Pipeline
 
 - Raw 3D scans are stored as PLY files in the `splats/` directory
-- Use the local binary to convert PLY files to optimized `.rkyv` format
-- The web application loads `.rkyv` files for faster startup times
+- Use the local binary (`cargo run --release --bin local -- <file.rkyv|file.ply> ...`) to convert PLY/rkyv files to the compact packed `.gsz` format
+- The web application loads `.gsz` files (legacy `.rkyv` URLs still work — the loader auto-detects the format by magic bytes)
+- Converted files live in `splats/v2/`, mirroring `s3://zimpmodels/splats/v2/`, which serves them gzipped (`Content-Encoding: gzip`)
 - Splats are organized in an octree for efficient spatial queries and rendering
 
 ## Performance Notes
 
-- Release builds are configured with `opt-level = 0` and `wasm-opt = false` for faster compilation during development
+- Release builds use `opt-level = 3` + thin LTO (`wasm-opt` stays disabled for atomics/shared-memory compatibility); `./build.sh` builds with `--release`
+- The packed `GSZ1` format is ~26 bytes/splat: f32 positions, f16 scales, u8 quaternions, u8 RGBA; cov3d is recomputed at load time
 - Uses counting sort for efficient splat depth sorting
 - Implements instance rendering for splats using WebGL2 data textures

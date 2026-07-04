@@ -38,7 +38,6 @@ pub struct OctTreeNode {
 #[derive(Debug)]
 pub struct OctTree {
     pub root: OctTreeNode,
-    all_splats: Vec<Splat>,
 }
 
 // Dynamic split parameters will be chosen at runtime in `OctTree::new`.
@@ -68,7 +67,7 @@ impl OctTreeNode {
         out
     }
 
-    pub fn new_root(splats: Vec<Splat>, center: Vec3, half_width: f32, params: SplitParams) -> (Self, Vec<Splat>) {
+    pub fn new_root(splats: &[Splat], center: Vec3, half_width: f32, params: SplitParams) -> Self {
         let indices: Vec<usize> = (0..splats.len()).collect();
         let mut root = OctTreeNode {
             children: Vec::new(),
@@ -77,9 +76,9 @@ impl OctTreeNode {
             half_width,
             touched: false,
         };
-        
-        root.propogate_splats_to_children(0, params, &splats);
-        (root, splats)
+
+        root.propogate_splats_to_children(0, params, splats);
+        root
     }
 
     fn index_to_color(index: usize) -> Vec3 {
@@ -301,7 +300,7 @@ impl OctTreeNode {
 }
 
 impl OctTree {
-    pub fn new(splats: Vec<Splat>) -> Self {
+    pub fn new(splats: &[Splat]) -> Self {
         log!("new octtree with {} splats", splats.len());
 
         // Choose adaptive parameters based on total splat count.
@@ -328,16 +327,8 @@ impl OctTree {
             }
         };
 
-        let (root, all_splats) = OctTreeNode::new_root(splats, vec3(0.0, 0.0, 0.0), 10.0, params);
-        OctTree { root, all_splats }
-    }
-
-    pub fn get_splat(&self, index: usize) -> Option<&Splat> {
-        self.all_splats.get(index)
-    }
-
-    pub fn get_all_splats(&self) -> &[Splat] {
-        &self.all_splats
+        let root = OctTreeNode::new_root(splats, vec3(0.0, 0.0, 0.0), 10.0, params);
+        OctTree { root }
     }
 
     pub fn get_cubes(&self) -> Vec<SceneObject> {
@@ -348,9 +339,15 @@ impl OctTree {
         return self.root.get_lines_of_children(only_clicks);
     }
 
-    pub fn find_splats_in_radius(&mut self, center: Vec3, radius: f32) -> Vec<OctTreeSplat> {
-        log!("finding splats in radius {:?}", center);
-        self.root.find_splats_in_radius(center, radius, &self.all_splats)
+    /// Query splats within `radius` of `center`. The caller passes the live
+    /// splat slice, so results always reflect current positions/opacity.
+    pub fn find_splats_in_radius(
+        &mut self,
+        center: Vec3,
+        radius: f32,
+        splats: &[Splat],
+    ) -> Vec<OctTreeSplat> {
+        self.root.find_splats_in_radius(center, radius, splats)
     }
 
     pub fn get_root(&self) -> &OctTreeNode {
