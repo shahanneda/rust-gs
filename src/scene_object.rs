@@ -43,7 +43,7 @@ fn transform_vector(matrix: &Mat4, vector: &Vec3) -> Vec3 {
     glm::vec3(transformed.x, transformed.y, transformed.z)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SceneObject {
     pub mesh_data: MeshData,
     pub pos: Vec3,
@@ -51,6 +51,8 @@ pub struct SceneObject {
     pub scale: Vec3,
     pub min: Vec3,
     pub max: Vec3,
+    pub name: String,
+    pub hidden: bool,
 }
 #[derive(Debug)]
 pub struct Line {
@@ -68,6 +70,8 @@ impl SceneObject {
             scale,
             min: Vec3::zeros(),
             max: Vec3::zeros(),
+            name: String::from("Mesh"),
+            hidden: false,
         };
 
         out.recalculate_min_max();

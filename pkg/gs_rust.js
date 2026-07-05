@@ -119,6 +119,20 @@ function getArrayF32FromWasm0(ptr, len) {
     return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
 }
 
+let cachedInt32ArrayMemory0 = null;
+
+function getInt32ArrayMemory0() {
+    if (cachedInt32ArrayMemory0 === null || cachedInt32ArrayMemory0.buffer !== wasm.memory.buffer) {
+        cachedInt32ArrayMemory0 = new Int32Array(wasm.memory.buffer);
+    }
+    return cachedInt32ArrayMemory0;
+}
+
+function getArrayI32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getInt32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 const CLOSURE_DTORS = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(state => {
@@ -215,6 +229,230 @@ function debugString(val) {
     return className;
 }
 /**
+ * @returns {string}
+ */
+export function editor_get_objects() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.editor_get_objects();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * @param {string} kind
+ * @param {number} idx
+ */
+export function editor_select(kind, idx) {
+    const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.editor_select(ptr0, len0, idx);
+}
+
+export function editor_deselect() {
+    wasm.editor_deselect();
+}
+
+/**
+ * @param {string} kind
+ * @param {number} idx
+ * @param {boolean} hidden
+ */
+export function editor_set_hidden(kind, idx, hidden) {
+    const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.editor_set_hidden(ptr0, len0, idx, hidden);
+}
+
+/**
+ * @param {string} kind
+ * @param {number} idx
+ * @param {string} name
+ */
+export function editor_rename(kind, idx, name) {
+    const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    wasm.editor_rename(ptr0, len0, idx, ptr1, len1);
+}
+
+/**
+ * @param {string} kind
+ * @param {number} idx
+ * @returns {boolean}
+ */
+export function editor_delete(kind, idx) {
+    const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.editor_delete(ptr0, len0, idx);
+    return ret !== 0;
+}
+
+/**
+ * @param {string} kind
+ * @param {number} idx
+ * @returns {boolean}
+ */
+export function editor_duplicate(kind, idx) {
+    const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.editor_duplicate(ptr0, len0, idx);
+    return ret !== 0;
+}
+
+/**
+ * Live (shader-only) tint preview for a splat object.
+ * @param {number} idx
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ * @param {number} strength
+ */
+export function editor_set_tint_preview(idx, r, g, b, strength) {
+    wasm.editor_set_tint_preview(idx, r, g, b, strength);
+}
+
+/**
+ * Bake the current preview tint into the splat colors (undoable).
+ * @param {number} idx
+ */
+export function editor_apply_tint(idx) {
+    wasm.editor_apply_tint(idx);
+}
+
+/**
+ * Set the flat color of a mesh object.
+ * @param {number} idx
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ */
+export function editor_set_mesh_color(idx, r, g, b) {
+    wasm.editor_set_mesh_color(idx, r, g, b);
+}
+
+/**
+ * @param {number} radius
+ * @param {boolean} preview
+ */
+export function editor_set_eraser_config(radius, preview) {
+    wasm.editor_set_eraser_config(radius, preview);
+}
+
+/**
+ * @param {number} separation
+ * @param {boolean} target_selected
+ * @param {number} mode
+ */
+export function editor_set_slice_config(separation, target_selected, mode) {
+    wasm.editor_set_slice_config(separation, target_selected, mode);
+}
+
+/**
+ * @returns {boolean}
+ */
+export function editor_undo() {
+    const ret = wasm.editor_undo();
+    return ret !== 0;
+}
+
+/**
+ * @param {string} url
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
+export function editor_add_splat_from_url(url, name) {
+    const ptr0 = passStringToWasm0(url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.editor_add_splat_from_url(ptr0, len0, ptr1, len1);
+    return ret;
+}
+
+/**
+ * @param {string} url
+ * @param {string} name
+ * @param {number} scale
+ * @returns {Promise<void>}
+ */
+export function editor_add_mesh_from_url(url, name, scale) {
+    const ptr0 = passStringToWasm0(url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.editor_add_mesh_from_url(ptr0, len0, ptr1, len1, scale);
+    return ret;
+}
+
+/**
+ * @param {string} kind
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ * @param {number} size
+ */
+export function editor_add_primitive(kind, r, g, b, size) {
+    const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.editor_add_primitive(ptr0, len0, r, g, b, size);
+}
+
+/**
+ * Render one clean frame and return its RGBA pixels (bottom-up, WebGL
+ * convention — the JS side flips). Also remembers the view-projection
+ * matrix so a mask computed on this frame can be projected back onto the
+ * splats later, even if the camera has since moved.
+ * @returns {Uint8Array}
+ */
+export function editor_capture_frame() {
+    const ret = wasm.editor_capture_frame();
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+/**
+ * Given a segmentation mask over the captured frame (row-major, top-down,
+ * one byte per pixel, non-zero = selected), find the matching splats.
+ * mode 0: extract them into a new object (returns its index).
+ * mode 1: erase them (undoable; returns number of erased splats).
+ * Returns -1 when nothing matched.
+ * @param {Uint8Array} mask
+ * @param {number} mask_w
+ * @param {number} mask_h
+ * @param {number} mode
+ * @returns {number}
+ */
+export function editor_apply_mask(mask, mask_w, mask_h, mode) {
+    const ptr0 = passArray8ToWasm0(mask, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.editor_apply_mask(ptr0, len0, mask_w, mask_h, mode);
+    return ret;
+}
+
+/**
+ * Number of visible splats the eraser would delete at its current position.
+ * @returns {number}
+ */
+export function editor_pending_erase_count() {
+    const ret = wasm.editor_pending_erase_count();
+    return ret >>> 0;
+}
+
+/**
  * @returns {Promise<void>}
  */
 export function start() {
@@ -238,11 +476,11 @@ export function wbg_rayon_start_worker(receiver) {
 }
 
 function __wbg_adapter_34(arg0, arg1, arg2) {
-    wasm.closure10_externref_shim(arg0, arg1, arg2);
+    wasm.closure2_externref_shim(arg0, arg1, arg2);
 }
 
 function __wbg_adapter_39(arg0, arg1, arg2) {
-    wasm.closure337_externref_shim(arg0, arg1, arg2);
+    wasm.closure319_externref_shim(arg0, arg1, arg2);
 }
 
 function __wbg_adapter_42(arg0, arg1) {
@@ -250,11 +488,11 @@ function __wbg_adapter_42(arg0, arg1) {
 }
 
 function __wbg_adapter_45(arg0, arg1, arg2) {
-    wasm.closure344_externref_shim(arg0, arg1, arg2);
+    wasm.closure326_externref_shim(arg0, arg1, arg2);
 }
 
-function __wbg_adapter_369(arg0, arg1, arg2, arg3) {
-    wasm.closure378_externref_shim(arg0, arg1, arg2, arg3);
+function __wbg_adapter_392(arg0, arg1, arg2, arg3) {
+    wasm.closure360_externref_shim(arg0, arg1, arg2, arg3);
 }
 
 const __wbindgen_enum_RequestCredentials = ["omit", "same-origin", "include"];
@@ -798,16 +1036,6 @@ function __wbg_get_imports() {
         const ret = result;
         return ret;
     };
-    imports.wbg.__wbg_instanceof_HtmlSelectElement_cabc9d5aca229e40 = function(arg0) {
-        let result;
-        try {
-            result = arg0 instanceof HTMLSelectElement;
-        } catch (_) {
-            result = false;
-        }
-        const ret = result;
-        return ret;
-    };
     imports.wbg.__wbg_instanceof_Memory_b30baab7afe1fb19 = function(arg0) {
         let result;
         try {
@@ -874,7 +1102,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_369(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_392(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -983,6 +1211,9 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_read_38ab8bac2ed37daf = function(arg0) {
         const ret = arg0.read();
         return ret;
+    };
+    imports.wbg.__wbg_refreshEditorPanels_b54bd2fc17c44150 = function() {
+        refreshEditorPanels();
     };
     imports.wbg.__wbg_releaseLock_4caa359da22c7b97 = function(arg0) {
         arg0.releaseLock();
@@ -1142,17 +1373,26 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_uniform1f_cb405a64ccec058d = function(arg0, arg1, arg2) {
         arg0.uniform1f(arg1, arg2);
     };
+    imports.wbg.__wbg_uniform1fv_7665a6703658b932 = function(arg0, arg1, arg2, arg3) {
+        arg0.uniform1fv(arg1, getArrayF32FromWasm0(arg2, arg3));
+    };
     imports.wbg.__wbg_uniform1i_93980eed5eb97471 = function(arg0, arg1, arg2) {
         arg0.uniform1i(arg1, arg2);
+    };
+    imports.wbg.__wbg_uniform2iv_b384f5e2bbc2f678 = function(arg0, arg1, arg2, arg3) {
+        arg0.uniform2iv(arg1, getArrayI32FromWasm0(arg2, arg3));
     };
     imports.wbg.__wbg_uniform3fv_98ad0020bfeea690 = function(arg0, arg1, arg2, arg3) {
         arg0.uniform3fv(arg1, getArrayF32FromWasm0(arg2, arg3));
     };
+    imports.wbg.__wbg_uniform4fv_f8a285b106e5cc5d = function(arg0, arg1, arg2, arg3) {
+        arg0.uniform4fv(arg1, getArrayF32FromWasm0(arg2, arg3));
+    };
     imports.wbg.__wbg_uniformMatrix4fv_4ae4cf2ab15a9d65 = function(arg0, arg1, arg2, arg3, arg4) {
         arg0.uniformMatrix4fv(arg1, arg2 !== 0, getArrayF32FromWasm0(arg3, arg4));
     };
-    imports.wbg.__wbg_updateLoadingMessage_3f4c369a65f30b51 = function(arg0, arg1) {
-        updateLoadingMessage(getStringFromWasm0(arg0, arg1));
+    imports.wbg.__wbg_updateEraseCount_a1284c4bc0fe75c1 = function(arg0) {
+        updateEraseCount(arg0 >>> 0);
     };
     imports.wbg.__wbg_url_8c4481a75afa78eb = function(arg0, arg1) {
         const ret = arg1.url;
@@ -1171,13 +1411,6 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_value_87c720f6568103d1 = function(arg0) {
         const ret = arg0.value;
         return ret;
-    };
-    imports.wbg.__wbg_value_c0b5c7578be1de31 = function(arg0, arg1) {
-        const ret = arg1.value;
-        const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-        getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
     };
     imports.wbg.__wbg_value_e5170ceef06c5805 = function(arg0) {
         const ret = arg0.value;
@@ -1229,28 +1462,28 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper1012 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 345, __wbg_adapter_45);
+    imports.wbg.__wbindgen_closure_wrapper1020 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 320, __wbg_adapter_39);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper1014 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 345, __wbg_adapter_45);
+    imports.wbg.__wbindgen_closure_wrapper1022 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 320, __wbg_adapter_42);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper238 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 11, __wbg_adapter_34);
+    imports.wbg.__wbindgen_closure_wrapper1039 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 327, __wbg_adapter_45);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper240 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 11, __wbg_adapter_34);
+    imports.wbg.__wbindgen_closure_wrapper1041 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 327, __wbg_adapter_45);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper993 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 338, __wbg_adapter_39);
+    imports.wbg.__wbindgen_closure_wrapper225 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 3, __wbg_adapter_34);
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper995 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 338, __wbg_adapter_42);
+    imports.wbg.__wbindgen_closure_wrapper227 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 3, __wbg_adapter_34);
         return ret;
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
@@ -1340,6 +1573,7 @@ function __wbg_finalize_init(instance, module, thread_stack_size) {
     __wbg_init.__wbindgen_wasm_module = module;
     cachedDataViewMemory0 = null;
     cachedFloat32ArrayMemory0 = null;
+    cachedInt32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
 
     if (typeof thread_stack_size !== 'undefined' && (typeof thread_stack_size !== 'number' || thread_stack_size === 0 || thread_stack_size % 65536 !== 0)) { throw 'invalid stack size' }

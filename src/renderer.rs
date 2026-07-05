@@ -1,5 +1,6 @@
 use js_sys::Uint32Array;
 
+use crate::gizmo::GizmoTarget;
 use crate::log;
 use crate::scene::Scene;
 use crate::scene_object::SceneObject;
@@ -358,6 +359,7 @@ impl Renderer {
             );
         }
 
+        self.update_object_uniforms(scene);
         self.draw_splat(
             width,
             height,
@@ -372,6 +374,9 @@ impl Renderer {
 
         // draw scene objects
         for object in &scene.objects {
+            if object.hidden {
+                continue;
+            }
             self.draw_geo(
                 width,
                 height,
@@ -481,6 +486,9 @@ impl Renderer {
         );
 
         for (index, object) in scene.objects.iter().enumerate() {
+            if object.hidden {
+                continue;
+            }
             self.draw_geo(
                 width,
                 height,
@@ -765,27 +773,145 @@ impl Renderer {
         );
     }
 
-    /// Re-upload only the opacity texture. Much cheaper than
-    /// `update_webgl_textures` when nothing but opacity changed (e.g. splat
-    /// deletion), since it skips rebuilding/uploading the other four textures.
-    pub fn update_opacity_texture(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
+    /// Upload the per-object editing state (ranges, live translations,
+    /// tints, hidden flags) plus the eraser brush preview uniforms. Cheap;
+    /// runs every frame.
+    pub fn update_object_uniforms(&self, scene: &Scene) {
+        const MAX_SHADER_OBJECTS: usize = 32;
+        let gl = &self.gl;
+        gl.use_program(Some(&self.splat_shader));
+
+        let n = scene
+            .splat_data
+            .objects
+            .len()
+            .min(MAX_SHADER_OBJECTS)
+            .min(scene.object_meta.len());
+
+        let selected = match scene.gizmo.target_object {
+            Some(GizmoTarget::Splat(i)) => Some(i),
+            _ => None,
+        };
+
+        let mut ranges = vec![0i32; n.max(1) * 2];
+        let mut translations = vec![0f32; n.max(1) * 3];
+        let mut tints = vec![0f32; n.max(1) * 4];
+        let mut alphas = vec![1f32; n.max(1)];
+
+        for i in 0..n {
+            let o = &scene.splat_data.objects[i];
+            let meta = &scene.object_meta[i];
+            ranges[i * 2] = o.start as i32;
+            ranges[i * 2 + 1] = o.end as i32;
+            translations[i * 3] = meta.translation.x;
+            translations[i * 3 + 1] = meta.translation.y;
+            translations[i * 3 + 2] = meta.translation.z;
+            alphas[i] = if meta.hidden { 0.0 } else { 1.0 };
+
+            // Custom tint preview wins; otherwise the selected object gets a
+            // subtle blue highlight so it is obvious what is selected.
+            let (tint, mix) = if meta.tint_strength > 0.001 {
+                (meta.tint, meta.tint_strength)
+            } else if selected == Some(i) {
+                (glm::vec3(0.45, 0.68, 1.0), 0.25)
+            } else {
+                (glm::vec3(0.0, 0.0, 0.0), 0.0)
+            };
+            tints[i * 4] = tint.x;
+            tints[i * 4 + 1] = tint.y;
+            tints[i * 4 + 2] = tint.z;
+            tints[i * 4 + 3] = mix;
+        }
+
+        let loc = |name: &str| gl.get_uniform_location(&self.splat_shader, name);
+        gl.uniform1i(loc("u_num_objects").as_ref(), n as i32);
+        if n > 0 {
+            gl.uniform2iv_with_i32_array(loc("u_object_ranges").as_ref(), &ranges);
+            gl.uniform3fv_with_f32_array(loc("u_object_translations").as_ref(), &translations);
+            gl.uniform4fv_with_f32_array(loc("u_object_tints").as_ref(), &tints);
+            gl.uniform1fv_with_f32_array(loc("u_object_alphas").as_ref(), &alphas);
+        }
+
+        gl.uniform1i(
+            loc("u_eraser_active").as_ref(),
+            scene.eraser.active as i32,
+        );
+        gl.uniform3fv_with_f32_array(
+            loc("u_eraser_center").as_ref(),
+            &[
+                scene.eraser.center.x,
+                scene.eraser.center.y,
+                scene.eraser.center.z,
+            ],
+        );
+        gl.uniform1f(loc("u_eraser_radius").as_ref(), scene.eraser.radius);
+    }
+
+    /// Re-upload a single splat texture. `which`: 0 = color, 1 = position,
+    /// 4 = opacity. Much cheaper than `update_webgl_textures` when only one
+    /// attribute changed.
+    fn update_single_texture(
+        &self,
+        scene: &Scene,
+        scene_idx: usize,
+        which: usize,
+    ) -> Result<(), JsValue> {
         let offset = scene_idx * 5;
         let mut temp = self.temp_texture_data.borrow_mut();
-        let buf = &mut temp[4];
+        let buf = &mut temp[which];
         buf.clear();
         buf.reserve(scene.splat_data.splats.len() * 3);
         for s in &scene.splat_data.splats {
-            buf.extend_from_slice(&[s.opacity, 0.0, 0.0]);
+            match which {
+                0 => buf.extend_from_slice(&[s.r, s.g, s.b]),
+                1 => buf.extend_from_slice(&[s.x, s.y, s.z]),
+                _ => buf.extend_from_slice(&[s.opacity, 0.0, 0.0]),
+            }
         }
 
+        let texture = match which {
+            0 => &self.splat_textures[scene_idx].color_texture,
+            1 => &self.splat_textures[scene_idx].position_texture,
+            _ => &self.splat_textures[scene_idx].opacity_texture,
+        };
+
         self.gl
-            .active_texture(WebGl2RenderingContext::TEXTURE0 + (offset + 4) as u32);
-        put_data_into_texture(
-            &self.gl,
-            &self.splat_textures[scene_idx].opacity_texture,
-            &float32_array_from_vec(buf),
-        )?;
+            .active_texture(WebGl2RenderingContext::TEXTURE0 + (offset + which) as u32);
+        put_data_into_texture(&self.gl, texture, &float32_array_from_vec(buf))?;
         Ok(())
+    }
+
+    /// Re-upload only the opacity texture (e.g. after splat deletion).
+    pub fn update_opacity_texture(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
+        self.update_single_texture(scene, scene_idx, 4)
+    }
+
+    /// Re-upload only the position texture (e.g. after baking a move).
+    pub fn update_position_texture(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
+        self.update_single_texture(scene, scene_idx, 1)
+    }
+
+    /// Re-upload only the color texture (e.g. after a recolor).
+    pub fn update_color_texture(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {
+        self.update_single_texture(scene, scene_idx, 0)
+    }
+
+    /// Read back the current framebuffer (bottom-up rows, RGBA8).
+    pub fn read_pixels_rgba(&self, width: i32, height: i32) -> Vec<u8> {
+        let mut buf = vec![0u8; (width * height * 4) as usize];
+        self.gl.read_buffer(WebGl2RenderingContext::BACK);
+        self.gl
+            .read_pixels_with_opt_u8_array(
+                0,
+                0,
+                width,
+                height,
+                WebGl2RenderingContext::RGBA,
+                WebGl2RenderingContext::UNSIGNED_BYTE,
+                Some(&mut buf),
+            )
+            .expect("read_pixels failed");
+        buf
     }
 
     pub fn update_webgl_textures(&self, scene: &Scene, scene_idx: usize) -> Result<(), JsValue> {

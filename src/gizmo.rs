@@ -3,11 +3,20 @@ use crate::scene_object::SceneObject;
 use crate::{data_objects::MeshData, log};
 use nalgebra_glm::{self as glm, vec3, Vec2, Vec3};
 
+/// What the gizmo (and the editor selection) points at: a triangle-mesh
+/// object in `scene.objects` or a gaussian-splat object in
+/// `scene.splat_data.objects`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GizmoTarget {
+    Mesh(usize),
+    Splat(usize),
+}
+
 pub struct Gizmo {
     pub axis_x: SceneObject,
     pub axis_y: SceneObject,
     pub axis_z: SceneObject,
-    pub target_object: Option<usize>,
+    pub target_object: Option<GizmoTarget>,
     pub active_axis: Option<GizmoAxis>,
     pub drag_start_pos: Option<Vec2>,
     pub original_object_pos: Option<Vec3>,
@@ -96,14 +105,14 @@ impl Gizmo {
     pub fn start_drag(
         &mut self,
         axis: GizmoAxis,
-        object_idx: usize,
+        target: GizmoTarget,
         object_pos: Vec3,
         start_pos: Vec2,
     ) {
-        log!("active object idx: {:?}", object_idx);
+        log!("active target: {:?}", target);
         log!("starting drag axis: {:?}", axis);
         self.active_axis = Some(axis);
-        self.target_object = Some(object_idx);
+        self.target_object = Some(target);
         self.drag_start_pos = Some(start_pos);
         self.original_object_pos = Some(object_pos);
         self.is_dragging = true;

@@ -46,6 +46,45 @@ pub static CUBE_NORMALS: [f32; 24] = [
     0.57735027,
     -0.57735027, // Vertex 7
 ];
+/// Generate a UV sphere of radius 1. Returns (vertices, indices, normals).
+pub fn sphere_mesh(sectors: u32, stacks: u32) -> (Vec<f32>, Vec<u32>, Vec<f32>) {
+    let mut vertices = Vec::new();
+    let mut normals = Vec::new();
+    let mut indices = Vec::new();
+
+    for i in 0..=stacks {
+        let stack_angle = std::f32::consts::PI / 2.0
+            - (i as f32) * std::f32::consts::PI / (stacks as f32);
+        let xy = stack_angle.cos();
+        let z = stack_angle.sin();
+
+        for j in 0..=sectors {
+            let sector_angle = (j as f32) * 2.0 * std::f32::consts::PI / (sectors as f32);
+            let x = xy * sector_angle.cos();
+            let y = xy * sector_angle.sin();
+            vertices.extend_from_slice(&[x, y, z]);
+            normals.extend_from_slice(&[x, y, z]);
+        }
+    }
+
+    for i in 0..stacks {
+        let mut k1 = i * (sectors + 1);
+        let mut k2 = k1 + sectors + 1;
+        for _ in 0..sectors {
+            if i != 0 {
+                indices.extend_from_slice(&[k1, k2, k1 + 1]);
+            }
+            if i != stacks - 1 {
+                indices.extend_from_slice(&[k1 + 1, k2, k2 + 1]);
+            }
+            k1 += 1;
+            k2 += 1;
+        }
+    }
+
+    (vertices, indices, normals)
+}
+
 pub static CUBE_COLORS: [f32; 24] = [
     1.0, 0.0, 0.0, // Vertex 0
     1.0, 0.0, 0.0, // Vertex 1

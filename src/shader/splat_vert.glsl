@@ -29,6 +29,21 @@ uniform sampler2D u_cov3da_texture;
 uniform sampler2D u_cov3db_texture;
 uniform sampler2D u_opacity_texture;
 
+// Per-object editing state. Each splat object is a contiguous range of
+// original splat indices; objects can carry a live (unbaked) translation,
+// a preview tint, and an alpha multiplier (0 = hidden).
+const int MAX_OBJECTS = 32;
+uniform int u_num_objects;
+uniform ivec2 u_object_ranges[MAX_OBJECTS]; // inclusive [start, end]
+uniform vec3 u_object_translations[MAX_OBJECTS];
+uniform vec4 u_object_tints[MAX_OBJECTS]; // rgb = tint color, a = mix amount
+uniform float u_object_alphas[MAX_OBJECTS];
+
+// Eraser brush preview: splats inside the sphere get tinted red.
+uniform bool u_eraser_active;
+uniform vec3 u_eraser_center;
+uniform float u_eraser_radius;
+
 const uint texture_width = 2000u;
 
 // I took a lot of inspiration from
@@ -92,6 +107,27 @@ void main() {
 
   //   vec3 p_orig = vec3(s_center.x, -s_center.y, s_center.z);
   vec3 p_orig = vec3(s_center.x, s_center.y, s_center.z);
+
+  // Apply per-object editing state.
+  vec3 obj_tint = vec3(0.0);
+  float obj_tint_mix = 0.0;
+  int si = int(s_index);
+  for (int i = 0; i < MAX_OBJECTS; i++) {
+    if (i >= u_num_objects)
+      break;
+    if (si >= u_object_ranges[i].x && si <= u_object_ranges[i].y) {
+      if (u_object_alphas[i] <= 0.001) {
+        // hidden object: cull the splat entirely
+        gl_Position = vec4(0, 0, 0, 1);
+        return;
+      }
+      p_orig += u_object_translations[i];
+      s_opacity *= u_object_alphas[i];
+      obj_tint = u_object_tints[i].rgb;
+      obj_tint_mix = u_object_tints[i].a;
+      break;
+    }
+  }
 
   mat4 projmatrix = projection;
   vec4 p_hom = projmatrix * model * vec4(p_orig, 1) + model * vec4(0, 0, 0, 0);
@@ -160,7 +196,14 @@ void main() {
   // move the screen position of this verrtex to one of the corners of the splat
   current_vert_screen_pos = center_of_splat + my_radius * corner;
 
-  color = get_value_from_texture(texture_coord, u_color_texture);
+  color = s_color;
+  if (obj_tint_mix > 0.0) {
+    color = mix(color, obj_tint, obj_tint_mix);
+  }
+  // Eraser preview: highlight splats that the next click would delete.
+  if (u_eraser_active && distance(p_orig, u_eraser_center) < u_eraser_radius) {
+    color = mix(color, vec3(1.0, 0.23, 0.19), 0.72);
+  }
   conic_opacity = vec4(conic, s_opacity);
   depth = p_view.z;
 

@@ -16,6 +16,8 @@ pub mod timer;
 #[cfg(target_arch = "wasm32")]
 pub mod camera;
 #[cfg(target_arch = "wasm32")]
+pub mod editor;
+#[cfg(target_arch = "wasm32")]
 pub mod renderer;
 #[cfg(target_arch = "wasm32")]
 pub mod shader;

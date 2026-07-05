@@ -54,11 +54,11 @@ impl MeshData {
     }
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Archive, Deserialize, Serialize, Debug, PartialEq, Clone, Copy)]
 #[rkyv(compare(PartialEq), derive(Debug))]
 pub struct SplatObject {
-    start: u32,
-    end: u32,
+    pub start: u32,
+    pub end: u32,
 }
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
@@ -370,6 +370,196 @@ impl SplatData {
         }
 
         return Some(new_object_index);
+    }
+
+    /// Which object (by index into `self.objects`) contains the given splat.
+    pub fn object_containing(&self, splat_index: usize) -> Option<usize> {
+        let i = splat_index as u32;
+        self.objects
+            .iter()
+            .position(|o| i >= o.start && i <= o.end)
+    }
+
+    /// Average position of an object's splats (ignores fully erased splats).
+    pub fn centroid_of_object(&self, object_index: usize) -> Vec3 {
+        let obj = &self.objects[object_index];
+        let mut sum = vec3(0.0, 0.0, 0.0);
+        let mut count = 0u32;
+        for i in obj.start as usize..=(obj.end as usize).min(self.splats.len() - 1) {
+            let s = &self.splats[i];
+            if s.opacity > 0.02 {
+                sum += vec3(s.x, s.y, s.z);
+                count += 1;
+            }
+        }
+        if count == 0 {
+            return sum;
+        }
+        sum / count as f32
+    }
+
+    /// Bake a translation into an object's splat positions.
+    pub fn translate_object(&mut self, object_index: usize, delta: Vec3) {
+        let obj = self.objects[object_index];
+        let end = (obj.end as usize).min(self.splats.len().saturating_sub(1));
+        for splat in &mut self.splats[obj.start as usize..=end] {
+            splat.x += delta.x;
+            splat.y += delta.y;
+            splat.z += delta.z;
+        }
+    }
+
+    /// Append a copy of an object's splats as a brand new object.
+    /// Returns the new object's index.
+    pub fn duplicate_object(&mut self, object_index: usize) -> usize {
+        let obj = self.objects[object_index];
+        let end = (obj.end as usize).min(self.splats.len().saturating_sub(1));
+        let copies: Vec<Splat> = self.splats[obj.start as usize..=end].to_vec();
+        let new_start = self.splats.len() as u32;
+        self.splats.extend(copies);
+        let new_end = self.splats.len() as u32 - 1;
+        self.objects.push(SplatObject {
+            start: new_start,
+            end: new_end,
+        });
+        self.objects.len() - 1
+    }
+
+    /// Remove an object and its splats entirely, shifting the ranges of the
+    /// objects that live after it in the splat array.
+    pub fn remove_object(&mut self, object_index: usize) {
+        let obj = self.objects[object_index];
+        let end = (obj.end as usize).min(self.splats.len().saturating_sub(1));
+        let removed = (end + 1 - obj.start as usize) as u32;
+        self.splats.drain(obj.start as usize..=end);
+        self.objects.remove(object_index);
+        for o in &mut self.objects {
+            if o.start >= obj.start + removed {
+                o.start -= removed;
+                o.end -= removed;
+            }
+        }
+    }
+
+    /// Blend all splats of an object toward a color. `strength` in [0,1].
+    /// Returns the previous colors (splat index, rgb) for undo.
+    pub fn recolor_object(
+        &mut self,
+        object_index: usize,
+        color: Vec3,
+        strength: f32,
+    ) -> Vec<(usize, [f32; 3])> {
+        let obj = self.objects[object_index];
+        let end = (obj.end as usize).min(self.splats.len().saturating_sub(1));
+        let mut old = Vec::with_capacity(end + 1 - obj.start as usize);
+        for i in obj.start as usize..=end {
+            let s = &mut self.splats[i];
+            old.push((i, [s.r, s.g, s.b]));
+            s.r = s.r * (1.0 - strength) + color.x * strength;
+            s.g = s.g * (1.0 - strength) + color.y * strength;
+            s.b = s.b * (1.0 - strength) + color.z * strength;
+        }
+        old
+    }
+
+    /// Split an object into two by a predicate on its splats. Splats matching
+    /// the predicate are moved (stable) to the tail of the object's range and
+    /// become a new object; ranges stay disjoint and contiguous. Returns the
+    /// new object's index, or None when the predicate selects nothing/everything.
+    pub fn partition_object<F: Fn(&Splat) -> bool>(
+        &mut self,
+        object_index: usize,
+        pred: F,
+    ) -> Option<usize> {
+        if object_index >= self.objects.len() {
+            return None;
+        }
+        let obj = self.objects[object_index];
+        let start = obj.start as usize;
+        let end = (obj.end as usize).min(self.splats.len().saturating_sub(1));
+        if end <= start {
+            return None;
+        }
+
+        let mut keep: Vec<Splat> = Vec::with_capacity(end + 1 - start);
+        let mut moved: Vec<Splat> = Vec::new();
+        for s in &self.splats[start..=end] {
+            if pred(s) {
+                moved.push(*s);
+            } else {
+                keep.push(*s);
+            }
+        }
+        if moved.is_empty() || keep.is_empty() {
+            return None;
+        }
+
+        let split_at = start + keep.len();
+        self.splats[start..start + keep.len()].copy_from_slice(&keep);
+        self.splats[split_at..=end].copy_from_slice(&moved);
+
+        self.objects[object_index].end = (split_at - 1) as u32;
+        self.objects.push(SplatObject {
+            start: split_at as u32,
+            end: end as u32,
+        });
+        Some(self.objects.len() - 1)
+    }
+
+    /// Pull an arbitrary set of splat indices (possibly spanning several
+    /// objects) out into a brand new object. The whole splat array is
+    /// regrouped so every object stays contiguous. Returns the new object's
+    /// index, or None when the set is empty or covers everything.
+    pub fn extract_indices_to_object(
+        &mut self,
+        selected: &std::collections::HashSet<usize>,
+    ) -> Option<usize> {
+        if selected.is_empty() || selected.len() >= self.splats.len() {
+            return None;
+        }
+        let new_id = self.objects.len() as u32;
+        let mut ids: Vec<u32> = vec![0; self.splats.len()];
+        for (oi, o) in self.objects.iter().enumerate() {
+            let end = (o.end as usize).min(self.splats.len().saturating_sub(1));
+            for id in &mut ids[o.start as usize..=end] {
+                *id = oi as u32;
+            }
+        }
+        for &i in selected {
+            if i < ids.len() {
+                ids[i] = new_id;
+            }
+        }
+
+        // Stable regroup by object id.
+        let mut buckets: Vec<Vec<Splat>> = vec![Vec::new(); new_id as usize + 1];
+        for (i, s) in self.splats.iter().enumerate() {
+            buckets[ids[i] as usize].push(*s);
+        }
+        let mut new_objects = Vec::with_capacity(buckets.len());
+        let mut new_splats: Vec<Splat> = Vec::with_capacity(self.splats.len());
+        for bucket in &buckets {
+            if bucket.is_empty() {
+                // Keep the object entry so external metadata stays aligned;
+                // an empty range is expressed as start > end elsewhere, so
+                // give it a degenerate 0-length range at the current cursor.
+                let at = new_splats.len() as u32;
+                new_objects.push(SplatObject {
+                    start: at,
+                    end: at.saturating_sub(1),
+                });
+                continue;
+            }
+            let start = new_splats.len() as u32;
+            new_splats.extend_from_slice(bucket);
+            new_objects.push(SplatObject {
+                start,
+                end: new_splats.len() as u32 - 1,
+            });
+        }
+        self.splats = new_splats;
+        self.objects = new_objects;
+        Some(new_id as usize)
     }
 
     pub fn apply_transformation_to_object(

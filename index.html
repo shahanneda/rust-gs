@@ -1140,6 +1140,443 @@
 		}
 
 		/* ============================================================
+		   Editor: objects panel
+		   ============================================================ */
+		#objects-panel {
+			position: fixed;
+			top: calc(66px + var(--sat));
+			left: calc(12px + var(--sal));
+			z-index: 1450;
+			width: 236px;
+			max-height: calc(100dvh - 240px);
+			display: none;
+			flex-direction: column;
+			overflow: hidden;
+		}
+
+		body.viewer.objects-open #objects-panel {
+			display: flex;
+		}
+
+		.panel-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 10px 12px 8px;
+			border-bottom: 1px solid var(--border);
+			font-size: 12px;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: .09em;
+			color: var(--text-dim);
+		}
+
+		.panel-head .icon-btn {
+			height: 26px;
+			min-width: 26px;
+			padding: 0 6px;
+			border: none;
+			background: none;
+		}
+
+		#objects-list {
+			overflow-y: auto;
+			padding: 6px;
+		}
+
+		.obj-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 7px 8px;
+			border-radius: 9px;
+			cursor: pointer;
+			font-size: 13px;
+			font-weight: 600;
+			transition: background .12s;
+		}
+
+		.obj-row:hover {
+			background: rgba(255, 255, 255, 0.06);
+		}
+
+		.obj-row.selected {
+			background: rgba(91, 157, 255, 0.18);
+			box-shadow: inset 0 0 0 1px rgba(91, 157, 255, 0.5);
+		}
+
+		.obj-row .obj-icon {
+			flex: none;
+			font-size: 14px;
+			opacity: .9;
+		}
+
+		.obj-row .obj-name {
+			flex: 1;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.obj-row .obj-count {
+			font-size: 10.5px;
+			color: var(--text-dim);
+			font-weight: 600;
+			flex: none;
+		}
+
+		.obj-row .obj-eye {
+			flex: none;
+			border: none;
+			background: none;
+			padding: 2px;
+			color: var(--text-dim);
+			display: inline-flex;
+		}
+
+		.obj-row .obj-eye:hover {
+			color: var(--text);
+		}
+
+		.obj-row.hidden-obj .obj-name,
+		.obj-row.hidden-obj .obj-icon {
+			opacity: .38;
+		}
+
+		.obj-row .obj-eye svg {
+			width: 15px;
+			height: 15px;
+		}
+
+		/* ============================================================
+		   Editor: selection card
+		   ============================================================ */
+		#selection-card {
+			position: fixed;
+			right: calc(12px + var(--sar));
+			bottom: calc(88px + var(--sab));
+			z-index: 1450;
+			width: 252px;
+			display: none;
+			flex-direction: column;
+			padding: 12px 14px 13px;
+			gap: 10px;
+		}
+
+		body.viewer.has-selection #selection-card {
+			display: flex;
+		}
+
+		#selection-card .sel-head {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		#sel-name {
+			flex: 1;
+			font-size: 14px;
+			font-weight: 800;
+			background: none;
+			border: none;
+			color: var(--text);
+			outline: none;
+			border-bottom: 1px dashed transparent;
+			min-width: 0;
+		}
+
+		#sel-name:focus {
+			border-bottom-color: var(--accent);
+		}
+
+		#sel-meta {
+			font-size: 11px;
+			color: var(--text-dim);
+			font-weight: 600;
+		}
+
+		.sel-actions {
+			display: flex;
+			gap: 6px;
+		}
+
+		.sel-actions .icon-btn {
+			flex: 1;
+			height: 34px;
+			font-size: 12px;
+			padding: 0 6px;
+		}
+
+		.sel-actions .icon-btn.danger:hover {
+			border-color: rgba(255, 93, 93, 0.7);
+			background: rgba(255, 93, 93, 0.12);
+			color: #ff8383;
+		}
+
+		.color-row {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.swatch {
+			width: 22px;
+			height: 22px;
+			border-radius: 7px;
+			border: 1.5px solid rgba(255, 255, 255, 0.25);
+			cursor: pointer;
+			flex: none;
+			padding: 0;
+		}
+
+		.swatch.active {
+			box-shadow: 0 0 0 2px var(--accent);
+		}
+
+		#sel-color-custom {
+			width: 22px;
+			height: 22px;
+			border: none;
+			padding: 0;
+			background: none;
+			cursor: pointer;
+			flex: none;
+		}
+
+		.sel-slider-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-size: 11px;
+			color: var(--text-dim);
+			font-weight: 600;
+		}
+
+		.sel-slider-row input[type="range"] {
+			flex: 1;
+			accent-color: var(--accent);
+		}
+
+		#sel-apply-color {
+			height: 30px;
+			font-size: 12px;
+		}
+
+		/* ============================================================
+		   Editor: tool popovers (erase / slice / segment)
+		   ============================================================ */
+		.tool-popover {
+			position: fixed;
+			bottom: calc(88px + var(--sab));
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 1460;
+			display: none;
+			align-items: center;
+			gap: 12px;
+			padding: 10px 16px;
+			font-size: 12.5px;
+			font-weight: 600;
+			color: var(--text-dim);
+			white-space: nowrap;
+			max-width: 96vw;
+		}
+
+		.tool-popover.show {
+			display: flex;
+		}
+
+		.tool-popover label {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.tool-popover input[type="range"] {
+			width: 110px;
+			accent-color: var(--accent);
+		}
+
+		.tool-popover select {
+			background: rgba(255, 255, 255, 0.06);
+			color: var(--text);
+			border: 1px solid var(--border-strong);
+			border-radius: 7px;
+			padding: 4px 6px;
+			font: inherit;
+			font-size: 12px;
+		}
+
+		.tool-popover .mini-btn {
+			border: 1px solid var(--border-strong);
+			background: rgba(255, 255, 255, 0.05);
+			border-radius: 8px;
+			padding: 5px 11px;
+			font-size: 12px;
+			font-weight: 700;
+			color: var(--text);
+		}
+
+		.tool-popover .mini-btn:hover {
+			background: rgba(255, 255, 255, 0.11);
+		}
+
+		.tool-popover .mini-btn.primary {
+			background: var(--accent-grad);
+			border: none;
+			color: #fff;
+		}
+
+		.tool-popover .mini-btn.danger {
+			border-color: rgba(255, 93, 93, 0.5);
+			color: #ff8a8a;
+		}
+
+		#erase-count-badge {
+			min-width: 70px;
+			text-align: center;
+			color: #ffb27a;
+			font-weight: 800;
+		}
+
+		#segment-status {
+			color: var(--accent);
+			font-weight: 700;
+		}
+
+		/* Segment overlay canvas sits on top of the GL canvas */
+		#segment-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			z-index: 1100;
+			pointer-events: none;
+			display: none;
+		}
+
+		body.segmenting #segment-overlay {
+			display: block;
+		}
+
+		#mode-border.magic {
+			display: block;
+			box-shadow: inset 0 0 0 3px rgba(167, 139, 250, 0.85), inset 0 0 60px rgba(167, 139, 250, 0.2);
+		}
+
+		#mode-banner.magic {
+			background: linear-gradient(135deg, rgba(167, 139, 250, .95), rgba(91, 157, 255, .95));
+		}
+
+		.tool-btn.active[data-tool="magic"] {
+			background: linear-gradient(135deg, #a78bfa, #5b9dff);
+			box-shadow: 0 4px 16px rgba(167, 139, 250, 0.45);
+		}
+
+		.tool-btn.add-btn {
+			color: #fff;
+			background: var(--accent-grad);
+			box-shadow: 0 4px 16px rgba(91, 157, 255, 0.35);
+		}
+
+		.tool-btn.add-btn:hover {
+			filter: brightness(1.12);
+			color: #fff;
+			background: var(--accent-grad);
+		}
+
+		/* ============================================================
+		   Editor: add-object library
+		   ============================================================ */
+		#library-modal .modal {
+			max-width: 720px;
+		}
+
+		.lib-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+			gap: 10px;
+			margin-bottom: 8px;
+		}
+
+		.lib-card {
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			background: rgba(255, 255, 255, 0.03);
+			overflow: hidden;
+			cursor: pointer;
+			text-align: center;
+			transition: transform .14s, border-color .14s;
+			padding: 0;
+		}
+
+		.lib-card:hover {
+			transform: translateY(-2px);
+			border-color: rgba(91, 157, 255, 0.6);
+		}
+
+		.lib-thumb {
+			position: relative;
+			aspect-ratio: 16/11;
+			background: linear-gradient(145deg, #1b2233, #12151f);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 30px;
+			overflow: hidden;
+		}
+
+		.lib-thumb img {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+
+		.lib-name {
+			font-size: 12.5px;
+			font-weight: 700;
+			padding: 7px 6px 3px;
+		}
+
+		.lib-sub {
+			font-size: 10.5px;
+			color: var(--text-dim);
+			padding-bottom: 8px;
+		}
+
+		.lib-section-label {
+			font-size: 11.5px;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: .1em;
+			color: var(--text-dim);
+			margin: 14px 0 8px;
+		}
+
+		.lib-url-row {
+			display: flex;
+			gap: 8px;
+			margin-top: 4px;
+		}
+
+		.lib-url-row input {
+			flex: 1;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid var(--border-strong);
+			border-radius: 9px;
+			color: var(--text);
+			padding: 9px 12px;
+			font: inherit;
+			font-size: 13px;
+			outline: none;
+		}
+
+		.lib-url-row input:focus {
+			border-color: var(--accent);
+		}
+
+		/* ============================================================
 		   Responsive tweaks
 		   ============================================================ */
 		@media (max-width: 640px) {
@@ -1235,6 +1672,15 @@
 				</button>
 			</div>
 			<div id="topbar-right">
+				<button class="icon-btn glass" id="objects-toggle-btn" title="Scene objects">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+						stroke-linejoin="round">
+						<path d="M21 8l-9-5-9 5 9 5 9-5z" />
+						<path d="M3 8v8l9 5 9-5V8" />
+						<path d="M12 13v8" />
+					</svg>
+					<span class="btn-label">Objects</span>
+				</button>
 				<button class="icon-btn glass" id="fullscreen-btn" title="Fullscreen">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
 						stroke-linejoin="round">
@@ -1264,7 +1710,7 @@
 
 		<!-- Tools -->
 		<div id="toolbar" class="glass">
-			<button class="tool-btn active" data-tool="explore" title="Explore — drag to look, WASD / joystick to move">
+			<button class="tool-btn active" data-tool="explore" title="Explore — drag to look, click to select objects">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
 					stroke-linejoin="round">
 					<circle cx="12" cy="12" r="9" />
@@ -1272,7 +1718,7 @@
 				</svg>
 				<span>Explore</span>
 			</button>
-			<button class="tool-btn" data-tool="erase" title="Erase — click or tap splats to remove them">
+			<button class="tool-btn" data-tool="erase" title="Erase — adjustable brush, hover to preview what gets deleted">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
 					stroke-linejoin="round">
 					<path d="M19 20H9L4 15a2 2 0 0 1 0-2.8l7.2-7.2a2 2 0 0 1 2.8 0l6 6a2 2 0 0 1 0 2.8L15 19" />
@@ -1288,7 +1734,105 @@
 				</svg>
 				<span>Slice</span>
 			</button>
+			<button class="tool-btn" data-tool="magic" title="Magic select — AI segmentation: click any object to select it">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+					stroke-linejoin="round">
+					<path d="M15 4V2m0 12v-2m-7-5H6m14 0h-2M17.8 6.2l1.4-1.4M12.2 6.2l-1.4-1.4M17.8 11.8l1.4 1.4" />
+					<path d="M13.5 10.5L3 21l1.5-4.5L15 6z" fill="currentColor" stroke="none" opacity="0.9" />
+				</svg>
+				<span>Magic</span>
+			</button>
+			<button class="tool-btn add-btn" id="add-object-btn" title="Add objects — cake, fruit, Shahan, meshes…">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+					<path d="M12 5v14M5 12h14" />
+				</svg>
+				<span>Add</span>
+			</button>
 		</div>
+
+		<!-- Objects hierarchy panel -->
+		<aside id="objects-panel" class="glass">
+			<div class="panel-head">
+				<span>Objects</span>
+				<button class="icon-btn" id="objects-close" title="Hide panel">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+						style="width:14px;height:14px;">
+						<path d="M6 6l12 12M18 6L6 18" />
+					</svg>
+				</button>
+			</div>
+			<div id="objects-list"></div>
+		</aside>
+
+		<!-- Selection card -->
+		<div id="selection-card" class="glass">
+			<div class="sel-head">
+				<input id="sel-name" spellcheck="false" title="Rename object" />
+				<span id="sel-meta"></span>
+			</div>
+			<div class="sel-actions">
+				<button class="icon-btn" id="sel-duplicate" title="Duplicate object">⧉ Copy</button>
+				<button class="icon-btn" id="sel-hide" title="Hide / show object">👁 Hide</button>
+				<button class="icon-btn danger" id="sel-delete" title="Delete object">🗑 Delete</button>
+			</div>
+			<div class="color-row" id="sel-color-row">
+				<button class="swatch" data-c="#ff5d5d" style="background:#ff5d5d"></button>
+				<button class="swatch" data-c="#ffb020" style="background:#ffb020"></button>
+				<button class="swatch" data-c="#4cd97b" style="background:#4cd97b"></button>
+				<button class="swatch" data-c="#5b9dff" style="background:#5b9dff"></button>
+				<button class="swatch" data-c="#a78bfa" style="background:#a78bfa"></button>
+				<button class="swatch" data-c="#ffffff" style="background:#ffffff"></button>
+				<input type="color" id="sel-color-custom" value="#ff5d5d" title="Custom color" />
+			</div>
+			<div class="sel-slider-row" id="sel-tint-row">
+				<span>Tint</span>
+				<input type="range" id="sel-tint-strength" min="0" max="100" value="55" />
+				<span id="sel-tint-val">55%</span>
+			</div>
+			<button class="icon-btn" id="sel-apply-color" title="Bake the tint into the splat colors">🎨 Apply color</button>
+			<div class="sel-slider-row" style="justify-content:space-between;">
+				<span style="opacity:.75">Drag the arrows in the scene to move</span>
+			</div>
+		</div>
+
+		<!-- Erase options -->
+		<div id="erase-popover" class="tool-popover glass">
+			<label>Brush
+				<input type="range" id="erase-radius" min="5" max="150" value="35" />
+				<span id="erase-radius-val">0.35</span>
+			</label>
+			<label><input type="checkbox" id="erase-preview" checked style="accent-color:var(--accent)" /> Preview</label>
+			<span id="erase-count-badge">—</span>
+			<button class="mini-btn" id="erase-undo">↩ Undo</button>
+		</div>
+
+		<!-- Slice options -->
+		<div id="slice-popover" class="tool-popover glass">
+			<label>Mode
+				<select id="slice-mode">
+					<option value="0">Split apart</option>
+					<option value="1">Cut &amp; erase side</option>
+				</select>
+			</label>
+			<label>Gap
+				<input type="range" id="slice-separation" min="0" max="150" value="50" />
+				<span id="slice-separation-val">0.50</span>
+			</label>
+			<label><input type="checkbox" id="slice-target-selected" style="accent-color:var(--accent)" /> Selected object
+				only</label>
+			<button class="mini-btn" id="slice-undo">↩ Undo</button>
+		</div>
+
+		<!-- Segment (magic) action bar -->
+		<div id="segment-popover" class="tool-popover glass">
+			<span id="segment-status">Loading AI model…</span>
+			<button class="mini-btn primary" id="segment-extract" disabled>✂️ Make object</button>
+			<button class="mini-btn danger" id="segment-erase" disabled>🧽 Erase it</button>
+			<button class="mini-btn" id="segment-clear" disabled>Clear</button>
+			<button class="mini-btn" id="segment-recapture" title="Re-analyze the current view">📷 New view</button>
+		</div>
+
+		<canvas id="segment-overlay"></canvas>
 
 		<!-- Touch controls -->
 		<div id="touch-controls">
@@ -1370,10 +1914,11 @@
 			<div class="settings-section">
 				<h3>Actions</h3>
 				<div class="settings-actions">
+					<button class="action-btn" id="settings-add-object-btn"><span class="emoji">➕</span> Add an object to the
+						scene…</button>
+					<button class="action-btn" id="settings-undo-btn"><span class="emoji">↩️</span> Undo last edit</button>
 					<button class="action-btn" id="recalculate-octtree-btn"><span class="emoji">🧮</span> Recalculate
 						octree</button>
-					<button class="action-btn" id="add-shahan-btn"><span class="emoji">🧍</span> Add a Shahan to the
-						scene</button>
 				</div>
 			</div>
 
@@ -1391,16 +1936,34 @@
 				<input type="checkbox" id="use-octtree-for-editing-checkbox" checked>
 				<input type="checkbox" id="move-down-checkbox">
 				<button id="calculate-shadows-btn"></button>
-				<button id="add-teapot-btn"></button>
-				<button id="split-object-btn"></button>
-				<select id="split-direction">
-					<option value="vertical">Vertical Split (X-axis)</option>
-					<option value="horizontal">Horizontal Split (Y-axis)</option>
-					<option value="depth">Depth Split (Z-axis)</option>
-				</select>
 			</div>
 		</div>
 	</aside>
+
+	<!-- ================= Add-object library ================= -->
+	<div class="modal-backdrop" id="library-modal">
+		<div class="modal glass">
+			<div class="modal-head">
+				<h2>➕ Add to scene</h2>
+				<button class="icon-btn" id="library-close">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+						<path d="M6 6l12 12M18 6L6 18" />
+					</svg>
+				</button>
+			</div>
+			<div class="modal-body">
+				<div class="lib-section-label">Scanned objects (gaussian splats)</div>
+				<div class="lib-grid" id="lib-splats"></div>
+				<div class="lib-section-label">Meshes</div>
+				<div class="lib-grid" id="lib-meshes"></div>
+				<div class="lib-section-label">Custom URL (.gsz / .rkyv / .obj)</div>
+				<div class="lib-url-row">
+					<input id="lib-url-input" type="url" placeholder="https://…/model.gsz" spellcheck="false" />
+					<button class="primary-btn" id="lib-url-add" style="padding:9px 18px;">Add</button>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<!-- ================= Help modal ================= -->
 	<div class="modal-backdrop" id="help-modal">
@@ -1423,12 +1986,17 @@
 						<div class="control-row"><span class="keys"><span class="key">Space</span><span
 									class="key">Shift</span></span>Move up / down</div>
 						<div class="control-row"><span class="keys"><span class="key">Alt</span>+<span
-									class="key">Click</span></span>Erase splats (or use the Erase tool)</div>
+									class="key">Click</span></span>Erase splats (or use the Erase tool — hover previews in red)</div>
 						<div class="control-row"><span class="keys"><span class="key">P</span>+<span
 									class="key">Drag</span></span>Slice an object in two (or use the Slice tool)</div>
-						<div class="control-row"><span class="keys"><span class="key">Click</span></span>Select a piece — drag the
+						<div class="control-row"><span class="keys"><span class="key">Click</span></span>Select an object — drag the
 							gizmo arrows to move it</div>
-						<div class="control-row"><span class="keys"><span class="key">O</span></span>Toggle octree view</div>
+						<div class="control-row"><span class="keys"><span class="key">✨ Magic</span></span>AI select: click any
+							object, then extract, erase or recolor it</div>
+						<div class="control-row"><span class="keys"><span class="key">➕ Add</span></span>Drop cake, fruit, Shahan or
+							meshes into the scene</div>
+						<div class="control-row"><span class="keys"><span class="key">⌘</span><span class="key">Z</span></span>Undo
+							erase / move / recolor</div>
 					</div>
 					<div class="controls-col">
 						<h3>📱 Touch</h3>
@@ -1731,17 +2299,18 @@
 		function setModeUI(mode) {
 			modeBorder.className = mode || "";
 			modeBanner.className = "glass" + (mode ? " show " + mode : "");
-			if (mode === "erase") modeBanner.textContent = "🧽 Erase mode — click or drag on the model to erase splats";
+			if (mode === "erase") modeBanner.textContent = "🧽 Erase mode — hover to preview, click or drag to erase";
 			if (mode === "slice") modeBanner.textContent = "🔪 Slice mode — drag a line across an object to cut it";
-			document.querySelectorAll(".tool-btn").forEach(b =>
+			if (mode === "magic") modeBanner.textContent = "✨ Magic select — click an object (⇧-click to exclude an area)";
+			document.querySelectorAll(".tool-btn[data-tool]").forEach(b =>
 				b.classList.toggle("active", (mode || "explore") === b.dataset.tool ||
 					(!mode && b.dataset.tool === "explore")));
 		}
 
-		function showSliceMode() { setModeUI("slice"); }
-		function hideSliceMode() { setModeUI(null); hideSliceLine(); }
-		function showDeleteMode() { setModeUI("erase"); }
-		function hideDeleteMode() { setModeUI(null); }
+		function showSliceMode() { if (currentTool !== "magic") setModeUI("slice"); }
+		function hideSliceMode() { setModeUI(currentTool === "magic" ? "magic" : null); hideSliceLine(); }
+		function showDeleteMode() { if (currentTool !== "magic") setModeUI("erase"); }
+		function hideDeleteMode() { setModeUI(currentTool === "magic" ? "magic" : null); }
 
 		function showSliceLine(startX, startY, endX, endY) {
 			const line = document.getElementById("slice-line");
@@ -1820,10 +2389,20 @@
 			if (tool === currentTool) tool = "explore"; // tapping the active tool toggles back
 			releaseKey("Alt");
 			releaseKey("p");
+			const wasMagic = currentTool === "magic";
 			currentTool = tool;
+			if (wasMagic && tool !== "magic") exitSegmentMode();
 			if (tool === "erase") holdKey("Alt");
 			if (tool === "slice") holdKey("p");
+			if (tool === "magic") { setModeUI("magic"); enterSegmentMode(); }
 			if (tool === "explore") setModeUI(null);
+			updateToolPopovers();
+		}
+
+		function updateToolPopovers() {
+			document.getElementById("erase-popover").classList.toggle("show", currentTool === "erase");
+			document.getElementById("slice-popover").classList.toggle("show", currentTool === "slice");
+			document.getElementById("segment-popover").classList.toggle("show", currentTool === "magic");
 		}
 
 		document.querySelectorAll(".tool-btn").forEach(btn => {
@@ -1852,6 +2431,19 @@
 		// When the Erase tool was picked from the toolbar, real mouse drags on the
 		// canvas must carry altKey=true (the engine keys erase vs. camera-look off
 		// it). Intercept trusted mouse events and re-dispatch patched clones.
+		// Magic (segment) mode: the camera must stay frozen on the analyzed
+		// frame, so swallow all trusted mouse input on the canvas and treat
+		// mousedown as a segmentation click instead.
+		["mousedown", "mousemove", "mouseup", "click"].forEach(type => {
+			window.addEventListener(type, (e) => {
+				if (!e.isTrusted || currentTool !== "magic") return;
+				if (e.target !== canvas) return;
+				e.stopImmediatePropagation();
+				e.preventDefault();
+				if (type === "mousedown") segmentClick(e.clientX, e.clientY, e.shiftKey);
+			}, true);
+		});
+
 		["mousedown", "mousemove", "mouseup"].forEach(type => {
 			window.addEventListener(type, (e) => {
 				if (!e.isTrusted || currentTool !== "erase") return;
@@ -1885,6 +2477,10 @@
 		canvas.addEventListener("pointerdown", (e) => {
 			if (e.pointerType === "mouse") return;
 			e.preventDefault();
+			if (currentTool === "magic") {
+				segmentClick(e.clientX, e.clientY, false);
+				return;
+			}
 			canvas.setPointerCapture(e.pointerId);
 			activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -2021,7 +2617,12 @@
 		});
 		document.getElementById("open-picker-btn").addEventListener("click", openPicker);
 		document.getElementById("picker-close").addEventListener("click", closePicker);
-		document.getElementById("add-shahan-btn").addEventListener("click", closeSettings);
+		document.getElementById("objects-toggle-btn").addEventListener("click", () => {
+			document.body.classList.toggle("objects-open");
+			refreshEditorPanels();
+		});
+		document.getElementById("settings-add-object-btn").addEventListener("click", () => { closeSettings(); openLibrary(); });
+		document.getElementById("settings-undo-btn").addEventListener("click", () => doUndo());
 		document.getElementById("recalculate-octtree-btn").addEventListener("click", closeSettings);
 
 		// Fullscreen
@@ -2059,7 +2660,527 @@
 				localStorage.setItem("rgs_seen_help", "1");
 				setTimeout(openHelp, 450);
 			}
+			// Editor: open the objects panel on desktop, sync tool configs.
+			if (window.innerWidth > 900) document.body.classList.add("objects-open");
+			pushEraserConfig();
+			pushSliceConfig();
+			refreshEditorPanels();
 		}
+
+		/* ============================================================
+		   Editor: engine bridge, objects panel, selection card
+		   ============================================================ */
+		function E() { return (window.__modelReady && window.__engine) ? window.__engine : null; }
+
+		let editorState = { items: [], undoDepth: 0 };
+		let selColor = { r: 1.0, g: 0.36, b: 0.36, hex: "#ff5d5d" };
+
+		function refreshEditorPanels() {
+			const eng = E(); if (!eng) return;
+			try { editorState = JSON.parse(eng.editor_get_objects()); }
+			catch (err) { console.warn("editor_get_objects failed", err); return; }
+			renderObjectsList();
+			renderSelectionCard();
+		}
+
+		function fmtCount(item) {
+			const n = item.count;
+			const unit = item.kind === "splat" ? "" : "v";
+			return (n >= 1000 ? (n / 1000).toFixed(n >= 100000 ? 0 : 1) + "k" : n) + unit;
+		}
+
+		const EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+		const EYE_CLOSED = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M10.6 10.7a2.6 2.6 0 0 0 3.6 3.7M6.6 6.8C3.8 8.6 2 12 2 12s3.5 6.5 10 6.5c1.9 0 3.6-.5 5-1.2M12 5.5c6.5 0 10 6.5 10 6.5s-.9 1.7-2.6 3.4"/></svg>';
+
+		function renderObjectsList() {
+			const list = document.getElementById("objects-list");
+			list.innerHTML = "";
+			for (const item of editorState.items) {
+				const row = document.createElement("div");
+				row.className = "obj-row" + (item.selected ? " selected" : "") + (item.hidden ? " hidden-obj" : "");
+				const icon = document.createElement("span");
+				icon.className = "obj-icon";
+				icon.textContent = item.kind === "mesh" ? "🧊" : (item.idx === 0 ? "🏞️" : "🌀");
+				const name = document.createElement("span");
+				name.className = "obj-name";
+				name.textContent = item.name;
+				name.title = item.name;
+				const count = document.createElement("span");
+				count.className = "obj-count";
+				count.textContent = fmtCount(item);
+				const eye = document.createElement("button");
+				eye.className = "obj-eye";
+				eye.innerHTML = item.hidden ? EYE_CLOSED : EYE_OPEN;
+				eye.title = item.hidden ? "Show" : "Hide";
+				eye.addEventListener("click", (ev) => {
+					ev.stopPropagation();
+					const eng = E(); if (!eng) return;
+					eng.editor_set_hidden(item.kind, item.idx, !item.hidden);
+					refreshEditorPanels();
+				});
+				row.appendChild(icon); row.appendChild(name); row.appendChild(count); row.appendChild(eye);
+				row.addEventListener("click", () => {
+					const eng = E(); if (!eng) return;
+					if (item.selected) eng.editor_deselect(); else eng.editor_select(item.kind, item.idx);
+					refreshEditorPanels();
+				});
+				list.appendChild(row);
+			}
+		}
+
+		function selectedItem() { return editorState.items.find(i => i.selected) || null; }
+
+		function renderSelectionCard() {
+			const item = selectedItem();
+			document.body.classList.toggle("has-selection", !!item);
+			if (!item) return;
+			const nameInput = document.getElementById("sel-name");
+			if (document.activeElement !== nameInput) nameInput.value = item.name;
+			document.getElementById("sel-meta").textContent =
+				item.kind === "splat" ? fmtCount(item) + " splats" : "mesh";
+			document.getElementById("sel-hide").textContent = item.hidden ? "👁 Show" : "👁 Hide";
+			// Tint slider only applies to splats.
+			document.getElementById("sel-tint-row").style.display = item.kind === "splat" ? "" : "none";
+			document.getElementById("sel-apply-color").style.display = item.kind === "splat" ? "" : "none";
+		}
+
+		function hexToRgb01(hex) {
+			return {
+				r: parseInt(hex.slice(1, 3), 16) / 255,
+				g: parseInt(hex.slice(3, 5), 16) / 255,
+				b: parseInt(hex.slice(5, 7), 16) / 255,
+				hex
+			};
+		}
+
+		function pushTintPreview() {
+			const eng = E(), item = selectedItem();
+			if (!eng || !item) return;
+			const s = parseInt(document.getElementById("sel-tint-strength").value, 10) / 100;
+			document.getElementById("sel-tint-val").textContent = Math.round(s * 100) + "%";
+			if (item.kind === "splat") {
+				eng.editor_set_tint_preview(item.idx, selColor.r, selColor.g, selColor.b, s);
+			} else {
+				eng.editor_set_mesh_color(item.idx, selColor.r, selColor.g, selColor.b);
+			}
+		}
+
+		document.querySelectorAll("#sel-color-row .swatch").forEach(sw => {
+			sw.addEventListener("click", () => {
+				document.querySelectorAll("#sel-color-row .swatch").forEach(x => x.classList.toggle("active", x === sw));
+				selColor = hexToRgb01(sw.dataset.c);
+				pushTintPreview();
+			});
+		});
+		document.getElementById("sel-color-custom").addEventListener("input", (e) => {
+			document.querySelectorAll("#sel-color-row .swatch").forEach(x => x.classList.remove("active"));
+			selColor = hexToRgb01(e.target.value);
+			pushTintPreview();
+		});
+		document.getElementById("sel-tint-strength").addEventListener("input", pushTintPreview);
+		document.getElementById("sel-apply-color").addEventListener("click", () => {
+			const eng = E(), item = selectedItem();
+			if (!eng || !item || item.kind !== "splat") return;
+			eng.editor_apply_tint(item.idx);
+			showToast("🎨 Color applied");
+			refreshEditorPanels();
+		});
+		document.getElementById("sel-name").addEventListener("change", (e) => {
+			const eng = E(), item = selectedItem();
+			if (!eng || !item) return;
+			eng.editor_rename(item.kind, item.idx, e.target.value.trim() || item.name);
+			refreshEditorPanels();
+		});
+		document.getElementById("sel-duplicate").addEventListener("click", () => {
+			const eng = E(), item = selectedItem();
+			if (!eng || !item) return;
+			showLoadingOverlay("Duplicating…");
+			setTimeout(() => {
+				eng.editor_duplicate(item.kind, item.idx);
+				hideLoadingOverlay();
+				showToast("⧉ Duplicated — drag the arrows to move the copy");
+				refreshEditorPanels();
+			}, 30);
+		});
+		document.getElementById("sel-hide").addEventListener("click", () => {
+			const eng = E(), item = selectedItem();
+			if (!eng || !item) return;
+			eng.editor_set_hidden(item.kind, item.idx, !item.hidden);
+			refreshEditorPanels();
+		});
+		document.getElementById("sel-delete").addEventListener("click", () => {
+			const eng = E(), item = selectedItem();
+			if (!eng || !item) return;
+			if (!confirm(`Delete “${item.name}” from the scene? This can't be undone.`)) return;
+			showLoadingOverlay("Deleting…");
+			setTimeout(() => {
+				eng.editor_delete(item.kind, item.idx);
+				hideLoadingOverlay();
+				refreshEditorPanels();
+			}, 30);
+		});
+
+		// Objects panel toggle
+		document.getElementById("objects-close").addEventListener("click", () =>
+			document.body.classList.remove("objects-open"));
+
+		function updateEraseCount(count) {
+			document.getElementById("erase-count-badge").textContent =
+				count > 0 ? "≈ " + count.toLocaleString() + " splats" : "—";
+		}
+
+		function doUndo() {
+			const eng = E(); if (!eng) return;
+			if (eng.editor_undo()) { showToast("↩️ Undone"); refreshEditorPanels(); }
+			else showToast("Nothing to undo");
+		}
+		document.addEventListener("keydown", (e) => {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); doUndo(); }
+		});
+
+		// ---- Erase / slice popover wiring ----
+		function pushEraserConfig() {
+			const eng = E(); if (!eng) return;
+			const r = parseInt(document.getElementById("erase-radius").value, 10) / 100;
+			document.getElementById("erase-radius-val").textContent = r.toFixed(2);
+			eng.editor_set_eraser_config(r, document.getElementById("erase-preview").checked);
+		}
+		document.getElementById("erase-radius").addEventListener("input", pushEraserConfig);
+		document.getElementById("erase-preview").addEventListener("change", pushEraserConfig);
+		document.getElementById("erase-undo").addEventListener("click", doUndo);
+		document.getElementById("slice-undo").addEventListener("click", doUndo);
+
+		function pushSliceConfig() {
+			const eng = E(); if (!eng) return;
+			const sep = parseInt(document.getElementById("slice-separation").value, 10) / 100;
+			document.getElementById("slice-separation-val").textContent = sep.toFixed(2);
+			eng.editor_set_slice_config(sep,
+				document.getElementById("slice-target-selected").checked,
+				parseInt(document.getElementById("slice-mode").value, 10));
+		}
+		["slice-separation", "slice-target-selected", "slice-mode"].forEach(id =>
+			document.getElementById(id).addEventListener("input", pushSliceConfig));
+
+		/* ============================================================
+		   Editor: add-object library
+		   ============================================================ */
+		const LIBRARY_SPLATS = [
+			{ name: "Shahan", emoji: "🧍", id: "shahan", file: "/v2/Shahan_03_id01-30000.cleaned.gsz", mb: 2 },
+			{ name: "Cake", emoji: "🍰", id: "cake", file: "/v2/ninja/cake_rotate_3.gsz", mb: 20 },
+			{ name: "Apple", emoji: "🍎", id: "apple", file: "/v2/ninja/apple_rotate_3.gsz", mb: 34 },
+			{ name: "Orange", emoji: "🍊", id: "orange", file: "/v2/ninja/orange_3.gsz", mb: 31 },
+			{ name: "Bread", emoji: "🍞", id: "bread", file: "/v2/ninja/bread_3.gsz", mb: 23 },
+			{ name: "Watermelon", emoji: "🍉", id: "watermelon", file: "/v2/ninja/watermelon_1.gsz", mb: 21 },
+		];
+		const LIBRARY_MESHES = [
+			{ name: "Teapot", emoji: "🫖", obj: "https://zimpmodels.s3.us-east-2.amazonaws.com/splats/teapot.obj", scale: 0.01 },
+			{ name: "Cube", emoji: "🧊", primitive: "cube" },
+			{ name: "Sphere", emoji: "🔮", primitive: "sphere" },
+		];
+
+		function libCard(entry, sub, onClick) {
+			const card = document.createElement("button");
+			card.className = "lib-card";
+			const thumb = document.createElement("div");
+			thumb.className = "lib-thumb";
+			thumb.textContent = entry.emoji;
+			if (entry.id) {
+				const img = document.createElement("img");
+				img.loading = "lazy";
+				if (!USE_LOCAL) img.crossOrigin = "anonymous";
+				img.src = THUMB_BASE + entry.id + ".jpg";
+				img.onerror = () => img.remove();
+				thumb.appendChild(img);
+			}
+			const name = document.createElement("div");
+			name.className = "lib-name";
+			name.textContent = entry.name;
+			const subEl = document.createElement("div");
+			subEl.className = "lib-sub";
+			subEl.textContent = sub;
+			card.appendChild(thumb); card.appendChild(name); card.appendChild(subEl);
+			card.addEventListener("click", onClick);
+			return card;
+		}
+
+		function buildLibrary() {
+			const splatsGrid = document.getElementById("lib-splats");
+			const meshGrid = document.getElementById("lib-meshes");
+			splatsGrid.innerHTML = ""; meshGrid.innerHTML = "";
+			for (const s of LIBRARY_SPLATS) {
+				splatsGrid.appendChild(libCard(s, "~" + s.mb + " MB", () => addSplatAsset(s)));
+			}
+			for (const m of LIBRARY_MESHES) {
+				meshGrid.appendChild(libCard(m, m.primitive ? "primitive" : ".obj", () => addMeshAsset(m)));
+			}
+		}
+
+		async function addSplatAsset(s) {
+			const eng = E(); if (!eng) return;
+			closeLibrary();
+			try {
+				await eng.editor_add_splat_from_url(splatUrl(s.file), s.name);
+				showToast(s.emoji + " " + s.name + " added — drag the arrows to move it", 3200);
+			} catch (err) {
+				console.error(err);
+				hideLoadingOverlay();
+				showToast("⚠️ Failed to add " + s.name);
+			}
+		}
+
+		async function addMeshAsset(m) {
+			const eng = E(); if (!eng) return;
+			closeLibrary();
+			try {
+				if (m.primitive) {
+					const palette = ["#ff5d5d", "#ffb020", "#4cd97b", "#5b9dff", "#a78bfa"];
+					const c = hexToRgb01(palette[Math.floor(Math.random() * palette.length)]);
+					eng.editor_add_primitive(m.primitive, c.r, c.g, c.b, 0.15);
+				} else {
+					await eng.editor_add_mesh_from_url(m.obj, m.name, m.scale || 1.0);
+				}
+				showToast(m.emoji + " " + m.name + " added", 2600);
+				refreshEditorPanels();
+			} catch (err) {
+				console.error(err);
+				hideLoadingOverlay();
+				showToast("⚠️ Failed to add " + m.name);
+			}
+		}
+
+		function openLibrary() { buildLibrary(); document.getElementById("library-modal").classList.add("open"); }
+		function closeLibrary() { document.getElementById("library-modal").classList.remove("open"); }
+		document.getElementById("add-object-btn").addEventListener("click", openLibrary);
+		document.getElementById("library-close").addEventListener("click", closeLibrary);
+		document.getElementById("library-modal").addEventListener("click", (e) => {
+			if (e.target === e.currentTarget) closeLibrary();
+		});
+		document.getElementById("lib-url-add").addEventListener("click", async () => {
+			const eng = E(); if (!eng) return;
+			const url = document.getElementById("lib-url-input").value.trim();
+			if (!url) return;
+			const name = decodeURIComponent(url.split("/").pop().split("?")[0]) || "Custom";
+			closeLibrary();
+			try {
+				if (url.toLowerCase().endsWith(".obj")) await eng.editor_add_mesh_from_url(url, name, 1.0);
+				else await eng.editor_add_splat_from_url(url, name);
+				showToast("✅ " + name + " added", 2600);
+			} catch (err) {
+				console.error(err);
+				hideLoadingOverlay();
+				showToast("⚠️ Failed to load " + name);
+			}
+		});
+
+		/* ============================================================
+		   Editor: AI segmentation (Segment Anything in the browser)
+		   ============================================================ */
+		const SAM = {
+			lib: null, model: null, processor: null,
+			inputs: null, embeddings: null,
+			points: [], mask: null, maskDims: null,
+			busy: false, ready: false, device: null,
+		};
+		const segOverlay = document.getElementById("segment-overlay");
+
+		function setSegmentStatus(text) { document.getElementById("segment-status").textContent = text; }
+		function setSegmentButtons(enabled) {
+			["segment-extract", "segment-erase", "segment-clear"].forEach(id =>
+				document.getElementById(id).disabled = !enabled);
+		}
+
+		async function ensureSamModel() {
+			if (SAM.model) return;
+			const model_id = "Xenova/slimsam-77-uniform";
+			setSegmentStatus("Loading AI model…");
+			const lib = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2");
+			SAM.lib = lib;
+			const progress_callback = (p) => {
+				if (p.status === "progress" && p.total) {
+					setSegmentStatus(`Downloading AI model… ${Math.round(p.loaded / p.total * 100)}%`);
+				}
+			};
+			try {
+				SAM.model = await lib.SamModel.from_pretrained(model_id, {
+					dtype: "fp16", device: "webgpu", progress_callback,
+				});
+				SAM.device = "WebGPU";
+			} catch (err) {
+				console.warn("WebGPU unavailable for SAM, using WASM:", err);
+				SAM.model = await lib.SamModel.from_pretrained(model_id, { dtype: "q8", progress_callback });
+				SAM.device = "CPU";
+			}
+			SAM.processor = await lib.AutoProcessor.from_pretrained(model_id);
+		}
+
+		function positionSegmentOverlay() {
+			const rect = canvas.getBoundingClientRect();
+			segOverlay.style.left = rect.left + "px";
+			segOverlay.style.top = rect.top + "px";
+			segOverlay.style.width = rect.width + "px";
+			segOverlay.style.height = rect.height + "px";
+			segOverlay.width = canvas.width;
+			segOverlay.height = canvas.height;
+		}
+
+		async function enterSegmentMode() {
+			document.body.classList.add("segmenting");
+			positionSegmentOverlay();
+			clearSegmentSelection();
+			try {
+				await ensureSamModel();
+				await segmentCaptureAndEmbed();
+			} catch (err) {
+				console.error("Segmentation init failed:", err);
+				setSegmentStatus("⚠️ AI model failed to load");
+			}
+		}
+
+		function exitSegmentMode() {
+			document.body.classList.remove("segmenting");
+			clearSegmentSelection();
+		}
+
+		async function segmentCaptureAndEmbed() {
+			const eng = E(); if (!eng || !SAM.model) return;
+			SAM.busy = true;
+			clearSegmentSelection();
+			setSegmentStatus("Analyzing view…");
+			await new Promise(r => setTimeout(r, 30)); // let the status paint
+			try {
+				const w = canvas.width, h = canvas.height;
+				const px = eng.editor_capture_frame(); // RGBA, bottom-up rows
+				const img = new ImageData(w, h);
+				for (let y = 0; y < h; y++) {
+					img.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+				}
+				for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
+				const off = document.createElement("canvas");
+				off.width = w; off.height = h;
+				off.getContext("2d").putImageData(img, 0, 0);
+				const image = await SAM.lib.RawImage.fromURL(off.toDataURL("image/png"));
+				SAM.inputs = await SAM.processor(image);
+				SAM.embeddings = await SAM.model.get_image_embeddings(SAM.inputs);
+				SAM.ready = true;
+				setSegmentStatus(`Click an object (${SAM.device})`);
+			} catch (err) {
+				console.error("Segment embed failed:", err);
+				setSegmentStatus("⚠️ Analysis failed");
+			} finally {
+				SAM.busy = false;
+			}
+		}
+
+		function clearSegmentSelection() {
+			SAM.points = [];
+			SAM.mask = null;
+			SAM.maskDims = null;
+			setSegmentButtons(false);
+			segOverlay.getContext("2d")?.clearRect(0, 0, segOverlay.width, segOverlay.height);
+		}
+
+		async function segmentClick(clientX, clientY, isNegative) {
+			if (!SAM.ready || SAM.busy) return;
+			const rect = canvas.getBoundingClientRect();
+			const x = (clientX - rect.left) * (canvas.width / rect.width);
+			const y = (clientY - rect.top) * (canvas.height / rect.height);
+			SAM.points.push({ x, y, label: isNegative ? 0 : 1 });
+			SAM.busy = true;
+			setSegmentStatus("Segmenting…");
+			try {
+				const reshaped = SAM.inputs.reshaped_input_sizes[0]; // [h, w]
+				const orig = SAM.inputs.original_sizes[0];           // [h, w]
+				const coords = [];
+				const labels = [];
+				for (const p of SAM.points) {
+					coords.push(p.x * reshaped[1] / orig[1], p.y * reshaped[0] / orig[0]);
+					labels.push(BigInt(p.label));
+				}
+				const input_points = new SAM.lib.Tensor("float32", coords, [1, 1, SAM.points.length, 2]);
+				const input_labels = new SAM.lib.Tensor("int64", labels, [1, 1, SAM.points.length]);
+				const outputs = await SAM.model({ ...SAM.embeddings, input_points, input_labels });
+				const masks = await SAM.processor.post_process_masks(
+					outputs.pred_masks, SAM.inputs.original_sizes, SAM.inputs.reshaped_input_sizes);
+				const maskTensor = masks[0][0]; // [3, H, W]
+				const [numMasks, H, W] = maskTensor.dims;
+				const scores = outputs.iou_scores.data;
+				let best = 0;
+				for (let i = 1; i < scores.length; i++) if (scores[i] > scores[best]) best = i;
+				const raw = maskTensor.data;
+				const mask = new Uint8Array(H * W);
+				const base = best * H * W;
+				let selectedPixels = 0;
+				for (let i = 0; i < H * W; i++) {
+					if (raw[base + i]) { mask[i] = 1; selectedPixels++; }
+				}
+				SAM.mask = mask;
+				SAM.maskDims = [W, H];
+				drawSegmentOverlay();
+				setSegmentButtons(selectedPixels > 0);
+				setSegmentStatus(selectedPixels > 0
+					? "Object found — extract it, erase it, or refine with more clicks"
+					: "Nothing found — try another spot");
+			} catch (err) {
+				console.error("Segment decode failed:", err);
+				setSegmentStatus("⚠️ Segmentation failed");
+			} finally {
+				SAM.busy = false;
+			}
+		}
+
+		function drawSegmentOverlay() {
+			const ctx = segOverlay.getContext("2d");
+			ctx.clearRect(0, 0, segOverlay.width, segOverlay.height);
+			if (SAM.mask) {
+				const [W, H] = SAM.maskDims;
+				const img = ctx.createImageData(W, H);
+				for (let i = 0; i < W * H; i++) {
+					if (SAM.mask[i]) {
+						img.data[i * 4] = 122; img.data[i * 4 + 1] = 162;
+						img.data[i * 4 + 2] = 255; img.data[i * 4 + 3] = 120;
+					}
+				}
+				ctx.putImageData(img, 0, 0);
+			}
+			for (const p of SAM.points) {
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+				ctx.fillStyle = p.label ? "#5b9dff" : "#ff5d5d";
+				ctx.fill();
+				ctx.lineWidth = 2;
+				ctx.strokeStyle = "#fff";
+				ctx.stroke();
+			}
+		}
+
+		function applySegment(mode) {
+			const eng = E();
+			if (!eng || !SAM.mask) return;
+			const [W, H] = SAM.maskDims;
+			showLoadingOverlay(mode === 0 ? "Extracting object…" : "Erasing selection…");
+			setTimeout(async () => {
+				const result = eng.editor_apply_mask(SAM.mask, W, H, mode);
+				hideLoadingOverlay();
+				if (result < 0) {
+					showToast("⚠️ No splats matched the selection");
+					return;
+				}
+				if (mode === 0) {
+					showToast("✂️ Extracted as a new object — move, recolor or duplicate it", 3600);
+					setTool("explore");
+					refreshEditorPanels();
+				} else {
+					showToast("🧽 Erased " + result.toLocaleString() + " splats (⌘Z to undo)", 3000);
+					await segmentCaptureAndEmbed(); // the view changed
+					refreshEditorPanels();
+				}
+			}, 30);
+		}
+
+		document.getElementById("segment-extract").addEventListener("click", () => applySegment(0));
+		document.getElementById("segment-erase").addEventListener("click", () => applySegment(1));
+		document.getElementById("segment-clear").addEventListener("click", clearSegmentSelection);
+		document.getElementById("segment-recapture").addEventListener("click", segmentCaptureAndEmbed);
 
 		/* ============================================================
 		   Boot
@@ -2098,7 +3219,9 @@
 			canvas.width = canvas.clientWidth;
 			canvas.height = canvas.clientHeight;
 
-			const { default: init, initThreadPool } = await import("./pkg/gs_rust.js");
+			const engineModule = await import("./pkg/gs_rust.js");
+			const { default: init, initThreadPool } = engineModule;
+			window.__engine = engineModule; // editor UI calls the exported editor_* functions
 			try {
 				await init();
 				const supported = typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined";

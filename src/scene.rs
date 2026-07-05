@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::data_objects::MeshData;
-use crate::gizmo::{Gizmo, GizmoAxis};
+use crate::gizmo::{Gizmo, GizmoAxis, GizmoTarget};
 use crate::log;
 use crate::oct_tree::{OctTreeNode, OctTreeSplat};
 use crate::scene_object::SceneObject;
@@ -13,6 +13,53 @@ use crate::{data_objects::SplatData, oct_tree::OctTree};
 use nalgebra_glm::{self as glm, Vec2};
 use nalgebra_glm::{vec3, Vec3};
 
+/// Editor-side state for one splat object (parallel to
+/// `splat_data.objects`). `translation` is the live, not-yet-baked offset
+/// applied in the vertex shader while a gizmo drag is in progress.
+#[derive(Debug, Clone)]
+pub struct SplatObjectMeta {
+    pub name: String,
+    pub hidden: bool,
+    pub tint: Vec3,
+    pub tint_strength: f32,
+    pub translation: Vec3,
+    pub centroid: Vec3,
+    pub centroid_valid: bool,
+}
+
+impl SplatObjectMeta {
+    pub fn named(name: String) -> Self {
+        Self {
+            name,
+            hidden: false,
+            tint: vec3(1.0, 1.0, 1.0),
+            tint_strength: 0.0,
+            translation: vec3(0.0, 0.0, 0.0),
+            centroid: vec3(0.0, 0.0, 0.0),
+            centroid_valid: false,
+        }
+    }
+}
+
+/// Live eraser-brush state, visualized by the splat shader.
+pub struct EraserState {
+    pub active: bool,
+    pub center: Vec3,
+    pub radius: f32,
+}
+
+/// One undoable edit.
+pub enum EditOp {
+    /// (splat index, previous opacity)
+    Erase(Vec<(usize, f32)>),
+    /// (splat index, previous rgb)
+    Recolor(Vec<(usize, [f32; 3])>),
+    /// A baked gizmo move of a splat object.
+    Move { object: usize, delta: Vec3 },
+}
+
+const MAX_UNDO: usize = 64;
+
 pub struct Scene {
     pub splat_data: SplatData,
     pub objects: Vec<SceneObject>,
@@ -21,13 +68,19 @@ pub struct Scene {
     pub original_shadow_splat_colors: HashMap<usize, Vec3>,
     pub gizmo: Gizmo,
     pub oct_tree: OctTree,
+    pub octree_dirty: bool,
     pub model_transform: glm::Mat4,
+    pub object_meta: Vec<SplatObjectMeta>,
+    pub eraser: EraserState,
+    pub undo_stack: Vec<EditOp>,
+    /// View-projection matrix of the last frame captured for segmentation.
+    pub capture_vpm: Option<glm::Mat4>,
 }
 
 impl Scene {
     pub fn new(splat_data: SplatData) -> Self {
         let oct_tree = OctTree::new(&splat_data.splats);
-        Self {
+        let mut scene = Self {
             splat_data,
             objects: Vec::new(),
             line_mesh: SceneObject::new(
@@ -40,8 +93,78 @@ impl Scene {
             original_shadow_splat_colors: HashMap::new(),
             gizmo: Gizmo::new(),
             oct_tree,
+            octree_dirty: false,
             model_transform: glm::Mat4::identity(),
+            object_meta: Vec::new(),
+            eraser: EraserState {
+                active: false,
+                center: vec3(0.0, 0.0, 0.0),
+                radius: 0.35,
+            },
+            undo_stack: Vec::new(),
+            capture_vpm: None,
+        };
+        scene.sync_object_meta();
+        if let Some(meta) = scene.object_meta.get_mut(0) {
+            meta.name = String::from("Scene");
         }
+        scene
+    }
+
+    /// Keep `object_meta` aligned with `splat_data.objects`, appending
+    /// default entries for newly created objects.
+    pub fn sync_object_meta(&mut self) {
+        while self.object_meta.len() < self.splat_data.objects.len() {
+            let n = self.object_meta.len();
+            self.object_meta
+                .push(SplatObjectMeta::named(format!("Object {}", n)));
+        }
+        self.object_meta.truncate(self.splat_data.objects.len());
+    }
+
+    pub fn push_undo(&mut self, op: EditOp) {
+        self.undo_stack.push(op);
+        if self.undo_stack.len() > MAX_UNDO {
+            self.undo_stack.remove(0);
+        }
+    }
+
+    /// Recalculate the octree if edits invalidated it (skipped for huge
+    /// scenes, where a slightly stale octree is preferable to a long stall).
+    pub fn ensure_octree(&mut self) {
+        if self.octree_dirty && self.splat_data.splats.len() < 5_000_000 {
+            self.recalculate_octtree();
+        }
+        self.octree_dirty = false;
+    }
+
+    /// Centroid of a splat object plus its live (unbaked) translation.
+    pub fn splat_object_position(&mut self, idx: usize) -> Vec3 {
+        if !self.object_meta[idx].centroid_valid {
+            self.object_meta[idx].centroid = self.splat_data.centroid_of_object(idx);
+            self.object_meta[idx].centroid_valid = true;
+        }
+        let meta = &self.object_meta[idx];
+        meta.centroid + meta.translation
+    }
+
+    /// March the ray through the scene and return the first visible splat.
+    pub fn pick_splat(&mut self, ray_origin: Vec3, ray_direction: Vec3) -> Option<usize> {
+        self.ensure_octree();
+        let steps = 300;
+        let step_size = 0.05;
+        for t in 1..steps {
+            let pos = ray_origin + ray_direction * (t as f32 * step_size);
+            let found = self
+                .oct_tree
+                .find_splats_in_radius(pos, 0.06, &self.splat_data.splats);
+            for splat in found {
+                if splat.opacity >= 0.5 {
+                    return Some(splat.index);
+                }
+            }
+        }
+        None
     }
 
     pub fn add_line(&mut self, start: Vec3, end: Vec3, color: Vec3) {
@@ -208,42 +331,90 @@ impl Scene {
         }
     }
 
-    pub fn update_gizmo_position(&mut self, object_idx: u32) {
-        if let Some(object) = self.objects.get(object_idx as usize) {
-            self.gizmo.update_position(object.pos);
-            self.gizmo.target_object = Some(object_idx as usize);
+    /// Tint previews are transient: drop them whenever the selection moves
+    /// away without the user hitting "apply".
+    pub fn clear_tint_previews(&mut self) {
+        for meta in &mut self.object_meta {
+            meta.tint_strength = 0.0;
         }
     }
+
+    pub fn select_target(&mut self, target: GizmoTarget) {
+        if self.gizmo.target_object != Some(target) {
+            self.clear_tint_previews();
+        }
+        match target {
+            GizmoTarget::Mesh(idx) => {
+                if let Some(object) = self.objects.get(idx) {
+                    let pos = object.pos;
+                    self.gizmo.update_position(pos);
+                    self.gizmo.target_object = Some(target);
+                }
+            }
+            GizmoTarget::Splat(idx) => {
+                if idx < self.splat_data.objects.len() {
+                    let pos = self.splat_object_position(idx);
+                    self.gizmo.update_position(pos);
+                    self.gizmo.target_object = Some(target);
+                }
+            }
+        }
+    }
+
+    pub fn update_gizmo_position(&mut self, object_idx: u32) {
+        self.select_target(GizmoTarget::Mesh(object_idx as usize));
+    }
+
     pub fn hide_gizmo(&mut self) {
         log!("hiding gizmo!");
         self.gizmo.target_object = None;
+        self.clear_tint_previews();
     }
 
     pub fn start_gizmo_drag(&mut self, axis: GizmoAxis, start_pos: Vec2) {
-        let target_idx = if let Some(idx) = self.gizmo.target_object {
-            idx
+        let target = if let Some(target) = self.gizmo.target_object {
+            target
         } else {
             log!("No target object for gizmo");
             return;
         };
-        log!("start drag target idx: {:?}", target_idx);
 
-        let object_pos = if let Some(object) = self.objects.get(target_idx) {
-            object.pos
-        } else {
-            log!("Target object not found");
-            return;
+        let object_pos = match target {
+            GizmoTarget::Mesh(idx) => match self.objects.get(idx) {
+                Some(object) => object.pos,
+                None => return,
+            },
+            GizmoTarget::Splat(idx) => {
+                if idx >= self.splat_data.objects.len() {
+                    return;
+                }
+                self.splat_object_position(idx)
+            }
         };
 
-        self.gizmo
-            .start_drag(axis, target_idx, object_pos, start_pos);
+        self.gizmo.start_drag(axis, target, object_pos, start_pos);
     }
 
     pub fn update_gizmo_drag(&mut self, current_pos: Vec2, restrict_gizmo_movement: bool) {
-        if let Some(new_pos) = self.gizmo.update_drag(current_pos, restrict_gizmo_movement) {
-            if let Some(target_idx) = self.gizmo.target_object {
-                log!("target idx: {:?}", target_idx);
-                log!("restrict gizmo movement: {:?}", restrict_gizmo_movement);
+        let new_pos = match self.gizmo.update_drag(current_pos, restrict_gizmo_movement) {
+            Some(p) => p,
+            None => return,
+        };
+        let target = match self.gizmo.target_object {
+            Some(t) => t,
+            None => return,
+        };
+
+        match target {
+            GizmoTarget::Splat(idx) => {
+                if idx >= self.object_meta.len() {
+                    return;
+                }
+                let centroid = self.object_meta[idx].centroid;
+                self.object_meta[idx].translation = new_pos - centroid;
+                self.gizmo.update_position(new_pos);
+            }
+            GizmoTarget::Mesh(target_idx) => {
                 if let Some(object) = self.objects.get_mut(target_idx) {
                     if !restrict_gizmo_movement {
                         object.pos = new_pos;
@@ -307,10 +478,31 @@ impl Scene {
         return true;
     }
 
-    pub fn end_gizmo_drag(&mut self) {
-        log!("ending gizmo drag!");
+    /// Ends a gizmo drag. If a splat object was being dragged, its live
+    /// translation is baked into the splat positions; returns the object
+    /// index and delta so the caller can refresh GPU data and record undo.
+    pub fn end_gizmo_drag(&mut self) -> Option<(usize, Vec3)> {
+        let was_dragging = self.gizmo.is_dragging;
         self.gizmo.end_drag();
+        if !was_dragging {
+            return None;
+        }
+        if let Some(GizmoTarget::Splat(idx)) = self.gizmo.target_object {
+            if idx < self.object_meta.len() {
+                let delta = self.object_meta[idx].translation;
+                if glm::length(&delta) > 1e-6 {
+                    self.splat_data.translate_object(idx, delta);
+                    self.object_meta[idx].centroid += delta;
+                    self.object_meta[idx].translation = vec3(0.0, 0.0, 0.0);
+                    self.octree_dirty = true;
+                    self.push_undo(EditOp::Move { object: idx, delta });
+                    return Some((idx, delta));
+                }
+            }
+        }
+        None
     }
+
     pub fn move_down(&mut self) {
         for index in 0..self.objects.len() {
             let object = &mut self.objects[index];
@@ -333,7 +525,7 @@ impl Scene {
 
                 if collision {
                     log!("collision, so not moving down!");
-                    if let Some(target_idx) = self.gizmo.target_object {
+                    if let Some(GizmoTarget::Mesh(target_idx)) = self.gizmo.target_object {
                         if target_idx == index {
                             self.gizmo.update_position(object.pos);
                         }
@@ -342,7 +534,7 @@ impl Scene {
                 } else {
                     object.pos.y += 0.01;
 
-                    if let Some(target_idx) = self.gizmo.target_object {
+                    if let Some(GizmoTarget::Mesh(target_idx)) = self.gizmo.target_object {
                         if target_idx == index {
                             self.gizmo.update_position(object.pos);
                         }
