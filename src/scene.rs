@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::data_objects::MeshData;
-use crate::gizmo::{Gizmo, GizmoAxis, GizmoTarget};
+use crate::gizmo::{Gizmo, GizmoAxis, GizmoDragUpdate, GizmoTarget};
 use crate::log;
 use crate::oct_tree::{OctTreeNode, OctTreeSplat};
 use crate::scene_object::SceneObject;
@@ -14,15 +14,13 @@ use nalgebra_glm::{self as glm, Vec2};
 use nalgebra_glm::{vec3, Vec3};
 
 /// Editor-side state for one splat object (parallel to
-/// `splat_data.objects`). `translation` is the live, not-yet-baked offset
-/// applied in the vertex shader while a gizmo drag is in progress.
+/// `splat_data.objects`).
 #[derive(Debug, Clone)]
 pub struct SplatObjectMeta {
     pub name: String,
     pub hidden: bool,
     pub tint: Vec3,
     pub tint_strength: f32,
-    pub translation: Vec3,
     pub centroid: Vec3,
     pub centroid_valid: bool,
 }
@@ -34,10 +32,37 @@ impl SplatObjectMeta {
             hidden: false,
             tint: vec3(1.0, 1.0, 1.0),
             tint_strength: 0.0,
-            translation: vec3(0.0, 0.0, 0.0),
             centroid: vec3(0.0, 0.0, 0.0),
             centroid_valid: false,
         }
+    }
+}
+
+/// The not-yet-baked transform of the splat object currently being dragged
+/// with the gizmo. Applied live in the vertex shader; baked into the splat
+/// data when the drag ends.
+#[derive(Debug, Clone, Copy)]
+pub struct LiveTransform {
+    pub object: usize,
+    pub translation: Vec3,
+    pub rotation: glm::Quat,
+    pub scale: f32,
+}
+
+impl LiveTransform {
+    pub fn identity(object: usize) -> Self {
+        Self {
+            object,
+            translation: vec3(0.0, 0.0, 0.0),
+            rotation: glm::quat_identity(),
+            scale: 1.0,
+        }
+    }
+
+    pub fn is_identity(&self) -> bool {
+        glm::length(&self.translation) < 1e-6
+            && (self.scale - 1.0).abs() < 1e-6
+            && glm::quat_angle(&self.rotation).abs() < 1e-6
     }
 }
 
@@ -54,8 +79,14 @@ pub enum EditOp {
     Erase(Vec<(usize, f32)>),
     /// (splat index, previous rgb)
     Recolor(Vec<(usize, [f32; 3])>),
-    /// A baked gizmo move of a splat object.
-    Move { object: usize, delta: Vec3 },
+    /// A baked gizmo transform (move / rotate / scale) of a splat object.
+    Transform {
+        object: usize,
+        pivot: Vec3,
+        rotation: glm::Quat,
+        scale: f32,
+        translation: Vec3,
+    },
 }
 
 const MAX_UNDO: usize = 64;
@@ -75,6 +106,10 @@ pub struct Scene {
     pub undo_stack: Vec<EditOp>,
     /// View-projection matrix of the last frame captured for segmentation.
     pub capture_vpm: Option<glm::Mat4>,
+    /// Live (unbaked) transform of the splat object being gizmo-dragged.
+    pub live_transform: Option<LiveTransform>,
+    /// Mesh pose (rot, scale) at gizmo-drag start, for relative updates.
+    drag_start_mesh_pose: Option<(Vec3, Vec3)>,
 }
 
 impl Scene {
@@ -103,6 +138,8 @@ impl Scene {
             },
             undo_stack: Vec::new(),
             capture_vpm: None,
+            live_transform: None,
+            drag_start_mesh_pose: None,
         };
         scene.sync_object_meta();
         if let Some(meta) = scene.object_meta.get_mut(0) {
@@ -144,8 +181,13 @@ impl Scene {
             self.object_meta[idx].centroid = self.splat_data.centroid_of_object(idx);
             self.object_meta[idx].centroid_valid = true;
         }
-        let meta = &self.object_meta[idx];
-        meta.centroid + meta.translation
+        let mut pos = self.object_meta[idx].centroid;
+        if let Some(live) = &self.live_transform {
+            if live.object == idx {
+                pos += live.translation;
+            }
+        }
+        pos
     }
 
     /// March the ray through the scene and return the first visible splat.
@@ -371,7 +413,16 @@ impl Scene {
         self.clear_tint_previews();
     }
 
-    pub fn start_gizmo_drag(&mut self, axis: GizmoAxis, start_pos: Vec2) {
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_gizmo_drag(
+        &mut self,
+        axis: GizmoAxis,
+        start_pos: Vec2,
+        vpm: glm::Mat4,
+        vm: glm::Mat4,
+        width: i32,
+        height: i32,
+    ) {
         let target = if let Some(target) = self.gizmo.target_object {
             target
         } else {
@@ -381,23 +432,28 @@ impl Scene {
 
         let object_pos = match target {
             GizmoTarget::Mesh(idx) => match self.objects.get(idx) {
-                Some(object) => object.pos,
+                Some(object) => {
+                    self.drag_start_mesh_pose = Some((object.rot, object.scale));
+                    object.pos
+                }
                 None => return,
             },
             GizmoTarget::Splat(idx) => {
                 if idx >= self.splat_data.objects.len() {
                     return;
                 }
+                self.live_transform = Some(LiveTransform::identity(idx));
                 self.splat_object_position(idx)
             }
         };
 
-        self.gizmo.start_drag(axis, target, object_pos, start_pos);
+        self.gizmo
+            .start_drag(axis, target, object_pos, start_pos, vpm, vm, width, height);
     }
 
     pub fn update_gizmo_drag(&mut self, current_pos: Vec2, restrict_gizmo_movement: bool) {
-        let new_pos = match self.gizmo.update_drag(current_pos, restrict_gizmo_movement) {
-            Some(p) => p,
+        let update = match self.gizmo.update_drag(current_pos) {
+            Some(u) => u,
             None => return,
         };
         let target = match self.gizmo.target_object {
@@ -411,38 +467,89 @@ impl Scene {
                     return;
                 }
                 let centroid = self.object_meta[idx].centroid;
-                self.object_meta[idx].translation = new_pos - centroid;
-                self.gizmo.update_position(new_pos);
+                let live = self
+                    .live_transform
+                    .get_or_insert(LiveTransform::identity(idx));
+                live.object = idx;
+                match update {
+                    GizmoDragUpdate::Translate(new_pos) => {
+                        live.translation = new_pos - centroid;
+                        self.gizmo.update_position(new_pos);
+                    }
+                    GizmoDragUpdate::Rotate { axis, angle } => {
+                        live.rotation = glm::quat_angle_axis(angle, &axis);
+                    }
+                    GizmoDragUpdate::Scale { factor, .. } => {
+                        // Splat objects scale uniformly regardless of handle.
+                        live.scale = factor;
+                    }
+                }
             }
             GizmoTarget::Mesh(target_idx) => {
+                let start_pose = self.drag_start_mesh_pose;
                 if let Some(object) = self.objects.get_mut(target_idx) {
-                    if !restrict_gizmo_movement {
-                        object.pos = new_pos;
-                        self.gizmo.update_position(new_pos);
-                        return;
-                    }
+                    match update {
+                        GizmoDragUpdate::Translate(new_pos) => {
+                            if !restrict_gizmo_movement {
+                                object.pos = new_pos;
+                                self.gizmo.update_position(new_pos);
+                                return;
+                            }
 
-                    let old_pos = object.pos;
-                    object.pos = new_pos;
-                    self.gizmo.update_position(new_pos);
+                            let old_pos = object.pos;
+                            object.pos = new_pos;
+                            self.gizmo.update_position(new_pos);
 
-                    object.recalculate_min_max();
-                    let min = object.min;
-                    let max = object.max;
-                    let points_to_check = vec![min, max];
-                    for point in points_to_check {
-                        let splats = self
-                            .oct_tree
-                            .find_splats_in_radius(point, 0.1, &self.splat_data.splats);
-                        let visible_splats = splats.iter().filter(|splat| splat.opacity >= 0.5);
-                        let visible_splats_count = visible_splats.count();
-                        if visible_splats_count >= 1 {
-                            object.pos = old_pos;
-                            self.gizmo.update_position(old_pos);
-                            log!("collision !");
-                            #[cfg(target_arch = "wasm32")]
-                            setCollisionDetected();
-                            break;
+                            object.recalculate_min_max();
+                            let min = object.min;
+                            let max = object.max;
+                            let points_to_check = vec![min, max];
+                            for point in points_to_check {
+                                let splats = self.oct_tree.find_splats_in_radius(
+                                    point,
+                                    0.1,
+                                    &self.splat_data.splats,
+                                );
+                                let visible_splats =
+                                    splats.iter().filter(|splat| splat.opacity >= 0.5);
+                                let visible_splats_count = visible_splats.count();
+                                if visible_splats_count >= 1 {
+                                    object.pos = old_pos;
+                                    self.gizmo.update_position(old_pos);
+                                    log!("collision !");
+                                    #[cfg(target_arch = "wasm32")]
+                                    setCollisionDetected();
+                                    break;
+                                }
+                            }
+                        }
+                        GizmoDragUpdate::Rotate { angle, .. } => {
+                            if let (Some((start_rot, _)), Some(axis)) =
+                                (start_pose, self.gizmo.drag_axis())
+                            {
+                                let mut rot = start_rot;
+                                match axis {
+                                    GizmoAxis::X => rot.x = start_rot.x + angle,
+                                    GizmoAxis::Y => rot.y = start_rot.y + angle,
+                                    GizmoAxis::Z => rot.z = start_rot.z + angle,
+                                    GizmoAxis::Uniform => {}
+                                }
+                                object.rot = rot;
+                                object.recalculate_min_max();
+                            }
+                        }
+                        GizmoDragUpdate::Scale { axis, factor } => {
+                            if let Some((_, start_scale)) = start_pose {
+                                let mut s = start_scale;
+                                match axis {
+                                    GizmoAxis::X => s.x = start_scale.x * factor,
+                                    GizmoAxis::Y => s.y = start_scale.y * factor,
+                                    GizmoAxis::Z => s.z = start_scale.z * factor,
+                                    GizmoAxis::Uniform => s = start_scale * factor,
+                                }
+                                object.scale = s;
+                                object.recalculate_min_max();
+                            }
                         }
                     }
                 }
@@ -479,28 +586,44 @@ impl Scene {
     }
 
     /// Ends a gizmo drag. If a splat object was being dragged, its live
-    /// translation is baked into the splat positions; returns the object
-    /// index and delta so the caller can refresh GPU data and record undo.
-    pub fn end_gizmo_drag(&mut self) -> Option<(usize, Vec3)> {
+    /// transform is baked into the splat data; returns the object index so
+    /// the caller can refresh GPU data.
+    pub fn end_gizmo_drag(&mut self) -> Option<usize> {
         let was_dragging = self.gizmo.is_dragging;
         self.gizmo.end_drag();
+        self.drag_start_mesh_pose = None;
         if !was_dragging {
+            self.live_transform = None;
             return None;
         }
-        if let Some(GizmoTarget::Splat(idx)) = self.gizmo.target_object {
-            if idx < self.object_meta.len() {
-                let delta = self.object_meta[idx].translation;
-                if glm::length(&delta) > 1e-6 {
-                    self.splat_data.translate_object(idx, delta);
-                    self.object_meta[idx].centroid += delta;
-                    self.object_meta[idx].translation = vec3(0.0, 0.0, 0.0);
-                    self.octree_dirty = true;
-                    self.push_undo(EditOp::Move { object: idx, delta });
-                    return Some((idx, delta));
-                }
-            }
+        let live = match self.live_transform.take() {
+            Some(l) => l,
+            None => return None,
+        };
+        if live.is_identity() || live.object >= self.object_meta.len() {
+            return None;
         }
-        None
+
+        let pivot = self.object_meta[live.object].centroid;
+        self.splat_data.transform_object(
+            live.object,
+            pivot,
+            live.rotation,
+            live.scale,
+            live.translation,
+        );
+        // Rotation/scale happen around the centroid, so only translation
+        // moves it.
+        self.object_meta[live.object].centroid += live.translation;
+        self.octree_dirty = true;
+        self.push_undo(EditOp::Transform {
+            object: live.object,
+            pivot,
+            rotation: live.rotation,
+            scale: live.scale,
+            translation: live.translation,
+        });
+        Some(live.object)
     }
 
     pub fn move_down(&mut self) {

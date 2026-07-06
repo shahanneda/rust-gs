@@ -409,6 +409,56 @@ impl SplatData {
         }
     }
 
+    /// Bake a full similarity transform (rotate + uniform scale around
+    /// `pivot`, then translate) into an object's splats: positions,
+    /// covariances (cov' = sR · cov · (sR)ᵀ), quaternions and stored scales.
+    pub fn transform_object(
+        &mut self,
+        object_index: usize,
+        pivot: Vec3,
+        rotation: glm::Quat,
+        scale: f32,
+        translation: Vec3,
+    ) {
+        let obj = self.objects[object_index];
+        let end = (obj.end as usize).min(self.splats.len().saturating_sub(1));
+        let r = glm::quat_to_mat3(&glm::quat_normalize(&rotation));
+        let m = r * scale;
+        for splat in &mut self.splats[obj.start as usize..=end] {
+            // position
+            let p = vec3(splat.x, splat.y, splat.z);
+            let p2 = r * ((p - pivot) * scale) + pivot + translation;
+            splat.x = p2.x;
+            splat.y = p2.y;
+            splat.z = p2.z;
+
+            // covariance (symmetric; stored [xx, xy, xz, yy, yz, zz])
+            let c = &splat.cov3d;
+            let cov = glm::mat3(c[0], c[1], c[2], c[1], c[3], c[4], c[2], c[4], c[5]);
+            let cov2 = m * cov * m.transpose();
+            splat.cov3d = [
+                cov2[(0, 0)],
+                cov2[(0, 1)],
+                cov2[(0, 2)],
+                cov2[(1, 1)],
+                cov2[(1, 2)],
+                cov2[(2, 2)],
+            ];
+
+            // orientation quaternion (stored w, x, y, z) and linear scales,
+            // kept consistent so future cov recomputes / exports stay valid
+            let q = glm::Quat::new(splat.rot_0, splat.rot_1, splat.rot_2, splat.rot_3);
+            let q2 = glm::quat_normalize(&(rotation * q));
+            splat.rot_0 = q2.w;
+            splat.rot_1 = q2.i;
+            splat.rot_2 = q2.j;
+            splat.rot_3 = q2.k;
+            splat.scale_0 *= scale;
+            splat.scale_1 *= scale;
+            splat.scale_2 *= scale;
+        }
+    }
+
     /// Append a copy of an object's splats as a brand new object.
     /// Returns the new object's index.
     pub fn duplicate_object(&mut self, object_index: usize) -> usize {

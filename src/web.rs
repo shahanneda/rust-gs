@@ -104,8 +104,6 @@ pub struct Settings {
     pub eraser_preview: bool,
     /// How far apart the two halves move after a slice.
     pub slice_separation: f32,
-    /// Slice the selected splat object instead of the whole first object.
-    pub slice_target_selected: bool,
     /// 0 = split apart, 1 = cut & erase the positive side.
     pub slice_mode: u32,
 }
@@ -189,13 +187,11 @@ fn perform_slice(
     let settings_b = settings.borrow();
     let mut scene_mut = scene.borrow_mut();
 
-    let target = if settings_b.slice_target_selected {
-        match scene_mut.gizmo.target_object {
-            Some(GizmoTarget::Splat(i)) => i,
-            _ => 0,
-        }
-    } else {
-        0
+    // Slice the selected splat object when one is selected; otherwise fall
+    // back to the first object (the main scene).
+    let target = match scene_mut.gizmo.target_object {
+        Some(GizmoTarget::Splat(i)) => i,
+        _ => 0,
     };
     if target >= scene_mut.splat_data.objects.len() {
         return;
@@ -354,7 +350,6 @@ pub async fn start() -> Result<(), JsValue> {
         selected_object: None,
         eraser_preview: true,
         slice_separation: 0.5,
-        slice_target_selected: false,
         slice_mode: 0,
     };
     let blending_param = params.get("blending");
@@ -511,18 +506,24 @@ pub async fn start() -> Result<(), JsValue> {
         if hit_object {
             *mousedown_hit_clone.borrow_mut() = true;
             if !is_gizmo {
-                scene.update_gizmo_position(index);
+                // Clicking the already-selected mesh deselects it.
+                if scene.gizmo.target_object == Some(GizmoTarget::Mesh(index as usize)) {
+                    scene.hide_gizmo();
+                } else {
+                    scene.update_gizmo_position(index);
+                }
                 let _ = scene.end_gizmo_drag();
                 editor::refresh_editor_panels();
-            } else {
-                let axis = match index {
-                    0 => GizmoAxis::X,
-                    1 => GizmoAxis::Y,
-                    2 => GizmoAxis::Z,
-                    _ => return,
-                };
+            } else if let Some(axis) = scene.gizmo.axis_from_pick_index(index) {
                 log!("starting gizmo drag!");
-                scene.start_gizmo_drag(axis, Vec2::new(state.x as f32, state.y as f32));
+                scene.start_gizmo_drag(
+                    axis,
+                    Vec2::new(state.x as f32, state.y as f32),
+                    vpm,
+                    vm,
+                    width,
+                    height,
+                );
             }
         }
         // Deselection now happens on mouseup, and only for real clicks —
@@ -576,13 +577,14 @@ pub async fn start() -> Result<(), JsValue> {
 
         let was_dragging_gizmo = scene_clone.borrow().gizmo.is_dragging;
 
-        // End the gizmo drag; if a splat object was moved, its translation
-        // was just baked into the CPU positions — refresh the GPU copies.
+        // End the gizmo drag; if a splat object was transformed, the move/
+        // rotate/scale was just baked into the CPU splats — refresh the GPU
+        // copies (positions and covariances both change).
         let baked = scene_clone.borrow_mut().end_gizmo_drag();
         if baked.is_some() {
             let renderer = renderer_clone_up.borrow();
             renderer
-                .update_position_texture(&scene_clone.borrow(), 0)
+                .update_webgl_textures(&scene_clone.borrow(), 0)
                 .ok();
             let (_vm, vpm) = camera_clone_up.borrow().get_vm_and_vpm(width, height);
             let indices = scene_clone
@@ -629,7 +631,14 @@ pub async fn start() -> Result<(), JsValue> {
                         if let Some(obj_idx) =
                             scene_mut.splat_data.object_containing(splat_idx)
                         {
-                            scene_mut.select_target(GizmoTarget::Splat(obj_idx));
+                            // Clicking the already-selected object deselects.
+                            if scene_mut.gizmo.target_object
+                                == Some(GizmoTarget::Splat(obj_idx))
+                            {
+                                scene_mut.hide_gizmo();
+                            } else {
+                                scene_mut.select_target(GizmoTarget::Splat(obj_idx));
+                            }
                         }
                     }
                     None => scene_mut.hide_gizmo(),
@@ -832,6 +841,17 @@ pub async fn start() -> Result<(), JsValue> {
 
         cam_mut.update_translation_from_keys(&keys_pressed.borrow());
         let (vm, vpm) = cam_mut.get_vm_and_vpm(width, height);
+
+        // Keep the gizmo a constant size on screen.
+        {
+            let mut scene_mut = scene.borrow_mut();
+            if scene_mut.gizmo.target_object.is_some() {
+                // world-space camera position (see get_ray_origin_and_direction)
+                let cam_world = -cam_mut.pos;
+                let dist = glm::distance(&scene_mut.gizmo.position(), &cam_world).max(0.05);
+                scene_mut.gizmo.update_screen_scale(dist);
+            }
+        }
 
         // Handle slice mode UI updates
         static mut SLICE_MODE_ACTIVE: bool = false;

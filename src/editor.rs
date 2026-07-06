@@ -358,13 +358,38 @@ pub fn editor_set_eraser_config(radius: f32, preview: bool) {
 }
 
 #[wasm_bindgen]
-pub fn editor_set_slice_config(separation: f32, target_selected: bool, mode: u32) {
+pub fn editor_set_slice_config(separation: f32, mode: u32) {
     with_app(|app| {
         let mut settings = app.settings.borrow_mut();
         settings.slice_separation = separation.clamp(0.0, 3.0);
-        settings.slice_target_selected = target_selected;
         settings.slice_mode = mode;
     });
+}
+
+/// Switch the gizmo between "translate", "rotate" and "scale".
+#[wasm_bindgen]
+pub fn editor_set_gizmo_mode(mode: String) {
+    with_app(|app| {
+        let mut scene = app.scene.borrow_mut();
+        scene.gizmo.mode = match mode.as_str() {
+            "rotate" => crate::gizmo::GizmoMode::Rotate,
+            "scale" => crate::gizmo::GizmoMode::Scale,
+            _ => crate::gizmo::GizmoMode::Translate,
+        };
+    });
+}
+
+#[wasm_bindgen]
+pub fn editor_get_gizmo_mode() -> String {
+    with_app(|app| {
+        match app.scene.borrow().gizmo.mode {
+            crate::gizmo::GizmoMode::Rotate => "rotate",
+            crate::gizmo::GizmoMode::Scale => "scale",
+            crate::gizmo::GizmoMode::Translate => "translate",
+        }
+        .to_string()
+    })
+    .unwrap_or_else(|| String::from("translate"))
 }
 
 #[wasm_bindgen]
@@ -395,10 +420,24 @@ pub fn editor_undo() -> bool {
                 }
                 renderer.update_color_texture(&scene, 0).ok();
             }
-            EditOp::Move { object, delta } => {
-                scene.splat_data.translate_object(object, -delta);
+            EditOp::Transform {
+                object,
+                pivot,
+                rotation,
+                scale,
+                translation,
+            } => {
+                // Inverse of p' = R·s·(p − c) + c + t in the same form:
+                // pivot' = c + t, R' = R⁻¹, s' = 1/s, t' = −t.
+                scene.splat_data.transform_object(
+                    object,
+                    pivot + translation,
+                    glm::quat_inverse(&rotation),
+                    1.0 / scale.max(1e-6),
+                    -translation,
+                );
                 if let Some(meta) = scene.object_meta.get_mut(object) {
-                    meta.centroid -= delta;
+                    meta.centroid -= translation;
                 }
                 scene.octree_dirty = true;
                 if let Some(GizmoTarget::Splat(s)) = scene.gizmo.target_object {
@@ -407,7 +446,7 @@ pub fn editor_undo() -> bool {
                         scene.gizmo.update_position(pos);
                     }
                 }
-                renderer.update_position_texture(&scene, 0).ok();
+                renderer.update_webgl_textures(&scene, 0).ok();
             }
         }
         true

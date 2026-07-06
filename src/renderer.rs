@@ -394,7 +394,7 @@ impl Renderer {
         if scene.gizmo.target_object.is_some() {
             gl.disable(WebGl2RenderingContext::DEPTH_TEST);
             // gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
-            for axis_object in scene.gizmo.get_axis_objects() {
+            for axis_object in scene.gizmo.get_handles() {
                 self.draw_geo(
                     width,
                     height,
@@ -506,7 +506,7 @@ impl Renderer {
         if scene.gizmo.target_object.is_some() {
             gl.disable(WebGl2RenderingContext::DEPTH_TEST);
             // gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
-            for (index, axis_object) in scene.gizmo.get_axis_objects().iter().enumerate() {
+            for (index, axis_object) in scene.gizmo.get_handles().iter().enumerate() {
                 self.draw_geo(
                     width,
                     height,
@@ -794,7 +794,6 @@ impl Renderer {
         };
 
         let mut ranges = vec![0i32; n.max(1) * 2];
-        let mut translations = vec![0f32; n.max(1) * 3];
         let mut tints = vec![0f32; n.max(1) * 4];
         let mut alphas = vec![1f32; n.max(1)];
 
@@ -803,9 +802,6 @@ impl Renderer {
             let meta = &scene.object_meta[i];
             ranges[i * 2] = o.start as i32;
             ranges[i * 2 + 1] = o.end as i32;
-            translations[i * 3] = meta.translation.x;
-            translations[i * 3 + 1] = meta.translation.y;
-            translations[i * 3 + 2] = meta.translation.z;
             alphas[i] = if meta.hidden { 0.0 } else { 1.0 };
 
             // Custom tint preview wins; otherwise the selected object gets a
@@ -827,10 +823,47 @@ impl Renderer {
         gl.uniform1i(loc("u_num_objects").as_ref(), n as i32);
         if n > 0 {
             gl.uniform2iv_with_i32_array(loc("u_object_ranges").as_ref(), &ranges);
-            gl.uniform3fv_with_f32_array(loc("u_object_translations").as_ref(), &translations);
             gl.uniform4fv_with_f32_array(loc("u_object_tints").as_ref(), &tints);
             gl.uniform1fv_with_f32_array(loc("u_object_alphas").as_ref(), &alphas);
         }
+
+        // Live gizmo transform (identity / disabled unless a drag is active).
+        let identity: glm::Mat3 = glm::identity();
+        let (range, rot, scale, pivot, translation) = match &scene.live_transform {
+            Some(live) if live.object < scene.splat_data.objects.len() => {
+                let o = &scene.splat_data.objects[live.object];
+                let pivot = scene
+                    .object_meta
+                    .get(live.object)
+                    .map(|m| m.centroid)
+                    .unwrap_or_else(|| glm::vec3(0.0, 0.0, 0.0));
+                (
+                    [o.start as i32, o.end as i32],
+                    glm::quat_to_mat3(&live.rotation),
+                    live.scale,
+                    pivot,
+                    live.translation,
+                )
+            }
+            _ => (
+                [0, -1],
+                identity,
+                1.0,
+                glm::vec3(0.0, 0.0, 0.0),
+                glm::vec3(0.0, 0.0, 0.0),
+            ),
+        };
+        gl.uniform2iv_with_i32_array(loc("u_active_range").as_ref(), &range);
+        gl.uniform_matrix3fv_with_f32_array(loc("u_active_rot").as_ref(), false, rot.as_slice());
+        gl.uniform1f(loc("u_active_scale").as_ref(), scale);
+        gl.uniform3fv_with_f32_array(
+            loc("u_active_pivot").as_ref(),
+            &[pivot.x, pivot.y, pivot.z],
+        );
+        gl.uniform3fv_with_f32_array(
+            loc("u_active_translation").as_ref(),
+            &[translation.x, translation.y, translation.z],
+        );
 
         gl.uniform1i(
             loc("u_eraser_active").as_ref(),

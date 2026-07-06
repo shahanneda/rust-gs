@@ -30,14 +30,21 @@ uniform sampler2D u_cov3db_texture;
 uniform sampler2D u_opacity_texture;
 
 // Per-object editing state. Each splat object is a contiguous range of
-// original splat indices; objects can carry a live (unbaked) translation,
-// a preview tint, and an alpha multiplier (0 = hidden).
+// original splat indices; objects can carry a preview tint and an alpha
+// multiplier (0 = hidden).
 const int MAX_OBJECTS = 32;
 uniform int u_num_objects;
 uniform ivec2 u_object_ranges[MAX_OBJECTS]; // inclusive [start, end]
-uniform vec3 u_object_translations[MAX_OBJECTS];
 uniform vec4 u_object_tints[MAX_OBJECTS]; // rgb = tint color, a = mix amount
 uniform float u_object_alphas[MAX_OBJECTS];
+
+// Live gizmo transform of the object currently being dragged (at most one):
+// p' = R * s * (p - pivot) + pivot + t, covariance -> (sR) cov (sR)^T.
+uniform ivec2 u_active_range; // inclusive [start, end]; start > end = none
+uniform mat3 u_active_rot;
+uniform float u_active_scale;
+uniform vec3 u_active_pivot;
+uniform vec3 u_active_translation;
 
 // Eraser brush preview: splats inside the sphere get tinted red.
 uniform bool u_eraser_active;
@@ -121,12 +128,18 @@ void main() {
         gl_Position = vec4(0, 0, 0, 1);
         return;
       }
-      p_orig += u_object_translations[i];
       s_opacity *= u_object_alphas[i];
       obj_tint = u_object_tints[i].rgb;
       obj_tint_mix = u_object_tints[i].a;
       break;
     }
+  }
+
+  // Live gizmo transform (only while a drag is in progress).
+  bool is_active = si >= u_active_range.x && si <= u_active_range.y;
+  if (is_active) {
+    p_orig = u_active_rot * ((p_orig - u_active_pivot) * u_active_scale) +
+             u_active_pivot + u_active_translation;
   }
 
   mat4 projmatrix = projection;
@@ -149,6 +162,17 @@ void main() {
   // the matrix is symmetric
   float cov3D[6] = float[6](s_cov3da.x, s_cov3da.y, s_cov3da.z, s_cov3db.x,
                             s_cov3db.y, s_cov3db.z);
+
+  // Rotate/scale the covariance for the live gizmo transform.
+  if (is_active) {
+    mat3 covM = mat3(cov3D[0], cov3D[1], cov3D[2],
+                     cov3D[1], cov3D[3], cov3D[4],
+                     cov3D[2], cov3D[4], cov3D[5]);
+    mat3 M = u_active_rot * u_active_scale;
+    covM = M * covM * transpose(M);
+    cov3D = float[6](covM[0][0], covM[0][1], covM[0][2],
+                     covM[1][1], covM[1][2], covM[2][2]);
+  }
 
   // convert the 3d covaraince to a 2d covariance
   vec3 cov = computeCov2D(p_orig, x_focal_length, y_focal_length, x_fov, y_fov,

@@ -20,7 +20,12 @@ export function editor_apply_tint(idx: number): void;
  */
 export function editor_set_mesh_color(idx: number, r: number, g: number, b: number): void;
 export function editor_set_eraser_config(radius: number, preview: boolean): void;
-export function editor_set_slice_config(separation: number, target_selected: boolean, mode: number): void;
+export function editor_set_slice_config(separation: number, mode: number): void;
+/**
+ * Switch the gizmo between "translate", "rotate" and "scale".
+ */
+export function editor_set_gizmo_mode(mode: string): void;
+export function editor_get_gizmo_mode(): string;
 export function editor_undo(): boolean;
 export function editor_add_splat_from_url(url: string, name: string): Promise<void>;
 export function editor_add_mesh_from_url(url: string, name: string, scale: number): Promise<void>;
@@ -92,7 +97,8 @@ export interface InitOutput {
   readonly editor_apply_tint: (a: number) => void;
   readonly editor_set_mesh_color: (a: number, b: number, c: number, d: number) => void;
   readonly editor_set_eraser_config: (a: number, b: number) => void;
-  readonly editor_set_slice_config: (a: number, b: number, c: number) => void;
+  readonly editor_set_gizmo_mode: (a: number, b: number) => void;
+  readonly editor_get_gizmo_mode: () => [number, number];
   readonly editor_undo: () => number;
   readonly editor_add_splat_from_url: (a: number, b: number, c: number, d: number) => any;
   readonly editor_add_mesh_from_url: (a: number, b: number, c: number, d: number, e: number) => any;
@@ -101,6 +107,7 @@ export interface InitOutput {
   readonly editor_apply_mask: (a: number, b: number, c: number, d: number, e: number) => number;
   readonly editor_pending_erase_count: () => number;
   readonly start: () => void;
+  readonly editor_set_slice_config: (a: number, b: number) => void;
   readonly __wbg_intounderlyingbytesource_free: (a: number, b: number) => void;
   readonly intounderlyingbytesource_type: (a: number) => [number, number];
   readonly intounderlyingbytesource_autoAllocateChunkSize: (a: number) => number;
@@ -130,10 +137,10 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_7: WebAssembly.Table;
   readonly closure2_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure319_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure316_externref_shim: (a: number, b: number, c: any) => void;
   readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h186c289636e08325: (a: number, b: number) => void;
-  readonly closure326_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure360_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure323_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure357_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly __wbindgen_thread_destroy: (a?: number, b?: number, c?: number) => void;
   readonly __wbindgen_start: (a: number) => void;
 }

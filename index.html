@@ -1300,6 +1300,39 @@
 			gap: 6px;
 		}
 
+		.gizmo-modes {
+			display: flex;
+			gap: 4px;
+			padding: 3px;
+			border-radius: 10px;
+			background: rgba(0, 0, 0, 0.3);
+			border: 1px solid var(--border);
+		}
+
+		.gizmo-modes button {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 5px;
+			height: 30px;
+			border-radius: 8px;
+			font-size: 12px;
+			font-weight: 700;
+			color: var(--text-dim);
+			transition: background .12s, color .12s;
+		}
+
+		.gizmo-modes button:hover {
+			color: var(--text);
+			background: rgba(255, 255, 255, 0.06);
+		}
+
+		.gizmo-modes button.active {
+			background: var(--accent-grad);
+			color: #fff;
+		}
+
 		.sel-actions .icon-btn {
 			flex: 1;
 			height: 34px;
@@ -1770,6 +1803,11 @@
 				<input id="sel-name" spellcheck="false" title="Rename object" />
 				<span id="sel-meta"></span>
 			</div>
+			<div class="gizmo-modes" id="gizmo-modes">
+				<button data-mode="translate" class="active" title="Move (drag the arrows)">✥ Move</button>
+				<button data-mode="rotate" title="Rotate (drag the rings)">⟳ Rotate</button>
+				<button data-mode="scale" title="Scale (drag the handles, center cube = uniform)">⤢ Scale</button>
+			</div>
 			<div class="sel-actions">
 				<button class="icon-btn" id="sel-duplicate" title="Duplicate object">⧉ Copy</button>
 				<button class="icon-btn" id="sel-hide" title="Hide / show object">👁 Hide</button>
@@ -1791,7 +1829,7 @@
 			</div>
 			<button class="icon-btn" id="sel-apply-color" title="Bake the tint into the splat colors">🎨 Apply color</button>
 			<div class="sel-slider-row" style="justify-content:space-between;">
-				<span style="opacity:.75">Drag the arrows in the scene to move</span>
+				<span id="sel-gizmo-hint" style="opacity:.75">Drag the arrows in the scene to move</span>
 			</div>
 		</div>
 
@@ -1818,8 +1856,7 @@
 				<input type="range" id="slice-separation" min="0" max="150" value="50" />
 				<span id="slice-separation-val">0.50</span>
 			</label>
-			<label><input type="checkbox" id="slice-target-selected" style="accent-color:var(--accent)" /> Selected object
-				only</label>
+			<span style="opacity:.75">Cuts the selected object — or the whole scene if nothing is selected</span>
 			<button class="mini-btn" id="slice-undo">↩ Undo</button>
 		</div>
 
@@ -1901,6 +1938,14 @@
 
 			<div class="settings-section">
 				<h3>Editing</h3>
+				<div class="setting-row">
+					<div>
+						<span class="setting-label">Eraser brush size</span>
+						<span class="setting-sub">Also: scroll wheel while in Erase mode</span>
+					</div>
+					<input type="range" id="settings-erase-radius" min="5" max="150" value="35"
+						style="width:104px;accent-color:var(--accent);flex:none;">
+				</div>
 				<div class="setting-row">
 					<div>
 						<span class="setting-label">Gizmo collisions<span class="kbd">R</span></span>
@@ -2431,6 +2476,17 @@
 		// When the Erase tool was picked from the toolbar, real mouse drags on the
 		// canvas must carry altKey=true (the engine keys erase vs. camera-look off
 		// it). Intercept trusted mouse events and re-dispatch patched clones.
+		// Magic (segment) mode: the analyzed frame must stay fixed, so block
+		// camera-movement keys before the engine sees them — in particular
+		// Shift (fly down), which doubles as the negative-point modifier for
+		// segmentation clicks. Keyups pass through so no key gets stuck.
+		const CAMERA_KEYS = new Set(["w", "a", "s", "d", "shift", " ",
+			"arrowup", "arrowdown", "arrowleft", "arrowright"]);
+		window.addEventListener("keydown", (e) => {
+			if (currentTool !== "magic") return;
+			if (CAMERA_KEYS.has(e.key.toLowerCase())) e.stopImmediatePropagation();
+		}, true);
+
 		// Magic (segment) mode: the camera must stay frozen on the analyzed
 		// frame, so swallow all trusted mouse input on the canvas and treat
 		// mousedown as a segmentation click instead.
@@ -2675,7 +2731,16 @@
 		let editorState = { items: [], undoDepth: 0 };
 		let selColor = { r: 1.0, g: 0.36, b: 0.36, hex: "#ff5d5d" };
 
+		// The engine calls this from inside its own event handlers, while it
+		// still holds mutable borrows on the scene — so the actual re-entrant
+		// call back into the engine must be deferred to the next tick.
+		let refreshScheduled = false;
 		function refreshEditorPanels() {
+			if (refreshScheduled) return;
+			refreshScheduled = true;
+			setTimeout(() => { refreshScheduled = false; refreshEditorPanelsNow(); }, 0);
+		}
+		function refreshEditorPanelsNow() {
 			const eng = E(); if (!eng) return;
 			try { editorState = JSON.parse(eng.editor_get_objects()); }
 			catch (err) { console.warn("editor_get_objects failed", err); return; }
@@ -2742,6 +2807,7 @@
 			// Tint slider only applies to splats.
 			document.getElementById("sel-tint-row").style.display = item.kind === "splat" ? "" : "none";
 			document.getElementById("sel-apply-color").style.display = item.kind === "splat" ? "" : "none";
+			syncGizmoModeUI();
 		}
 
 		function hexToRgb01(hex) {
@@ -2841,12 +2907,30 @@
 		// ---- Erase / slice popover wiring ----
 		function pushEraserConfig() {
 			const eng = E(); if (!eng) return;
-			const r = parseInt(document.getElementById("erase-radius").value, 10) / 100;
+			const slider = document.getElementById("erase-radius");
+			const r = parseInt(slider.value, 10) / 100;
 			document.getElementById("erase-radius-val").textContent = r.toFixed(2);
+			const mirror = document.getElementById("settings-erase-radius");
+			if (mirror && mirror.value !== slider.value) mirror.value = slider.value;
 			eng.editor_set_eraser_config(r, document.getElementById("erase-preview").checked);
 		}
 		document.getElementById("erase-radius").addEventListener("input", pushEraserConfig);
 		document.getElementById("erase-preview").addEventListener("change", pushEraserConfig);
+		document.getElementById("settings-erase-radius").addEventListener("input", (e) => {
+			document.getElementById("erase-radius").value = e.target.value;
+			pushEraserConfig();
+		});
+
+		// Scroll wheel resizes the erase brush while erasing.
+		canvas.addEventListener("wheel", (e) => {
+			if (currentTool !== "erase" && !e.altKey) return;
+			e.preventDefault();
+			const slider = document.getElementById("erase-radius");
+			const step = Math.max(3, Math.round(parseInt(slider.value, 10) * 0.12));
+			const next = Math.min(150, Math.max(5, parseInt(slider.value, 10) - Math.sign(e.deltaY) * step));
+			slider.value = next;
+			pushEraserConfig();
+		}, { passive: false });
 		document.getElementById("erase-undo").addEventListener("click", doUndo);
 		document.getElementById("slice-undo").addEventListener("click", doUndo);
 
@@ -2855,11 +2939,31 @@
 			const sep = parseInt(document.getElementById("slice-separation").value, 10) / 100;
 			document.getElementById("slice-separation-val").textContent = sep.toFixed(2);
 			eng.editor_set_slice_config(sep,
-				document.getElementById("slice-target-selected").checked,
 				parseInt(document.getElementById("slice-mode").value, 10));
 		}
-		["slice-separation", "slice-target-selected", "slice-mode"].forEach(id =>
+		["slice-separation", "slice-mode"].forEach(id =>
 			document.getElementById(id).addEventListener("input", pushSliceConfig));
+
+		// ---- Gizmo mode switcher (move / rotate / scale) ----
+		const GIZMO_HINTS = {
+			translate: "Drag the arrows in the scene to move",
+			rotate: "Drag a ring to rotate around that axis",
+			scale: "Drag a handle to scale — center cube = uniform",
+		};
+		function syncGizmoModeUI() {
+			const eng = E(); if (!eng) return;
+			const mode = eng.editor_get_gizmo_mode();
+			document.querySelectorAll("#gizmo-modes button").forEach(b =>
+				b.classList.toggle("active", b.dataset.mode === mode));
+			document.getElementById("sel-gizmo-hint").textContent = GIZMO_HINTS[mode] || "";
+		}
+		document.querySelectorAll("#gizmo-modes button").forEach(btn => {
+			btn.addEventListener("click", () => {
+				const eng = E(); if (!eng) return;
+				eng.editor_set_gizmo_mode(btn.dataset.mode);
+				syncGizmoModeUI();
+			});
+		});
 
 		/* ============================================================
 		   Editor: add-object library
@@ -3216,8 +3320,10 @@
 		const hasScene = new URLSearchParams(window.location.search).has("url");
 		if (hasScene) {
 			const canvas = document.getElementById("canvas");
-			canvas.width = canvas.clientWidth;
-			canvas.height = canvas.clientHeight;
+			// clientWidth can transiently be 0 (hidden/background tab at boot);
+			// the engine locks its render size at startup, so fall back hard.
+			canvas.width = canvas.clientWidth || window.innerWidth || 1280;
+			canvas.height = canvas.clientHeight || window.innerHeight || 720;
 
 			const engineModule = await import("./pkg/gs_rust.js");
 			const { default: init, initThreadPool } = engineModule;
