@@ -31,7 +31,7 @@ futures-io = { version = "0.2.0-beta" }
 wasm-bindgen-futures = "0.4.42"
 bytes = "1.5.0"
 nalgebra-glm = "0.18.0"
-egui = "0.26.2"
+egui = "0.27.2"
 getrandom = { version = "0.2", features = ["js"] }
 eframe = { version = "0.26.0", default-features = false, features = [
     #"accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
